@@ -24,4 +24,12 @@ export const config = {
   // otherwise the built-in local analyst generates insights (no key needed).
   aiApiKey: process.env.AI_API_KEY || null,
   aiModel: process.env.AI_MODEL || null,
+  // Transactional email (password resets). When RESEND_API_KEY is set,
+  // mail goes through Resend; otherwise reset links are logged server-side
+  // (dev fallback — never used as the production path).
+  resendApiKey: process.env.RESEND_API_KEY || null,
+  mailFrom: process.env.MAIL_FROM ?? "Curvelo <noreply@curvelo.app>",
+  // Public web URL used to build links in emails.
+  webUrl: process.env.WEB_URL ?? "http://localhost:5173",
+  passwordResetTtlMinutes: parseInt(process.env.PASSWORD_RESET_TTL_MINUTES ?? "60", 10),
 } as const;

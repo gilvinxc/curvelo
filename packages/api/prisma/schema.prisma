@@ -80,6 +80,7 @@ model User {
   guardianLinksAsAthlete  GuardianLink[]  @relation("Athlete")
   auditLogs           AuditLog[]
   refreshTokens       RefreshToken[]
+  passwordResetTokens PasswordResetToken[]
   authoredWorkouts    Workout[]           @relation("WorkoutAuthor")
   authoredGroups      TeamGroup[]         @relation("GroupAuthor")
   authoredAssignments WorkoutAssignment[] @relation("AssignmentAuthor")
@@ -319,6 +320,20 @@ model AuditLog {
   @@index([actorId])
   @@index([entityType, entityId])
   @@index([createdAt])
+}
+
+// ─── Auth: password reset ────────────────────────────────────────────────
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
 }
 
 // ─── Slice 2: workouts, groups, assignments ──────────────────────────────

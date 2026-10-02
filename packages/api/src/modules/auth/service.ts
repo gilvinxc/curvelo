@@ -1,9 +1,11 @@
 import bcrypt from "bcryptjs";
+import { createHash, randomBytes } from "node:crypto";
 import type { LoginInput, RegisterInput, SessionUser } from "@curvelo/shared";
 import { db } from "../../db.js";
 import { config } from "../../config.js";
 import { audit } from "../../lib/audit.js";
-import { AppError, conflict, unauthorized } from "../../lib/errors.js";
+import { AppError, badRequest, conflict, unauthorized } from "../../lib/errors.js";
+import { passwordResetMail, sendMail } from "../../lib/mail.js";
 import {
   hashToken,
   newTokenFamily,
@@ -226,4 +228,106 @@ export async function logout(refreshToken: string | undefined): Promise<void> {
 
 export async function getSession(userId: string): Promise<SessionUser> {
   return loadSessionUser(userId);
+}
+
+/**
+ * Forgot password: issue a single-use reset token and email the link.
+ * Always succeeds silently so the endpoint can't be used to enumerate
+ * which email addresses have accounts.
+ */
+export async function requestPasswordReset(
+  email: string,
+  ipAddress?: string,
+): Promise<void> {
+  const normalized = email.trim().toLowerCase();
+  const user = await db.user.findUnique({
+    where: { email: normalized },
+    select: { id: true, email: true },
+  });
+  if (!user) {
+    await audit({
+      actorId: null,
+      action: "PASSWORD_RESET_REQUESTED_UNKNOWN",
+      entityType: "User",
+      metadata: { email: normalized },
+      ipAddress,
+    });
+    return;
+  }
+
+  const rawToken = randomBytes(32).toString("hex");
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  await db.passwordResetToken.create({
+    data: {
+      userId: user.id,
+      tokenHash,
+      expiresAt: new Date(Date.now() + config.passwordResetTtlMinutes * 60_000),
+    },
+  });
+
+  const resetUrl = `${config.webUrl}/reset-password?token=${rawToken}`;
+  try {
+    await sendMail(
+      passwordResetMail(user.email, resetUrl, config.passwordResetTtlMinutes),
+    );
+  } catch (err) {
+    // Email delivery failure shouldn't leak account existence; the audit
+    // trail keeps it visible to site admins.
+    await audit({
+      actorId: user.id,
+      action: "PASSWORD_RESET_EMAIL_FAILED",
+      entityType: "User",
+      entityId: user.id,
+      ipAddress,
+    });
+    throw err;
+  }
+
+  await audit({
+    actorId: user.id,
+    action: "PASSWORD_RESET_REQUESTED",
+    entityType: "User",
+    entityId: user.id,
+    ipAddress,
+  });
+}
+
+/** Consume a reset token and set a new password. Logs out all sessions. */
+export async function resetPassword(
+  rawToken: string,
+  newPassword: string,
+  ipAddress?: string,
+): Promise<void> {
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  const stored = await db.passwordResetToken.findUnique({
+    where: { tokenHash },
+  });
+  if (!stored || stored.usedAt || stored.expiresAt < new Date()) {
+    throw badRequest("This reset link is invalid or has expired.");
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, 12);
+  await db.$transaction([
+    db.user.update({
+      where: { id: stored.userId },
+      data: { passwordHash },
+    }),
+    db.passwordResetToken.update({
+      where: { id: stored.id },
+      data: { usedAt: new Date() },
+    }),
+    // Log out everywhere: a reset implies the old credentials may be compromised.
+    db.refreshToken.updateMany({
+      where: { userId: stored.userId, revokedAt: null },
+      data: { revokedAt: new Date() },
+    }),
+  ]);
+
+  await audit({
+    actorId: stored.userId,
+    action: "PASSWORD_RESET_COMPLETED",
+    entityType: "User",
+    entityId: stored.userId,
+    ipAddress,
+  });
 }

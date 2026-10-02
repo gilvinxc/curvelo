@@ -121,4 +121,57 @@ describe("auth", () => {
       .set("Cookie", rc);
     expect(again.status).toBe(401);
   });
+
+  it("forgot password: full reset flow, single-use token, sessions revoked", async () => {
+    const { takeOutbox } = await import("../src/lib/mail.js");
+    const app = await getApp();
+    const user = await registerUser("RUNNER", "resetme");
+    const rc = refreshCookie(user.cookies)!;
+
+    const req = await request(app.server)
+      .post("/api/v1/auth/forgot-password")
+      .send({ email: user.email });
+    expect(req.status).toBe(200);
+    expect(req.body.ok).toBe(true);
+
+    const sent = takeOutbox();
+    expect(sent).toHaveLength(1);
+    const token = sent[0].text.match(/token=([a-f0-9]{64})/)?.[1];
+    expect(token).toBeTruthy();
+
+    // Unknown email: same 200, no mail sent (no account enumeration).
+    const unknown = await request(app.server)
+      .post("/api/v1/auth/forgot-password")
+      .send({ email: "nobody@example.com" });
+    expect(unknown.status).toBe(200);
+    expect(takeOutbox()).toHaveLength(0);
+
+    const reset = await request(app.server)
+      .post("/api/v1/auth/reset-password")
+      .send({ token, password: "brand-new-password-123" });
+    expect(reset.status).toBe(200);
+
+    // Token is single-use.
+    const reuse = await request(app.server)
+      .post("/api/v1/auth/reset-password")
+      .send({ token, password: "another-new-password-123" });
+    expect(reuse.status).toBe(400);
+
+    // Old password no longer works; new one does.
+    const oldLogin = await request(app.server)
+      .post("/api/v1/auth/login")
+      .send({ email: user.email, password: "supersecretpassword" });
+    expect(oldLogin.status).toBe(401);
+
+    const newLogin = await request(app.server)
+      .post("/api/v1/auth/login")
+      .send({ email: user.email, password: "brand-new-password-123" });
+    expect(newLogin.status).toBe(200);
+
+    // Pre-reset session was revoked.
+    const stale = await request(app.server)
+      .post("/api/v1/auth/refresh")
+      .set("Cookie", rc);
+    expect(stale.status).toBe(401);
+  });
 });

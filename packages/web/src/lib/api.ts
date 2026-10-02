@@ -223,6 +223,10 @@ export interface GuardianInvitePreviewDTO {
 
 export const api = {
   // auth
+  forgotPassword: (email: string) =>
+    post<{ ok: boolean }>("/auth/forgot-password", { email }),
+  resetPassword: (token: string, password: string) =>
+    post<{ ok: boolean }>("/auth/reset-password", { token, password }),
   register: (input: RegisterInput) =>
     post<{ user: SessionUser }>("/auth/register", input),
   login: (input: { email: string; password: string }) =>

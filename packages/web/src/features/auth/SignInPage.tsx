@@ -74,6 +74,14 @@ export function SignInPage() {
               placeholder="Your password"
             />
           </Field>
+          <div className="-mt-2 text-right">
+            <Link
+              to="/forgot-password"
+              className="text-[13px] font-semibold text-volt-300 hover:text-volt-400"
+            >
+              Forgot password?
+            </Link>
+          </div>
           <Button type="submit" loading={busy} className="mt-1 w-full">
             Sign in
           </Button>

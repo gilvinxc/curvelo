@@ -1,11 +1,21 @@
 import type { FastifyInstance } from "fastify";
 import {
+  forgotPasswordSchema,
   loginSchema,
   refreshSchema,
   registerSchema,
+  resetPasswordSchema,
 } from "@curvelo/shared";
 import { config } from "../../config.js";
-import { getSession, login, logout, refresh, register } from "./service.js";
+import {
+  getSession,
+  login,
+  logout,
+  refresh,
+  register,
+  requestPasswordReset,
+  resetPassword,
+} from "./service.js";
 
 const ACCESS_COOKIE = "cv_access";
 const REFRESH_COOKIE = "cv_refresh";
@@ -52,6 +62,19 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const { user, tokens } = await login(body, request.ip);
     setSessionCookies(reply, tokens);
     return reply.send({ user });
+  });
+
+  // Forgot password: always 200 so the endpoint can't enumerate accounts.
+  app.post("/forgot-password", authRateLimit, async (request, reply) => {
+    const body = forgotPasswordSchema.parse(request.body);
+    await requestPasswordReset(body.email, request.ip);
+    return reply.send({ ok: true });
+  });
+
+  app.post("/reset-password", authRateLimit, async (request, reply) => {
+    const body = resetPasswordSchema.parse(request.body);
+    await resetPassword(body.token, body.password, request.ip);
+    return reply.send({ ok: true });
   });
 
   app.post("/refresh", async (request, reply) => {

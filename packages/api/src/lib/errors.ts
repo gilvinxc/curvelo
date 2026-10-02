@@ -23,3 +23,6 @@ export const notFound = (message = "Not found") =>
 
 export const conflict = (code: string, message: string) =>
   new AppError(409, code, message);
+
+export const badRequest = (message = "Bad request") =>
+  new AppError(400, "BAD_REQUEST", message);

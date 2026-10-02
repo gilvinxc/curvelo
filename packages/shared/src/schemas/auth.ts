@@ -26,3 +26,14 @@ export const refreshSchema = z.object({
   refreshToken: z.string().min(1),
 });
 export type RefreshInput = z.infer<typeof refreshSchema>;
+
+export const forgotPasswordSchema = z.object({
+  email,
+});
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
+export const resetPasswordSchema = z.object({
+  token: z.string().min(32).max(128),
+  password,
+});
+export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
