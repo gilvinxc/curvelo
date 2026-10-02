@@ -17,6 +17,8 @@ import {
   formatActivityDateShort,
 } from "../../lib/activityFormat";
 import { formatRelativeTime } from "./feedFormat";
+import { RichText } from "../../components/RichText";
+import { MentionTextarea } from "../../components/MentionTextarea";
 
 const REPORT_REASONS = [
   "Inappropriate content",
@@ -160,7 +162,7 @@ function CommentThread({
                     </span>
                   </p>
                   <p className="mt-0.5 whitespace-pre-wrap text-[14px] leading-relaxed">
-                    {c.body}
+                    <RichText text={c.body} mentions={c.mentions} teamId={post.teamId} />
                   </p>
                 </div>
                 {canDelete && (
@@ -188,18 +190,17 @@ function CommentThread({
       )}
 
       <div className="mt-3 flex gap-2">
-        <input
+        <MentionTextarea
+          teamId={post.teamId}
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={setDraft}
           placeholder="Add a comment…"
-          aria-label="Add a comment"
+          rows={1}
           maxLength={1000}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && draft.trim() && !addMutation.isPending) {
-              addMutation.mutate();
-            }
+          className="flex-1"
+          onEnter={() => {
+            if (draft.trim() && !addMutation.isPending) addMutation.mutate();
           }}
-          className="min-h-[44px] flex-1 rounded-xl border border-white/10 bg-ink-800 px-4 text-[15px] text-ink-50 placeholder:text-mist/50 outline-none focus:border-volt-400"
         />
         <Button
           disabled={!draft.trim()}
@@ -329,7 +330,7 @@ export function PostCard({
       {/* body */}
       {post.body && (
         <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed">
-          {post.body}
+          <RichText text={post.body} mentions={post.mentions} teamId={post.teamId} />
         </p>
       )}
 

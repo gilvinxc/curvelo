@@ -13,7 +13,6 @@ import {
   PageHeader,
   SegmentedControl,
   Select,
-  TextArea,
   TextInput,
 } from "../../components/ui";
 import { cn } from "../../components/cx";
@@ -39,6 +38,7 @@ import {
   weightUnitLabel,
 } from "../../lib/units";
 import { estimateCalories, estimateSteps } from "@curvelo/shared";
+import { MentionTextarea } from "../../components/MentionTextarea";
 
 const ACTIVITY_KINDS = [
   "RUN",
@@ -656,10 +656,11 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
         </Field>
 
         <Field label="Notes" hint="Optional — how it felt, conditions, etc.">
-          <TextArea
+          <MentionTextarea
+            teamId={form.teamId}
             value={form.notes}
             maxLength={2000}
-            onChange={(e) => set("notes", e.target.value)}
+            onChange={(v) => set("notes", v)}
             placeholder="Felt strong on the hills…"
           />
         </Field>

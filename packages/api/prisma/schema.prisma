@@ -61,88 +61,91 @@ enum ComplianceAction {
 }
 
 model User {
-  id              String    @id @default(uuid())
-  email           String    @unique
+  id              String      @id @default(uuid())
+  email           String      @unique
   passwordHash    String
   displayName     String
   dateOfBirth     DateTime?
   systemRole      SystemRole?
-  status          String    @default("ACTIVE")
+  status          String      @default("ACTIVE")
   emailVerifiedAt DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
 
-  profile             Profile?
-  memberships         TeamMembership[]
-  ownedTeams          Team[]              @relation("TeamOwner")
-  sentInvitations     Invitation[]        @relation("InvitedBy")
-  guardianLinksAsGuardian GuardianLink[]  @relation("Guardian")
-  guardianLinksAsAthlete  GuardianLink[]  @relation("Athlete")
-  auditLogs           AuditLog[]
-  refreshTokens       RefreshToken[]
-  passwordResetTokens PasswordResetToken[]
-  ownedDocuments      Document[]          @relation("DocumentOwner")
-  verifiedDocuments   Document[]          @relation("DocumentVerifier")
-  uploadedDocuments   Document[]          @relation("DocumentUploader")
-  authoredWorkouts    Workout[]           @relation("WorkoutAuthor")
-  createdTrainingPlans TrainingPlan[]  @relation("TrainingPlanAuthor")
-  createdTeamEvents    TeamEvent[]     @relation("TeamEventAuthor")
-  assignedPlanDays     TrainingPlanDay[] @relation("TrainingPlanDayAssignee")
-  authoredGroups      TeamGroup[]         @relation("GroupAuthor")
-  authoredAssignments WorkoutAssignment[] @relation("AssignmentAuthor")
-  receivedAssignments WorkoutAssignment[] @relation("AssignmentRecipient")
-  groupMemberships    TeamGroupMember[]
-  activities          Activity[]
-  loggedActivities    Activity[]              @relation("ActivityLogger")
-  authoredPosts       FeedPost[]    @relation("PostAuthor")
-  authoredComments    PostComment[] @relation("CommentAuthor")
-  authoredReactions   PostReaction[] @relation("ReactionAuthor")
-  authoredReports     PostReport[]  @relation("ReportAuthor")
-  guardianInvitesForAthlete GuardianInvite[] @relation("GuardianInviteAthlete")
-  guardianInvitesAuthored   GuardianInvite[] @relation("GuardianInviteAuthor")
-  consentsForAthlete  Consent[]     @relation("ConsentAthlete")
-  consentsAsGuardian  Consent[]     @relation("ConsentGuardian")
-  conversationsAuthored Conversation[] @relation("ConversationAuthor")
-  messagesAuthored    Message[]     @relation("MessageAuthor")
-  createdJoinLinks    TeamJoinLink[]    @relation("JoinLinkCreator")
-  personalGoals       Goal[]            @relation("PersonalGoals")
-  createdGoals        Goal[]            @relation("GoalCreator")
-  raceResults         RaceResult[]      @relation("UserRaceResults")
-  shoes               Shoe[]            @relation("UserShoes")
-  joinRequests        TeamJoinRequest[]
-  decidedJoinRequests TeamJoinRequest[] @relation("JoinRequestDecider")
+  profile                   Profile?
+  memberships               TeamMembership[]
+  ownedTeams                Team[]               @relation("TeamOwner")
+  sentInvitations           Invitation[]         @relation("InvitedBy")
+  guardianLinksAsGuardian   GuardianLink[]       @relation("Guardian")
+  guardianLinksAsAthlete    GuardianLink[]       @relation("Athlete")
+  auditLogs                 AuditLog[]
+  refreshTokens             RefreshToken[]
+  passwordResetTokens       PasswordResetToken[]
+  ownedDocuments            Document[]           @relation("DocumentOwner")
+  verifiedDocuments         Document[]           @relation("DocumentVerifier")
+  uploadedDocuments         Document[]           @relation("DocumentUploader")
+  authoredWorkouts          Workout[]            @relation("WorkoutAuthor")
+  createdTrainingPlans      TrainingPlan[]       @relation("TrainingPlanAuthor")
+  createdTeamEvents         TeamEvent[]          @relation("TeamEventAuthor")
+  assignedPlanDays          TrainingPlanDay[]    @relation("TrainingPlanDayAssignee")
+  authoredGroups            TeamGroup[]          @relation("GroupAuthor")
+  authoredAssignments       WorkoutAssignment[]  @relation("AssignmentAuthor")
+  receivedAssignments       WorkoutAssignment[]  @relation("AssignmentRecipient")
+  groupMemberships          TeamGroupMember[]
+  activities                Activity[]
+  loggedActivities          Activity[]           @relation("ActivityLogger")
+  authoredPosts             FeedPost[]           @relation("PostAuthor")
+  authoredComments          PostComment[]        @relation("CommentAuthor")
+  authoredReactions         PostReaction[]       @relation("ReactionAuthor")
+  authoredReports           PostReport[]         @relation("ReportAuthor")
+  guardianInvitesForAthlete GuardianInvite[]     @relation("GuardianInviteAthlete")
+  guardianInvitesAuthored   GuardianInvite[]     @relation("GuardianInviteAuthor")
+  consentsForAthlete        Consent[]            @relation("ConsentAthlete")
+  consentsAsGuardian        Consent[]            @relation("ConsentGuardian")
+  conversationsAuthored     Conversation[]       @relation("ConversationAuthor")
+  messagesAuthored          Message[]            @relation("MessageAuthor")
+  createdJoinLinks          TeamJoinLink[]       @relation("JoinLinkCreator")
+  personalGoals             Goal[]               @relation("PersonalGoals")
+  createdGoals              Goal[]               @relation("GoalCreator")
+  raceResults               RaceResult[]         @relation("UserRaceResults")
+  shoes                     Shoe[]               @relation("UserShoes")
+  joinRequests              TeamJoinRequest[]
+  decidedJoinRequests       TeamJoinRequest[]    @relation("JoinRequestDecider")
+  mentionsReceived          Mention[]            @relation("MentionedUser")
+  mentionsGiven             Mention[]            @relation("Mentioner")
+  notifications             Notification[]
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String   @unique
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
   expiresAt DateTime
   revokedAt DateTime?
   // Rotation chain: each refresh issues a new token and revokes the old one.
   // Reuse of a revoked token signals theft → revoke the whole family.
   familyId  String
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId])
   @@index([familyId])
 }
 
 model Profile {
-  id                String  @id @default(uuid())
-  userId            String  @unique
-  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   avatarUrl         String?
   bio               String?
   city              String?
-  units             String  @default("imperial")
-  defaultShareLevel String  @default("SUMMARY")
-  phone           String?
-  emergencyName   String?
-  emergencyPhone  String?
-  heightCm        Float?
-  weightKg        Float?
+  units             String   @default("imperial")
+  defaultShareLevel String   @default("SUMMARY")
+  phone             String?
+  emergencyName     String?
+  emergencyPhone    String?
+  heightCm          Float?
+  weightKg          Float?
   // Persona chosen at signup (COACH | RUNNER). Team permissions always
   // come from TeamMembership.role — persona is just the onboarding lens.
   persona           String?
@@ -151,11 +154,11 @@ model Profile {
 }
 
 model Organization {
-  id              String   @id @default(uuid())
-  name            String
-  type            String   @default("OTHER")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id        String   @id @default(uuid())
+  name      String
+  type      String   @default("OTHER")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   teams           Team[]
   complianceRules ComplianceRule[]
@@ -174,43 +177,44 @@ model Team {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  memberships     TeamMembership[]
-  invitations     Invitation[]
-  joinLinks       TeamJoinLink[]
-  joinRequests    TeamJoinRequest[]
-  goals           Goal[]          @relation("TeamGoals")
-  logoImage       Bytes?
-  logoMime        String?
-  seasons         Season[]
-  complianceRules ComplianceRule[]
-  workouts        Workout[]
-  groups          TeamGroup[]
-  assignments     WorkoutAssignment[]
-  activities      Activity[]
-  feedPosts       FeedPost[]
-  guardianInvites GuardianInvite[]
-  consents        Consent[]
-  conversations   Conversation[]
+  memberships          TeamMembership[]
+  invitations          Invitation[]
+  joinLinks            TeamJoinLink[]
+  joinRequests         TeamJoinRequest[]
+  goals                Goal[]                @relation("TeamGoals")
+  logoImage            Bytes?
+  logoMime             String?
+  seasons              Season[]
+  complianceRules      ComplianceRule[]
+  workouts             Workout[]
+  groups               TeamGroup[]
+  assignments          WorkoutAssignment[]
+  activities           Activity[]
+  feedPosts            FeedPost[]
+  guardianInvites      GuardianInvite[]
+  consents             Consent[]
+  conversations        Conversation[]
   documentRequirements DocumentRequirement[]
-  documents       Document[]
-  trainingPlans   TrainingPlan[]
-  events          TeamEvent[]
+  documents            Document[]
+  trainingPlans        TrainingPlan[]
+  events               TeamEvent[]
+  Mention              Mention[]
 }
 
 // ─── Slice 6: team messaging (youth-safe, no private DMs) ───────────────
 
 model Conversation {
-  id          String    @id @default(uuid())
+  id          String     @id @default(uuid())
   teamId      String
-  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  kind        String    // ANNOUNCEMENT | TEAM_CHAT | GROUP_CHAT
+  team        Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  kind        String // ANNOUNCEMENT | TEAM_CHAT | GROUP_CHAT
   groupId     String?
   group       TeamGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  scopeKey    String    // "ANNOUNCEMENT:-" | "TEAM_CHAT:-" | "GROUP_CHAT:<groupId>"
+  scopeKey    String // "ANNOUNCEMENT:-" | "TEAM_CHAT:-" | "GROUP_CHAT:<groupId>"
   title       String
   createdById String
-  createdBy   User      @relation("ConversationAuthor", fields: [createdById], references: [id])
-  createdAt   DateTime  @default(now())
+  createdBy   User       @relation("ConversationAuthor", fields: [createdById], references: [id])
+  createdAt   DateTime   @default(now())
   messages    Message[]
 
   @@unique([teamId, scopeKey])
@@ -418,10 +422,10 @@ model TeamGroup {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  members     TeamGroupMember[]
-  assignments WorkoutAssignment[]
+  members       TeamGroupMember[]
+  assignments   WorkoutAssignment[]
   conversations Conversation[]
-  planDays TrainingPlanDay[]
+  planDays      TrainingPlanDay[]
 
   @@unique([teamId, name])
 }
@@ -485,48 +489,48 @@ enum ActivitySource {
 }
 
 model Activity {
-  id           String         @id @default(uuid())
-  userId       String
-  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  teamId       String?
-  team         Team?          @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  assignmentId String?
-  assignment   WorkoutAssignment? @relation("AssignmentCompletions", fields: [assignmentId], references: [id], onDelete: SetNull)
-  kind         ActivityKind   @default(RUN)
-  title        String?
-  startedAt    DateTime
-  distanceM    Float?
-  durationS    Int?
-  avgPaceS     Float?
-  avgHrBpm     Int?
-  maxHrBpm     Int?
-  effortRpe    Int?
-  calories     Int?
-  steps        Int?
-  city         String?
-  weatherTempC Float?
+  id               String             @id @default(uuid())
+  userId           String
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId           String?
+  team             Team?              @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  assignmentId     String?
+  assignment       WorkoutAssignment? @relation("AssignmentCompletions", fields: [assignmentId], references: [id], onDelete: SetNull)
+  kind             ActivityKind       @default(RUN)
+  title            String?
+  startedAt        DateTime
+  distanceM        Float?
+  durationS        Int?
+  avgPaceS         Float?
+  avgHrBpm         Int?
+  maxHrBpm         Int?
+  effortRpe        Int?
+  calories         Int?
+  steps            Int?
+  city             String?
+  weatherTempC     Float?
   weatherCondition String?
-  notes        String?
-  source       ActivitySource @default(MANUAL)
-  externalId   String?
-  visibility   String         @default("TEAM") // PRIVATE | TEAM
-  shoeId       String?
-  shoe         Shoe?          @relation(fields: [shoeId], references: [id], onDelete: SetNull)
-  raceResult   RaceResult?    @relation("ActivityRaceResult")
+  notes            String?
+  source           ActivitySource     @default(MANUAL)
+  externalId       String?
+  visibility       String             @default("TEAM") // PRIVATE | TEAM
+  shoeId           String?
+  shoe             Shoe?              @relation(fields: [shoeId], references: [id], onDelete: SetNull)
+  raceResult       RaceResult?        @relation("ActivityRaceResult")
   // Who entered this activity; null = the athlete themself. Coaches (and
   // later guardians) can log on someone's behalf; the run still belongs to
   // the athlete.
-  loggedByUserId String?
-  loggedBy       User?          @relation("ActivityLogger", fields: [loggedByUserId], references: [id], onDelete: SetNull)
+  loggedByUserId   String?
+  loggedBy         User?              @relation("ActivityLogger", fields: [loggedByUserId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   sharedInPosts FeedPost[] @relation("SharedInPosts")
 
+  @@unique([source, externalId])
   @@index([userId, startedAt])
   @@index([teamId, startedAt])
-  @@unique([source, externalId])
 }
 
 // ─── Slice 4: private team social feed ───────────────────────────────────
@@ -537,17 +541,17 @@ enum PostKind {
 }
 
 model FeedPost {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   teamId     String
-  team       Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  team       Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
   authorId   String
-  author     User     @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
-  kind       PostKind @default(TEXT)
+  author     User      @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  kind       PostKind  @default(TEXT)
   body       String?
   activityId String?
   activity   Activity? @relation("SharedInPosts", fields: [activityId], references: [id], onDelete: SetNull)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   comments  PostComment[]
   reactions PostReaction[]
@@ -583,14 +587,14 @@ model PostReaction {
 }
 
 model PostReport {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   postId     String
-  post       FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  post       FeedPost  @relation(fields: [postId], references: [id], onDelete: Cascade)
   reporterId String
-  reporter   User     @relation("ReportAuthor", fields: [reporterId], references: [id], onDelete: Cascade)
+  reporter   User      @relation("ReportAuthor", fields: [reporterId], references: [id], onDelete: Cascade)
   reason     String
-  status     String   @default("OPEN") // OPEN | RESOLVED | DISMISSED
-  createdAt  DateTime @default(now())
+  status     String    @default("OPEN") // OPEN | RESOLVED | DISMISSED
+  createdAt  DateTime  @default(now())
   resolvedAt DateTime?
 
   @@index([postId])
@@ -619,16 +623,16 @@ model GuardianInvite {
 }
 
 model Consent {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   athleteId  String
-  athlete    User     @relation("ConsentAthlete", fields: [athleteId], references: [id], onDelete: Cascade)
+  athlete    User      @relation("ConsentAthlete", fields: [athleteId], references: [id], onDelete: Cascade)
   guardianId String
-  guardian   User     @relation("ConsentGuardian", fields: [guardianId], references: [id], onDelete: Cascade)
+  guardian   User      @relation("ConsentGuardian", fields: [guardianId], references: [id], onDelete: Cascade)
   teamId     String?
-  team       Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
-  type       String   // PARTICIPATION | DATA_SHARING
-  status     String   @default("GRANTED") // GRANTED | REVOKED
-  grantedAt  DateTime @default(now())
+  team       Team?     @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  type       String // PARTICIPATION | DATA_SHARING
+  status     String    @default("GRANTED") // GRANTED | REVOKED
+  grantedAt  DateTime  @default(now())
   revokedAt  DateTime?
 
   @@unique([athleteId, guardianId, type])
@@ -699,26 +703,26 @@ enum GoalStatus {
 
 // Personal goal: userId set. Team goal: teamId set (collective).
 model Goal {
-  id            String     @id @default(uuid())
-  userId        String?
-  user          User?      @relation("PersonalGoals", fields: [userId], references: [id], onDelete: Cascade)
-  teamId        String?
-  team          Team?      @relation("TeamGoals", fields: [teamId], references: [id], onDelete: Cascade)
-  kind          GoalKind
-  period        GoalPeriod
-  title         String?
-  targetMeters  Int?       // DISTANCE goals, canonical meters
-  targetCount   Int?       // SESSIONS / STREAK goals
-  startAt       DateTime
-  endAt         DateTime
-  recurring     Boolean    @default(false) // personal WEEK/MONTH goals roll over
-  status        GoalStatus @default(ACTIVE)
-  shareOnComplete Boolean  @default(false) // personal: celebrate in team feed
-  feedTeamId    String?
-  createdById   String
-  createdBy     User       @relation("GoalCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  createdAt     DateTime   @default(now())
-  completedAt   DateTime?
+  id              String     @id @default(uuid())
+  userId          String?
+  user            User?      @relation("PersonalGoals", fields: [userId], references: [id], onDelete: Cascade)
+  teamId          String?
+  team            Team?      @relation("TeamGoals", fields: [teamId], references: [id], onDelete: Cascade)
+  kind            GoalKind
+  period          GoalPeriod
+  title           String?
+  targetMeters    Int? // DISTANCE goals, canonical meters
+  targetCount     Int? // SESSIONS / STREAK goals
+  startAt         DateTime
+  endAt           DateTime
+  recurring       Boolean    @default(false) // personal WEEK/MONTH goals roll over
+  status          GoalStatus @default(ACTIVE)
+  shareOnComplete Boolean    @default(false) // personal: celebrate in team feed
+  feedTeamId      String?
+  createdById     String
+  createdBy       User       @relation("GoalCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt       DateTime   @default(now())
+  completedAt     DateTime?
 
   @@index([userId, status])
   @@index([teamId, status])
@@ -727,22 +731,22 @@ model Goal {
 // Official race result — exact distance, exact time. PRs come from these,
 // never estimated from training runs.
 model RaceResult {
-  id         String    @id @default(uuid())
-  userId     String
-  user       User      @relation("UserRaceResults", fields: [userId], references: [id], onDelete: Cascade)
-  activityId String?   @unique
-  activity   Activity? @relation("ActivityRaceResult", fields: [activityId], references: [id], onDelete: SetNull)
-  raceName   String
-  distanceM  Int
-  durationS  Int
-  racedAt    DateTime
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation("UserRaceResults", fields: [userId], references: [id], onDelete: Cascade)
+  activityId    String?   @unique
+  activity      Activity? @relation("ActivityRaceResult", fields: [activityId], references: [id], onDelete: SetNull)
+  raceName      String
+  distanceM     Int
+  durationS     Int
+  racedAt       DateTime
   // Per-segment splits: [{ distanceM: number, durationS: number }].
   splits        Json?
   finishPlace   Int?
   ageGroupPlace Int?
   // How many athletes were in the race (for place context).
   fieldSize     Int?
-  createdAt  DateTime  @default(now())
+  createdAt     DateTime  @default(now())
 
   @@index([userId])
 }
@@ -801,42 +805,42 @@ model DocumentRequirement {
 // A stored file's metadata. Bytes live in object storage (or local disk in
 // dev); Postgres only keeps metadata. Never store full background reports.
 model Document {
-  id              String              @id @default(uuid())
-  teamId          String?
-  team            Team?               @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  ownerId         String?
-  owner           User?               @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  kind            DocumentKind
-  label           String
-  requirementId   String?
-  requirement     DocumentRequirement? @relation(fields: [requirementId], references: [id], onDelete: SetNull)
-  storageKey      String
-  fileName        String
-  mimeType        String
-  sizeBytes       Int
-  checksum        String?
-  issuedAt        DateTime?
-  expiresAt       DateTime?
+  id               String               @id @default(uuid())
+  teamId           String?
+  team             Team?                @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  ownerId          String?
+  owner            User?                @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  kind             DocumentKind
+  label            String
+  requirementId    String?
+  requirement      DocumentRequirement? @relation(fields: [requirementId], references: [id], onDelete: SetNull)
+  storageKey       String
+  fileName         String
+  mimeType         String
+  sizeBytes        Int
+  checksum         String?
+  issuedAt         DateTime?
+  expiresAt        DateTime?
   // Coach verification (birth certificates, physicals).
-  verifiedAt      DateTime?
-  verifiedById    String?
-  verifiedBy      User?               @relation("DocumentVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  verifiedAt       DateTime?
+  verifiedById     String?
+  verifiedBy       User?                @relation("DocumentVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
   // E-signature (waivers, concussion acks): explicit intent, ESIGN/UETA.
-  signedByName    String?
-  signedAt        DateTime?
-  signIntent      Boolean             @default(false)
+  signedByName     String?
+  signedAt         DateTime?
+  signIntent       Boolean              @default(false)
   // Background checks: pass/fail only, never the full report.
-  checkResult     String?
-  checkProvider   String?
-  visibility      DocumentVisibility  @default(TEAM)
-  version         Int                 @default(1)
-  supersededById  String?
-  supersededBy    Document?           @relation("DocumentVersions", fields: [supersededById], references: [id], onDelete: SetNull)
-  previousVersions Document[]         @relation("DocumentVersions")
-  uploadedById    String
-  uploadedBy      User                @relation("DocumentUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  checkResult      String?
+  checkProvider    String?
+  visibility       DocumentVisibility   @default(TEAM)
+  version          Int                  @default(1)
+  supersededById   String?
+  supersededBy     Document?            @relation("DocumentVersions", fields: [supersededById], references: [id], onDelete: SetNull)
+  previousVersions Document[]           @relation("DocumentVersions")
+  uploadedById     String
+  uploadedBy       User                 @relation("DocumentUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
 
   @@index([teamId])
   @@index([ownerId])
@@ -846,16 +850,16 @@ model Document {
 // Coach practice-planning: reusable week templates ("Base week", "Race week").
 // dayOfWeek: 0 = Monday .. 6 = Sunday.
 model TrainingPlan {
-  id          String           @id @default(uuid())
+  id          String            @id @default(uuid())
   teamId      String
-  team        Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  team        Team              @relation(fields: [teamId], references: [id], onDelete: Cascade)
   name        String
   description String?
   createdById String
-  createdBy   User             @relation("TrainingPlanAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+  createdBy   User              @relation("TrainingPlanAuthor", fields: [createdById], references: [id], onDelete: Restrict)
   days        TrainingPlanDay[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
 
   @@index([teamId])
 }
@@ -879,21 +883,53 @@ model TrainingPlanDay {
 // Team calendar events: practices, meetings, race days (with itineraries),
 // socials. Optional weekly recurrence expands into occurrences on read.
 model TeamEvent {
-  id          String   @id @default(uuid())
+  id          String    @id @default(uuid())
   teamId      String
-  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
   title       String
   description String?
-  eventType   String   // PRACTICE | MEETING | RACE | SOCIAL | OTHER
+  eventType   String // PRACTICE | MEETING | RACE | SOCIAL | OTHER
   startAt     DateTime
   endAt       DateTime?
   location    String?
   itinerary   String?
   recurrence  Json?
   createdById String
-  createdBy   User     @relation("TeamEventAuthor", fields: [createdById], references: [id], onDelete: Restrict)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdBy   User      @relation("TeamEventAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([teamId])
+}
+
+model Mention {
+  id              String   @id @default(uuid())
+  mentionedUserId String
+  mentionedUser   User     @relation("MentionedUser", fields: [mentionedUserId], references: [id], onDelete: Cascade)
+  mentionerId     String
+  mentioner       User     @relation("Mentioner", fields: [mentionerId], references: [id], onDelete: Cascade)
+  teamId          String
+  team            Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  targetType      String // POST | COMMENT | MESSAGE | ACTIVITY
+  targetId        String
+  // The display name as typed after the @, for rendering links.
+  displayName     String
+  createdAt       DateTime @default(now())
+
+  @@unique([targetType, targetId, mentionedUserId])
+  @@index([mentionedUserId, createdAt])
+}
+
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // MENTION (more types later)
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
 }

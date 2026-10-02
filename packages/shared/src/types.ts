@@ -312,6 +312,21 @@ export interface TeamEventDTO {
   createdByName: string;
 }
 
+export interface MentionRef {
+  userId: string;
+  displayName: string;
+}
+
+export interface NotificationDTO {
+  id: string;
+  type: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
 export interface ActivityDTO {  id: string;
   userId: string;
   userName: string;
@@ -333,6 +348,7 @@ export interface ActivityDTO {  id: string;
   weatherTempC: number | null;
   weatherCondition: string | null;
   notes: string | null;
+  mentions: MentionRef[];
   source: string;
   visibility: string;
   shoeId: string | null;
@@ -373,6 +389,7 @@ export interface PostDTO {
   commentCount: number;
   reactions: ReactionSummaryDTO[];
   myReactions: string[];
+  mentions: MentionRef[];
   createdAt: string;
 }
 
@@ -382,6 +399,7 @@ export interface CommentDTO {
   authorId: string;
   authorName: string;
   body: string;
+  mentions: MentionRef[];
   createdAt: string;
 }
 
@@ -507,6 +525,7 @@ export interface ChatMessageDTO {
   authorName: string;
   authorRole: string;
   body: string | null; // null when moderated away
+  mentions: MentionRef[];
   deleted: boolean;
   createdAt: string;
   editedAt: string | null;

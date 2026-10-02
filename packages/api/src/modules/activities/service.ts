@@ -10,6 +10,7 @@ import type {
 import { estimateCalories, estimateSteps } from "@curvelo/shared";
 import { lookupWeather } from "../../lib/weather.js";
 import { db } from "../../db.js";
+import { mentionRefsFor, syncMentions } from "../../lib/mentions.js";
 import { checkGoalCompletions } from "../goals/service.js";
 import { assertOwnShoe, getDefaultShoeId } from "../records/service.js";
 import { audit } from "../../lib/audit.js";
@@ -58,7 +59,8 @@ const WITH_JOINS = {
 
 export const ACTIVITY_WITH_JOINS = WITH_JOINS;
 
-export function toActivityDTO(a: ActivityWithJoins): ActivityDTO {
+export async function toActivityDTO(a: ActivityWithJoins): Promise<ActivityDTO> {
+  const mentions = await mentionRefsFor("ACTIVITY", [a.id]);
   return {
     id: a.id,
     userId: a.userId,
@@ -81,6 +83,7 @@ export function toActivityDTO(a: ActivityWithJoins): ActivityDTO {
     weatherTempC: a.weatherTempC,
     weatherCondition: a.weatherCondition,
     notes: a.notes,
+    mentions: mentions.get(a.id) ?? [],
     shoeId: a.shoeId,
     shoeName: a.shoe?.name ?? null,
     loggedByUserId: a.loggedByUserId,
@@ -269,6 +272,23 @@ export async function createActivity(
     }
   }
 
+  // @-mentions in notes (team activities only).
+  if (activity.teamId && activity.notes) {
+    const mentioner = await db.user.findUnique({
+      where: { id: actorId },
+      select: { displayName: true },
+    });
+    await syncMentions({
+      targetType: "ACTIVITY",
+      targetId: activity.id,
+      teamId: activity.teamId,
+      mentionerId: actorId,
+      mentionerName: mentioner?.displayName ?? "Someone",
+      text: activity.notes,
+      link: `/activities/${activity.id}`,
+    });
+  }
+
   // Goal completions (personal + team) are checked on every logged run.
   // Fire-and-forget: celebrations must never break activity logging.
   checkGoalCompletions(ownerId).catch(() => {});
@@ -296,7 +316,7 @@ export async function createActivity(
     ipAddress,
   });
 
-  return toActivityDTO(activity);
+  return await toActivityDTO(activity);
 }
 
 export async function listMyActivities(
@@ -317,7 +337,7 @@ export async function listMyActivities(
     include: WITH_JOINS,
     orderBy: { startedAt: "desc" },
   });
-  return activities.map(toActivityDTO);
+  return Promise.all(activities.map(toActivityDTO));
 }
 
 export async function getActivity(
@@ -331,7 +351,7 @@ export async function getActivity(
   if (!activity || !(await canView(actorId, activity))) {
     throw notFound("Activity not found");
   }
-  return toActivityDTO(activity);
+  return await toActivityDTO(activity);
 }
 
 export async function updateActivity(
@@ -460,6 +480,27 @@ export async function updateActivity(
     }
   }
 
+  // Re-sync @-mentions when notes or the team changed (team activities only).
+  if (
+    activity.teamId &&
+    activity.notes &&
+    (input.notes !== undefined || input.teamId !== undefined)
+  ) {
+    const mentioner = await db.user.findUnique({
+      where: { id: actorId },
+      select: { displayName: true },
+    });
+    await syncMentions({
+      targetType: "ACTIVITY",
+      targetId: activity.id,
+      teamId: activity.teamId,
+      mentionerId: actorId,
+      mentionerName: mentioner?.displayName ?? "Someone",
+      text: activity.notes,
+      link: `/activities/${activity.id}`,
+    });
+  }
+
   await audit({
     actorId,
     action: "ACTIVITY_UPDATED",
@@ -469,7 +510,7 @@ export async function updateActivity(
     ipAddress,
   });
 
-  return toActivityDTO(activity);
+  return await toActivityDTO(activity);
 }
 
 export async function deleteActivity(
@@ -720,7 +761,7 @@ export async function athleteView(
           ? Math.round((totalDurationS / totalDistanceM) * 1000 * 10) / 10
           : null,
     },
-    recentActivities: recent.map(toActivityDTO),
+    recentActivities: await Promise.all(recent.map(toActivityDTO)),
     upcomingAssignments: upcoming.map((a) => ({
       id: a.id,
       workoutId: a.workoutId,
@@ -770,5 +811,5 @@ export async function calendarActivities(
     include: WITH_JOINS,
     orderBy: { startedAt: "asc" },
   });
-  return activities.map(toActivityDTO);
+  return Promise.all(activities.map(toActivityDTO));
 }

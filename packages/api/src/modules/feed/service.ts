@@ -8,6 +8,7 @@ import type {
   ReportDTO,
 } from "@curvelo/shared";
 import { db } from "../../db.js";
+import { mentionRefsFor, syncMentions } from "../../lib/mentions.js";
 import { audit } from "../../lib/audit.js";
 import { AppError, forbidden, notFound } from "../../lib/errors.js";
 import {
@@ -59,7 +60,11 @@ function summarizeReactions(
   };
 }
 
-function toPostDTO(p: PostWithJoins, actorId: string): PostDTO {
+async function toPostDTO(
+  p: PostWithJoins,
+  actorId: string,
+  mentions: Map<string, { userId: string; displayName: string }[]>,
+): Promise<PostDTO> {
   const { reactions, myReactions } = summarizeReactions(p.reactions, actorId);
   return {
     id: p.id,
@@ -68,10 +73,11 @@ function toPostDTO(p: PostWithJoins, actorId: string): PostDTO {
     body: p.body,
     authorId: p.authorId,
     authorName: p.author.displayName,
-    activity: p.activity ? toActivityDTO(p.activity) : null,
+    activity: p.activity ? await toActivityDTO(p.activity) : null,
     commentCount: p._count.comments,
     reactions,
     myReactions,
+    mentions: mentions.get(p.id) ?? [],
     createdAt: p.createdAt.toISOString(),
   };
 }
@@ -126,6 +132,20 @@ export async function createPost(
     include: POST_INCLUDE,
   });
 
+  const author = await db.user.findUnique({
+    where: { id: actorId },
+    select: { displayName: true },
+  });
+  await syncMentions({
+    targetType: "POST",
+    targetId: post.id,
+    teamId,
+    mentionerId: actorId,
+    mentionerName: author?.displayName ?? "Someone",
+    text: post.body,
+    link: `/teams/${teamId}/feed#post-${post.id}`,
+  });
+
   await audit({
     actorId,
     action: "POST_CREATED",
@@ -135,7 +155,8 @@ export async function createPost(
     ipAddress,
   });
 
-  return toPostDTO(post, actorId);
+  const mentions = await mentionRefsFor("POST", [post.id]);
+  return toPostDTO(post, actorId, mentions);
 }
 
 export async function listFeed(
@@ -153,7 +174,11 @@ export async function listFeed(
     orderBy: { createdAt: "desc" },
     take: opts.limit,
   });
-  return posts.map((p) => toPostDTO(p, actorId));
+  const mentions = await mentionRefsFor(
+    "POST",
+    posts.map((p) => p.id),
+  );
+  return Promise.all(posts.map((p) => toPostDTO(p, actorId, mentions)));
 }
 
 export async function deletePost(
@@ -194,6 +219,16 @@ export async function createComment(
     include: { author: { select: { displayName: true } } },
   });
 
+  await syncMentions({
+    targetType: "COMMENT",
+    targetId: comment.id,
+    teamId: post.teamId,
+    mentionerId: actorId,
+    mentionerName: comment.author.displayName,
+    text: comment.body,
+    link: `/teams/${post.teamId}/feed#post-${postId}`,
+  });
+
   await audit({
     actorId,
     action: "COMMENT_CREATED",
@@ -203,12 +238,14 @@ export async function createComment(
     ipAddress,
   });
 
+  const mentions = await mentionRefsFor("COMMENT", [comment.id]);
   return {
     id: comment.id,
     postId,
     authorId: comment.authorId,
     authorName: comment.author.displayName,
     body: comment.body,
+    mentions: mentions.get(comment.id) ?? [],
     createdAt: comment.createdAt.toISOString(),
   };
 }
@@ -225,12 +262,17 @@ export async function listComments(
     include: { author: { select: { displayName: true } } },
     orderBy: { createdAt: "asc" },
   });
+  const mentions = await mentionRefsFor(
+    "COMMENT",
+    comments.map((c) => c.id),
+  );
   return comments.map((c) => ({
     id: c.id,
     postId,
     authorId: c.authorId,
     authorName: c.author.displayName,
     body: c.body,
+    mentions: mentions.get(c.id) ?? [],
     createdAt: c.createdAt.toISOString(),
   }));
 }

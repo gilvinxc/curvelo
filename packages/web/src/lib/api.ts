@@ -28,6 +28,7 @@ import type {
   JoinLinkPreviewDTO,
   JoinRequestDTO,
   LeaderboardDTO,
+  NotificationDTO,
   PersonalRecordDTO,
   PostDTO,
   ProgressDTO,
@@ -340,6 +341,15 @@ export const api = {
     post<{ team: TeamDTO }>("/teams", input),
   updateTeam: (id: string, input: { name?: string; description?: string }) =>
     patch<{ team: TeamDTO }>(`/teams/${id}`, input),
+  listNotifications: (cursor?: string) =>
+    request<{ notifications: NotificationDTO[]; nextCursor: string | null }>(
+      `/notifications${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,
+    ),
+  unreadCount: () => request<{ unread: number }>("/notifications/unread-count"),
+  markNotificationRead: (id: string) =>
+    post<{ ok: boolean }>(`/notifications/${id}/read`, {}),
+  markAllNotificationsRead: () => post<{ ok: boolean }>("/notifications/read-all", {}),
+
   getRoster: (id: string) =>
     request<{ roster: RosterMemberDTO[] }>(`/teams/${id}/roster`),
 

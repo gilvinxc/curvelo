@@ -1,4 +1,5 @@
 import {
+  forwardRef,
   useEffect,
   useState,
   type ButtonHTMLAttributes,
@@ -124,14 +125,18 @@ export function TextInput(props: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={cn(inputClass, props.className)} />;
 }
 
-export function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export const TextArea = forwardRef<
+  HTMLTextAreaElement,
+  TextareaHTMLAttributes<HTMLTextAreaElement>
+>(function TextArea(props, ref) {
   return (
     <textarea
       {...props}
+      ref={ref}
       className={cn(inputClass, "min-h-[96px] py-3", props.className)}
     />
   );
-}
+});
 
 export function Select(props: SelectHTMLAttributes<HTMLSelectElement>) {
   return (

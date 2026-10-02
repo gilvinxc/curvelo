@@ -9,8 +9,9 @@ import {
   Modal,
   RoleBadge,
   Spinner,
-  TextArea,
 } from "../../components/ui";
+import { MentionTextarea } from "../../components/MentionTextarea";
+import { RichText } from "../../components/RichText";
 import { cn } from "../../components/cx";
 
 export const MESSAGE_PAGE_LIMIT = 30;
@@ -47,12 +48,14 @@ const CAN_MODERATE = new Set(["COACH", "TEAM_ADMIN"]);
 
 function MessageBubble({
   message,
+  teamId,
   isOwn,
   canModerate,
   onEdit,
   onDelete,
 }: {
   message: ChatMessageDTO;
+  teamId: string;
   isOwn: boolean;
   canModerate: boolean;
   onEdit: () => void;
@@ -85,7 +88,7 @@ function MessageBubble({
             </p>
           ) : (
             <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-ink-50">
-              {message.body}
+              <RichText text={message.body ?? ""} mentions={message.mentions} teamId={teamId} />
             </p>
           )}
           <div className="mt-1 flex items-center justify-end gap-2">
@@ -325,9 +328,10 @@ export function MessageThread({
               messages.map((m) =>
                 editingId === m.id ? (
                   <div key={m.id} className="flex flex-col gap-2">
-                    <TextArea
+                    <MentionTextarea
+                      teamId={teamId}
                       value={editDraft}
-                      onChange={(e) => setEditDraft(e.target.value)}
+                      onChange={setEditDraft}
                       rows={3}
                       maxLength={MESSAGE_MAX_LENGTH}
                       autoFocus
@@ -352,6 +356,7 @@ export function MessageThread({
                   <MessageBubble
                     key={m.id}
                     message={m}
+                    teamId={teamId}
                     isOwn={m.authorId === user?.id}
                     canModerate={canModerate}
                     onEdit={() => {
@@ -375,19 +380,15 @@ export function MessageThread({
         )}
         {showComposer ? (
           <div className="flex items-end gap-2">
-            <TextArea
+            <MentionTextarea
+              teamId={teamId}
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={setDraft}
               placeholder="Write a message…"
               rows={2}
               maxLength={MESSAGE_MAX_LENGTH}
               className="flex-1"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  void send();
-                }
-              }}
+              onEnter={() => void send()}
             />
             <Button
               onClick={() => void send()}

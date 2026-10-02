@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ActivityDTO, PostDTO } from "@curvelo/shared";
 import { api, ApiError } from "../../lib/api";
-import { Avatar, Button, ErrorBanner, TextArea } from "../../components/ui";
+import { Avatar, Button, ErrorBanner } from "../../components/ui";
+import { MentionTextarea } from "../../components/MentionTextarea";
 import { useAuth } from "../../lib/auth";
 import {
   activitySummary,
@@ -57,12 +58,12 @@ export function Composer({
       <div className="flex gap-3">
         <Avatar name={user?.displayName ?? "?"} size="sm" className="mt-1" />
         <div className="min-w-0 flex-1">
-          <TextArea
+          <MentionTextarea
+            teamId={teamId}
             value={body}
-            onChange={(e) => setBody(e.target.value)}
+            onChange={setBody}
             placeholder="Share something with the team…"
-            aria-label="Post to team feed"
-            className="min-h-[72px]"
+            rows={3}
           />
         </div>
       </div>

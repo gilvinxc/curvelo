@@ -26,6 +26,7 @@ import { PersonalCalendarPage } from "./features/calendar/PersonalCalendar";
 import { InviteAcceptPage } from "./features/invitations/InviteAcceptPage";
 import { JoinTeamPage } from "./features/teams/JoinTeamPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
+import { NotificationsPage } from "./features/notifications/NotificationsPage";
 import {
   EditActivityPage,
   NewActivityPage,
@@ -145,6 +146,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/notifications"
+            element={
+              <ProtectedRoute>
+                <NotificationsPage />
               </ProtectedRoute>
             }
           />

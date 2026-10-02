@@ -13,6 +13,7 @@ import {
 } from "../../components/ui";
 import { cn } from "../../components/cx";
 import { ShareToFeedDialog } from "../feed/ShareToFeedDialog";
+import { RichText } from "../../components/RichText";
 import { AddRaceResultDialog } from "../records/RecordsSection";
 import { useUnits } from "../../lib/units";
 import {
@@ -257,7 +258,11 @@ export function ActivityDetailPage() {
             Notes
           </p>
           <p className="whitespace-pre-wrap text-[15px] leading-relaxed">
-            {activity.notes}
+            <RichText
+              text={activity.notes}
+              mentions={activity.mentions}
+              teamId={activity.teamId ?? ""}
+            />
           </p>
         </Card>
       )}

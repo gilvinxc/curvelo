@@ -5,6 +5,7 @@ import type {
   SendMessageInput,
 } from "@curvelo/shared";
 import { db } from "../../db.js";
+import { mentionRefsFor, syncMentions } from "../../lib/mentions.js";
 import { audit } from "../../lib/audit.js";
 import { forbidden, notFound } from "../../lib/errors.js";
 import { activeMembership } from "../../lib/permissions.js";
@@ -197,7 +198,11 @@ type MessageWithAuthor = {
   conversation: { teamId: string };
 };
 
-function toMessageDTO(m: MessageWithAuthor, authorRole: string): ChatMessageDTO {
+async function toMessageDTO(
+  m: MessageWithAuthor,
+  authorRole: string,
+  mentions: Map<string, { userId: string; displayName: string }[]>,
+): Promise<ChatMessageDTO> {
   const deleted = m.deletedAt !== null;
   return {
     id: m.id,
@@ -206,6 +211,7 @@ function toMessageDTO(m: MessageWithAuthor, authorRole: string): ChatMessageDTO 
     authorName: m.author.displayName,
     authorRole,
     body: deleted ? null : m.body,
+    mentions: mentions.get(m.id) ?? [],
     deleted,
     createdAt: m.createdAt.toISOString(),
     editedAt: m.editedAt?.toISOString() ?? null,
@@ -247,7 +253,12 @@ export async function listMessages(
   const page = (hasMore ? rows.slice(0, limit) : rows).reverse();
   const roles = await authorRoles(page.map((m) => m.authorId), teamId);
   return {
-    messages: page.map((m) => toMessageDTO(m, roles.get(m.authorId) ?? "RUNNER")),
+    messages: await Promise.all(
+      page.map(async (m) => {
+        const mentions = await mentionRefsFor("MESSAGE", [m.id]);
+        return toMessageDTO(m, roles.get(m.authorId) ?? "RUNNER", mentions);
+      }),
+    ),
     hasMore,
   };
 }
@@ -286,8 +297,19 @@ export async function postMessage(
     ipAddress,
   });
 
+  await syncMentions({
+    targetType: "MESSAGE",
+    targetId: message.id,
+    teamId,
+    mentionerId: actorId,
+    mentionerName: message.author.displayName,
+    text: message.body,
+    link: `/teams/${teamId}/messages`,
+  });
+
   const roles = await authorRoles([actorId], teamId);
-  return toMessageDTO(message, roles.get(actorId) ?? "RUNNER");
+  const mentions = await mentionRefsFor("MESSAGE", [message.id]);
+  return toMessageDTO(message, roles.get(actorId) ?? "RUNNER", mentions);
 }
 
 async function getMessage(messageId: string) {
@@ -334,8 +356,19 @@ export async function editMessage(
     ipAddress,
   });
 
+  await syncMentions({
+    targetType: "MESSAGE",
+    targetId: updated.id,
+    teamId: message.conversation.teamId,
+    mentionerId: actorId,
+    mentionerName: updated.author.displayName,
+    text: updated.body,
+    link: `/teams/${message.conversation.teamId}/messages`,
+  });
+
   const roles = await authorRoles([actorId], message.conversation.teamId);
-  return toMessageDTO(updated, roles.get(actorId) ?? "RUNNER");
+  const mentions = await mentionRefsFor("MESSAGE", [updated.id]);
+  return toMessageDTO(updated, roles.get(actorId) ?? "RUNNER", mentions);
 }
 
 export async function deleteMessage(
