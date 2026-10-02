@@ -1,0 +1,193 @@
+import { nanoid } from "nanoid";
+import type {
+  CreateTeamInput,
+  RosterMemberDTO,
+  TeamDTO,
+  UpdateTeamInput,
+} from "@curvelo/shared";
+import { db } from "../../db.js";
+import { audit } from "../../lib/audit.js";
+import { conflict } from "../../lib/errors.js";
+import {
+  activeMembership,
+  canSeeEmails,
+  requireManager,
+} from "../../lib/permissions.js";
+
+function slugify(name: string): string {
+  return (
+    name
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 48) || "team"
+  );
+}
+
+function toTeamDTO(
+  team: {
+    id: string;
+    name: string;
+    slug: string;
+    description: string | null;
+    visibility: string;
+    createdAt: Date;
+    _count: { memberships: number };
+  },
+  myRole: string | null,
+): TeamDTO {
+  return {
+    id: team.id,
+    name: team.name,
+    slug: team.slug,
+    description: team.description,
+    visibility: team.visibility,
+    memberCount: team._count.memberships,
+    myRole,
+    createdAt: team.createdAt.toISOString(),
+  };
+}
+
+export async function createTeam(
+  ownerId: string,
+  input: CreateTeamInput,
+  ipAddress?: string,
+): Promise<TeamDTO> {
+  let slug: string;
+  if (input.slug) {
+    // Explicit slug: the coach chose it, so a collision is a 409.
+    const taken = await db.team.findUnique({ where: { slug: input.slug } });
+    if (taken) throw conflict("SLUG_TAKEN", "That team URL is already taken");
+    slug = input.slug;
+  } else {
+    // Auto-generated slug: disambiguate silently with a suffix.
+    const base = slugify(input.name);
+    slug = base;
+    for (let attempt = 0; attempt < 5 && await db.team.findUnique({ where: { slug } }); attempt++) {
+      slug = `${base}-${nanoid(6).toLowerCase()}`;
+    }
+    if (await db.team.findUnique({ where: { slug } })) {
+      throw conflict("SLUG_TAKEN", "Could not generate a unique team URL");
+    }
+  }
+
+  const teamId = await db.$transaction(async (tx) => {
+    const created = await tx.team.create({
+      data: {
+        name: input.name.trim(),
+        slug,
+        description: input.description?.trim() || null,
+        visibility: input.visibility,
+        ownerId,
+      },
+    });
+    await tx.teamMembership.create({
+      data: { teamId: created.id, userId: ownerId, role: "COACH", status: "ACTIVE" },
+    });
+    return created.id;
+  });
+
+  // Re-fetch so _count reflects the just-created membership.
+  const team = await db.team.findUniqueOrThrow({
+    where: { id: teamId },
+    include: { _count: { select: { memberships: true } } },
+  });
+
+  await audit({
+    actorId: ownerId,
+    action: "TEAM_CREATED",
+    entityType: "Team",
+    entityId: team.id,
+    metadata: { name: team.name, slug: team.slug },
+    ipAddress,
+  });
+
+  return toTeamDTO(team, "COACH");
+}
+
+export async function listMyTeams(userId: string): Promise<TeamDTO[]> {
+  const memberships = await db.teamMembership.findMany({
+    where: { userId, status: "ACTIVE" },
+    include: {
+      team: { include: { _count: { select: { memberships: true } } } },
+    },
+    orderBy: { joinedAt: "desc" },
+  });
+  return memberships.map((m) => toTeamDTO(m.team, m.role));
+}
+
+export async function getTeam(userId: string, teamId: string): Promise<TeamDTO> {
+  const membership = await activeMembership(userId, teamId);
+  const team = await db.team.findUnique({
+    where: { id: teamId },
+    include: { _count: { select: { memberships: true } } },
+  });
+  // activeMembership already 404s for non-members, so team exists here.
+  return toTeamDTO(team!, membership.role);
+}
+
+export async function updateTeam(
+  userId: string,
+  teamId: string,
+  input: UpdateTeamInput,
+  ipAddress?: string,
+): Promise<TeamDTO> {
+  const membership = await activeMembership(userId, teamId);
+  requireManager(membership);
+
+  if (input.slug) {
+    const clash = await db.team.findUnique({ where: { slug: input.slug } });
+    if (clash && clash.id !== teamId) {
+      throw conflict("SLUG_TAKEN", "That team URL is already taken");
+    }
+  }
+
+  const team = await db.team.update({
+    where: { id: teamId },
+    data: {
+      name: input.name?.trim(),
+      slug: input.slug,
+      description:
+        input.description === undefined ? undefined : input.description?.trim() || null,
+      visibility: input.visibility,
+    },
+    include: { _count: { select: { memberships: true } } },
+  });
+
+  await audit({
+    actorId: userId,
+    action: "TEAM_UPDATED",
+    entityType: "Team",
+    entityId: team.id,
+    metadata: { fields: Object.keys(input) },
+    ipAddress,
+  });
+
+  return toTeamDTO(team, membership.role);
+}
+
+export async function getRoster(
+  userId: string,
+  teamId: string,
+): Promise<RosterMemberDTO[]> {
+  const membership = await activeMembership(userId, teamId);
+  const showEmails = canSeeEmails(membership);
+
+  const members = await db.teamMembership.findMany({
+    where: { teamId, status: "ACTIVE" },
+    include: {
+      user: { select: { id: true, displayName: true, email: true } },
+    },
+    orderBy: [{ role: "asc" }, { joinedAt: "asc" }],
+  });
+
+  return members.map((m) => ({
+    userId: m.user.id,
+    displayName: m.user.displayName,
+    ...(showEmails ? { email: m.user.email } : {}),
+    role: m.role,
+    status: m.status,
+    joinedAt: m.joinedAt.toISOString(),
+  }));
+}

@@ -1,0 +1,38 @@
+import cookie from "@fastify/cookie";
+import cors from "@fastify/cors";
+import rateLimit from "@fastify/rate-limit";
+import Fastify from "fastify";
+import { config } from "./config.js";
+import { authPlugin } from "./plugins/auth.js";
+import { errorPlugin } from "./plugins/errors.js";
+import { authRoutes } from "./modules/auth/routes.js";
+import { invitationRoutes } from "./modules/invitations/routes.js";
+import { teamRoutes } from "./modules/teams/routes.js";
+import { userRoutes } from "./modules/users/routes.js";
+
+export async function buildApp() {
+  const app = Fastify({
+    logger: process.env.NODE_ENV === "test" ? false : true,
+  });
+
+  await app.register(cookie);
+  await app.register(cors, {
+    origin: config.corsOrigin,
+    credentials: true,
+  });
+  // Gentle global limit; auth routes set stricter per-route limits.
+  await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
+
+  await app.register(errorPlugin);
+  await app.register(authPlugin);
+
+  app.get("/health", async () => ({ ok: true, service: "curvelo-api" }));
+
+  await app.register(authRoutes, { prefix: "/api/v1/auth" });
+  await app.register(userRoutes, { prefix: "/api/v1/users" });
+  await app.register(teamRoutes, { prefix: "/api/v1/teams" });
+  // Invitation routes include /teams/:id/invitations + /invitations/:token/*
+  await app.register(invitationRoutes, { prefix: "/api/v1" });
+
+  return app;
+}

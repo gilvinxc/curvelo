@@ -1,0 +1,247 @@
+// Curvelo — slice 1 schema: identity, teams, invitations, guardians,
+// seasons, organizations, compliance rules, audit log.
+// Later slices add: training plans, workouts, activities, feed,
+// notifications, integrations, messaging.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SystemRole {
+  SYSTEM_ADMIN
+}
+
+enum TeamRole {
+  COACH
+  RUNNER
+  PARENT
+  TEAM_ADMIN
+  ALUMNI
+}
+
+enum MembershipStatus {
+  ACTIVE
+  INVITED
+  REMOVED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum GuardianLinkStatus {
+  PENDING
+  VERIFIED
+  REVOKED
+}
+
+enum TeamVisibility {
+  PRIVATE
+  PUBLIC
+}
+
+enum ComplianceAppliesTo {
+  COMMUNICATION
+  WORKOUT_ASSIGNMENT
+  EVENT
+}
+
+enum ComplianceAction {
+  BLOCK
+  REQUIRE_APPROVAL
+  LOG_ONLY
+}
+
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  passwordHash    String
+  displayName     String
+  dateOfBirth     DateTime?
+  systemRole      SystemRole?
+  status          String    @default("ACTIVE")
+  emailVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  profile             Profile?
+  memberships         TeamMembership[]
+  ownedTeams          Team[]              @relation("TeamOwner")
+  sentInvitations     Invitation[]        @relation("InvitedBy")
+  guardianLinksAsGuardian GuardianLink[]  @relation("Guardian")
+  guardianLinksAsAthlete  GuardianLink[]  @relation("Athlete")
+  auditLogs           AuditLog[]
+  refreshTokens       RefreshToken[]
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  // Rotation chain: each refresh issues a new token and revokes the old one.
+  // Reuse of a revoked token signals theft → revoke the whole family.
+  familyId  String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([familyId])
+}
+
+model Profile {
+  id                String  @id @default(uuid())
+  userId            String  @unique
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  avatarUrl         String?
+  bio               String?
+  city              String?
+  units             String  @default("imperial")
+  defaultShareLevel String  @default("SUMMARY")
+  // Persona chosen at signup (COACH | RUNNER). Team permissions always
+  // come from TeamMembership.role — persona is just the onboarding lens.
+  persona           String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Organization {
+  id              String   @id @default(uuid())
+  name            String
+  type            String   @default("OTHER")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  teams           Team[]
+  complianceRules ComplianceRule[]
+}
+
+model Team {
+  id             String         @id @default(uuid())
+  name           String
+  slug           String         @unique
+  description    String?
+  visibility     TeamVisibility @default(PRIVATE)
+  organizationId String?
+  organization   Organization?  @relation(fields: [organizationId], references: [id])
+  ownerId        String
+  owner          User           @relation("TeamOwner", fields: [ownerId], references: [id])
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  memberships     TeamMembership[]
+  invitations     Invitation[]
+  seasons         Season[]
+  complianceRules ComplianceRule[]
+}
+
+model TeamMembership {
+  id        String           @id @default(uuid())
+  teamId    String
+  team      Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      TeamRole
+  status    MembershipStatus @default(ACTIVE)
+  joinedAt  DateTime         @default(now())
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@unique([teamId, userId])
+  @@index([userId])
+  @@index([teamId, status])
+}
+
+model Invitation {
+  id          String           @id @default(uuid())
+  teamId      String
+  team        Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  email       String
+  role        TeamRole         @default(RUNNER)
+  token       String           @unique
+  invitedById String
+  invitedBy   User             @relation("InvitedBy", fields: [invitedById], references: [id])
+  status      InvitationStatus @default(PENDING)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([email, status])
+}
+
+model GuardianLink {
+  id           String             @id @default(uuid())
+  guardianId   String
+  guardian     User               @relation("Guardian", fields: [guardianId], references: [id], onDelete: Cascade)
+  athleteId    String
+  athlete      User               @relation("Athlete", fields: [athleteId], references: [id], onDelete: Cascade)
+  relationship String             @default("parent")
+  status       GuardianLinkStatus @default(PENDING)
+  verifiedAt   DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@unique([guardianId, athleteId])
+  @@index([athleteId])
+}
+
+model Season {
+  id        String   @id @default(uuid())
+  teamId    String
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  name      String
+  startsAt  DateTime
+  endsAt    DateTime
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([teamId, isActive])
+}
+
+model ComplianceRule {
+  id             String              @id @default(uuid())
+  name           String
+  organizationId String?
+  organization   Organization?       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  teamId         String?
+  team           Team?               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  appliesTo      ComplianceAppliesTo
+  minAge         Int?
+  maxAge         Int?
+  startsAt       DateTime?
+  endsAt         DateTime?
+  action         ComplianceAction    @default(LOG_ONLY)
+  isActive       Boolean             @default(true)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([organizationId, isActive])
+  @@index([teamId, isActive])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action     String
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
