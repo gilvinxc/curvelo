@@ -59,6 +59,19 @@ function ChildCard({ child }: { child: ChildSummaryDTO }) {
       )}
 
       <div className="mt-4">
+        <Link
+          to={`/family/${child.athleteId}/${child.teamId}/messages`}
+          className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 text-[14px] font-semibold text-ink-50 transition hover:border-volt-400/40"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+          </svg>
+          Team conversations
+          <span className="text-[12px] font-normal text-mist">read-only</span>
+        </Link>
+      </div>
+
+      <div className="mt-4">
         <h4 className="mb-2 text-[12px] font-bold uppercase tracking-[0.14em] text-mist">
           Upcoming training
         </h4>
@@ -127,7 +140,10 @@ export function FamilyPage() {
       ) : (
         <div className="flex flex-col gap-4">
           {children.map((child) => (
-            <ChildCard key={child.athleteId} child={child} />
+            <ChildCard
+              key={`${child.athleteId}-${child.teamId}`}
+              child={child}
+            />
           ))}
         </div>
       )}

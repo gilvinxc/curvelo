@@ -29,6 +29,7 @@ import { ActivityDetailPage } from "./features/activities/ActivityDetailPage";
 import { AthletePage } from "./features/athletes/AthletePage";
 import { GuardianInviteAcceptPage } from "./features/guardians/GuardianInviteAcceptPage";
 import { FamilyPage } from "./features/guardians/FamilyPage";
+import { FamilyTeamMessagesPage } from "./features/messages/FamilyTeamMessagesPage";
 import { ReportsRoute } from "./features/feed/ReportsPage";
 
 function ScrollToTop() {
@@ -153,6 +154,14 @@ export function App() {
             }
           />
           <Route
+            path="/teams/:id/messages"
+            element={
+              <ProtectedRoute>
+                <TeamPage initialTab="messages" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/teams/:id/workouts"
             element={
               <ProtectedRoute>
@@ -253,6 +262,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <FamilyPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/family/:athleteId/:teamId/messages"
+            element={
+              <ProtectedRoute>
+                <FamilyTeamMessagesPage />
               </ProtectedRoute>
             }
           />

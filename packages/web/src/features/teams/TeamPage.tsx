@@ -19,14 +19,16 @@ import { WorkoutList } from "../workouts/WorkoutList";
 import { TeamCalendar } from "../calendar/TeamCalendar";
 import { GroupsSection } from "./GroupsSection";
 import { FeedPage } from "../feed/FeedPage";
+import { MessagesSection } from "../messages/MessagesSection";
 
 const CAN_INVITE = new Set(["COACH", "TEAM_ADMIN"]);
 
-export type TeamTab = "roster" | "feed" | "workouts" | "groups" | "calendar";
+export type TeamTab = "roster" | "feed" | "messages" | "workouts" | "groups" | "calendar";
 
 const TABS: { id: TeamTab; label: string; href: (id: string) => string }[] = [
   { id: "roster", label: "Roster", href: (id) => `/teams/${id}` },
   { id: "feed", label: "Feed", href: (id) => `/teams/${id}/feed` },
+  { id: "messages", label: "Messages", href: (id) => `/teams/${id}/messages` },
   { id: "workouts", label: "Workouts", href: (id) => `/teams/${id}/workouts` },
   { id: "groups", label: "Groups", href: (id) => `/teams/${id}/groups` },
   { id: "calendar", label: "Calendar", href: (id) => `/teams/${id}/calendar` },
@@ -222,6 +224,9 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
       )}
       {initialTab === "feed" && (
         <FeedPage teamId={team.id} myRole={team.myRole} />
+      )}
+      {initialTab === "messages" && (
+        <MessagesSection teamId={team.id} myRole={team.myRole} />
       )}
       {initialTab === "workouts" && (
         <WorkoutList teamId={team.id} myRole={team.myRole} />

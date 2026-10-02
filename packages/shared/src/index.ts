@@ -7,4 +7,5 @@ export * from "./schemas/workouts.js";
 export * from "./schemas/activities.js";
 export * from "./schemas/feed.js";
 export * from "./schemas/guardians.js";
+export * from "./schemas/messages.js";
 export * from "./types.js";

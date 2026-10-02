@@ -221,6 +221,28 @@ export interface ConsentDTO {
   guardianName: string;
 }
 
+export interface ConversationDTO {
+  id: string;
+  kind: string;
+  title: string;
+  groupId: string | null;
+  groupName: string | null;
+  canPost: boolean;
+  lastMessageAt: string | null;
+}
+
+export interface ChatMessageDTO {
+  id: string;
+  conversationId: string;
+  authorId: string;
+  authorName: string;
+  authorRole: string;
+  body: string | null; // null when moderated away
+  deleted: boolean;
+  createdAt: string;
+  editedAt: string | null;
+}
+
 export interface ChildSummaryDTO {
   athleteId: string;
   athleteName: string;

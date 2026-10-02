@@ -8,6 +8,7 @@ import type {
 import { db } from "../../db.js";
 import { audit } from "../../lib/audit.js";
 import { conflict } from "../../lib/errors.js";
+import { ensureTeamConversations } from "../messages/service.js";
 import {
   activeMembership,
   canSeeEmails,
@@ -87,6 +88,9 @@ export async function createTeam(
     });
     return created.id;
   });
+
+  // Default channels: announcements + team chat.
+  await ensureTeamConversations(teamId, ownerId);
 
   // Re-fetch so _count reflects the just-created membership.
   const team = await db.team.findUniqueOrThrow({

@@ -3,6 +3,7 @@ import { db } from "../../db.js";
 import { audit } from "../../lib/audit.js";
 import { AppError, conflict, notFound } from "../../lib/errors.js";
 import { activeMembership, requireManager } from "../../lib/permissions.js";
+import { ensureGroupConversation } from "../messages/service.js";
 
 type GroupWithMembers = {
   id: string;
@@ -92,6 +93,9 @@ export async function createGroup(
     metadata: { teamId, name: group.name, members: input.memberIds.length },
     ipAddress,
   });
+
+  // Every team group gets its own chat channel.
+  await ensureGroupConversation(teamId, group.id, group.name, actorId);
 
   return toDTO(group, true);
 }

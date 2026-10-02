@@ -4,9 +4,11 @@ import type {
   ActivityStatsDTO,
   AssignmentDTO,
   AthleteViewDTO,
+  ChatMessageDTO,
   ChildSummaryDTO,
   CommentDTO,
   ConsentDTO,
+  ConversationDTO,
   CreateTeamInput,
   GuardianInviteDTO,
   GuardianLinkDTO,
@@ -346,4 +348,32 @@ export const api = {
     post<{ link: GuardianLinkDTO }>(`/guardian-invites/${token}/accept`, input),
   revokeGuardianLink: (id: string) => del<{ ok: boolean }>(`/guardian-links/${id}`),
   myChildren: () => request<{ children: ChildSummaryDTO[] }>("/users/me/children"),
+
+  // team messaging
+  listConversations: (teamId: string) =>
+    request<{ conversations: ConversationDTO[] }>(
+      `/teams/${teamId}/conversations`,
+    ),
+  listMessages: (
+    teamId: string,
+    conversationId: string,
+    opts?: { before?: string; limit?: number },
+  ) => {
+    const params = new URLSearchParams();
+    if (opts?.before) params.set("before", opts.before);
+    if (opts?.limit) params.set("limit", String(opts.limit));
+    const qs = params.toString();
+    return request<{ messages: ChatMessageDTO[]; hasMore: boolean }>(
+      `/teams/${teamId}/conversations/${conversationId}/messages${qs ? `?${qs}` : ""}`,
+    );
+  },
+  postMessage: (teamId: string, conversationId: string, body: string) =>
+    post<{ message: ChatMessageDTO }>(
+      `/teams/${teamId}/conversations/${conversationId}/messages`,
+      { body },
+    ),
+  editMessage: (messageId: string, body: string) =>
+    patch<{ message: ChatMessageDTO }>(`/messages/${messageId}`, { body }),
+  deleteMessage: (messageId: string) =>
+    del<{ ok: boolean }>(`/messages/${messageId}`),
 };
