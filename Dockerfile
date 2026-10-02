@@ -20,6 +20,8 @@ RUN npm run db:generate --workspace=@curvelo/api \
 FROM node:24-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
+# The start command runs `prisma` via the engines wrapper; it lives in .bin.
+ENV PATH="/app/node_modules/.bin:${PATH}"
 
 COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
