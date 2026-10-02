@@ -96,6 +96,9 @@ model User {
   consentsAsGuardian  Consent[]     @relation("ConsentGuardian")
   conversationsAuthored Conversation[] @relation("ConversationAuthor")
   messagesAuthored    Message[]     @relation("MessageAuthor")
+  createdJoinLinks    TeamJoinLink[]    @relation("JoinLinkCreator")
+  joinRequests        TeamJoinRequest[]
+  decidedJoinRequests TeamJoinRequest[] @relation("JoinRequestDecider")
 }
 
 model RefreshToken {
@@ -156,6 +159,8 @@ model Team {
 
   memberships     TeamMembership[]
   invitations     Invitation[]
+  joinLinks       TeamJoinLink[]
+  joinRequests    TeamJoinRequest[]
   seasons         Season[]
   complianceRules ComplianceRule[]
   workouts        Workout[]
@@ -576,4 +581,48 @@ model Consent {
 
   @@unique([athleteId, guardianId, type])
   @@index([athleteId])
+}
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+// Shareable invite link: anyone with the token can request to join.
+// Requests always need a coach/admin approval — links never auto-join.
+model TeamJoinLink {
+  id          String    @id @default(uuid())
+  token       String    @unique
+  teamId      String
+  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdById String
+  createdBy   User      @relation("JoinLinkCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  expiresAt   DateTime
+  maxUses     Int?
+  useCount    Int       @default(0)
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  requests TeamJoinRequest[]
+
+  @@index([teamId])
+}
+
+model TeamJoinRequest {
+  id          String            @id @default(uuid())
+  teamId      String
+  team        Team              @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  linkId      String?
+  link        TeamJoinLink?     @relation(fields: [linkId], references: [id], onDelete: SetNull)
+  status      JoinRequestStatus @default(PENDING)
+  decidedById String?
+  decidedBy   User?             @relation("JoinRequestDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt   DateTime?
+  createdAt   DateTime          @default(now())
+
+  @@index([teamId, status])
+  @@index([userId])
 }

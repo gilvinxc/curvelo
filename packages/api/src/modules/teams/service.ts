@@ -7,7 +7,7 @@ import type {
 } from "@curvelo/shared";
 import { db } from "../../db.js";
 import { audit } from "../../lib/audit.js";
-import { conflict } from "../../lib/errors.js";
+import { conflict, forbidden, notFound } from "../../lib/errors.js";
 import { ensureTeamConversations } from "../messages/service.js";
 import {
   activeMembership,
@@ -33,10 +33,12 @@ function toTeamDTO(
     slug: string;
     description: string | null;
     visibility: string;
+    ownerId: string;
     createdAt: Date;
     _count: { memberships: number };
   },
   myRole: string | null,
+  myUserId?: string,
 ): TeamDTO {
   return {
     id: team.id,
@@ -46,6 +48,7 @@ function toTeamDTO(
     visibility: team.visibility,
     memberCount: team._count.memberships,
     myRole,
+    isOwner: myUserId != null ? team.ownerId === myUserId : undefined,
     createdAt: team.createdAt.toISOString(),
   };
 }
@@ -107,7 +110,7 @@ export async function createTeam(
     ipAddress,
   });
 
-  return toTeamDTO(team, "COACH");
+  return toTeamDTO(team, "COACH", ownerId);
 }
 
 export async function listMyTeams(userId: string): Promise<TeamDTO[]> {
@@ -118,7 +121,7 @@ export async function listMyTeams(userId: string): Promise<TeamDTO[]> {
     },
     orderBy: { joinedAt: "desc" },
   });
-  return memberships.map((m) => toTeamDTO(m.team, m.role));
+  return memberships.map((m) => toTeamDTO(m.team, m.role, userId));
 }
 
 export async function getTeam(userId: string, teamId: string): Promise<TeamDTO> {
@@ -128,7 +131,7 @@ export async function getTeam(userId: string, teamId: string): Promise<TeamDTO> 
     include: { _count: { select: { memberships: true } } },
   });
   // activeMembership already 404s for non-members, so team exists here.
-  return toTeamDTO(team!, membership.role);
+  return toTeamDTO(team!, membership.role, userId);
 }
 
 export async function updateTeam(
@@ -168,7 +171,7 @@ export async function updateTeam(
     ipAddress,
   });
 
-  return toTeamDTO(team, membership.role);
+  return toTeamDTO(team, membership.role, userId);
 }
 
 export async function getRoster(
@@ -194,4 +197,158 @@ export async function getRoster(
     status: m.status,
     joinedAt: m.joinedAt.toISOString(),
   }));
+}
+
+async function requireOwner(actorId: string, teamId: string) {
+  const team = await db.team.findUniqueOrThrow({ where: { id: teamId } });
+  if (team.ownerId !== actorId) {
+    throw forbidden("Only the team owner can do this");
+  }
+  return team;
+}
+
+const ELEVATED_ROLES = ["COACH", "TEAM_ADMIN"] as const;
+
+/** Change a member's role. Handing out (or taking away) coach/admin power needs the owner. */
+export async function updateMemberRole(
+  actorId: string,
+  teamId: string,
+  targetUserId: string,
+  role: string,
+  ipAddress?: string,
+) {
+  const membership = await activeMembership(actorId, teamId);
+  requireManager(membership);
+
+  if (targetUserId === actorId) {
+    throw forbidden("You can't change your own role");
+  }
+
+  const team = await db.team.findUniqueOrThrow({ where: { id: teamId } });
+  if (team.ownerId === targetUserId) {
+    throw forbidden("Transfer ownership before changing the owner's role");
+  }
+
+  const target = await db.teamMembership.findUnique({
+    where: { teamId_userId: { teamId, userId: targetUserId } },
+  });
+  if (!target || target.status !== "ACTIVE") {
+    throw notFound("Member not found");
+  }
+  if (target.role === role) return { ok: true as const, role };
+
+  const touchesElevated =
+    (ELEVATED_ROLES as readonly string[]).includes(role) ||
+    (ELEVATED_ROLES as readonly string[]).includes(target.role);
+  if (touchesElevated && team.ownerId !== actorId) {
+    throw forbidden("Only the team owner can grant or remove coach access");
+  }
+
+  await db.teamMembership.update({
+    where: { teamId_userId: { teamId, userId: targetUserId } },
+    data: { role: role as (typeof target)["role"] },
+  });
+
+  await audit({
+    actorId,
+    action: "MEMBER_ROLE_CHANGED",
+    entityType: "Team",
+    entityId: teamId,
+    metadata: { userId: targetUserId, from: target.role, to: role },
+    ipAddress,
+  });
+
+  return { ok: true as const, role };
+}
+
+/** Remove a member from the team. Coaches/admins can only be removed by the owner. */
+export async function removeMember(
+  actorId: string,
+  teamId: string,
+  targetUserId: string,
+  ipAddress?: string,
+) {
+  const membership = await activeMembership(actorId, teamId);
+  requireManager(membership);
+
+  if (targetUserId === actorId) {
+    throw forbidden("You can't remove yourself — transfer ownership first");
+  }
+
+  const team = await db.team.findUniqueOrThrow({ where: { id: teamId } });
+  if (team.ownerId === targetUserId) {
+    throw forbidden("The team owner can't be removed — transfer ownership first");
+  }
+
+  const target = await db.teamMembership.findUnique({
+    where: { teamId_userId: { teamId, userId: targetUserId } },
+  });
+  if (!target || target.status !== "ACTIVE") {
+    throw notFound("Member not found");
+  }
+
+  if (
+    (ELEVATED_ROLES as readonly string[]).includes(target.role) &&
+    team.ownerId !== actorId
+  ) {
+    throw forbidden("Only the team owner can remove a coach");
+  }
+
+  await db.teamMembership.update({
+    where: { teamId_userId: { teamId, userId: targetUserId } },
+    data: { status: "REMOVED" },
+  });
+
+  await audit({
+    actorId,
+    action: "MEMBER_REMOVED",
+    entityType: "Team",
+    entityId: teamId,
+    metadata: { userId: targetUserId, role: target.role },
+    ipAddress,
+  });
+
+  return { ok: true as const };
+}
+
+/** Hand team ownership to another member (owner only). The new owner becomes a coach. */
+export async function transferTeam(
+  actorId: string,
+  teamId: string,
+  newOwnerId: string,
+  ipAddress?: string,
+) {
+  await requireOwner(actorId, teamId);
+
+  if (newOwnerId === actorId) {
+    throw conflict("ALREADY_OWNER", "You're already the team owner");
+  }
+
+  const target = await db.teamMembership.findUnique({
+    where: { teamId_userId: { teamId, userId: newOwnerId } },
+  });
+  if (!target || target.status !== "ACTIVE") {
+    throw notFound("The new owner must be an active team member");
+  }
+
+  await db.$transaction(async (tx) => {
+    await tx.team.update({ where: { id: teamId }, data: { ownerId: newOwnerId } });
+    if (target.role !== "COACH" && target.role !== "TEAM_ADMIN") {
+      await tx.teamMembership.update({
+        where: { teamId_userId: { teamId, userId: newOwnerId } },
+        data: { role: "COACH" },
+      });
+    }
+  });
+
+  await audit({
+    actorId,
+    action: "TEAM_OWNERSHIP_TRANSFERRED",
+    entityType: "Team",
+    entityId: teamId,
+    metadata: { from: actorId, to: newOwnerId },
+    ipAddress,
+  });
+
+  return { ok: true as const, newOwnerId };
 }

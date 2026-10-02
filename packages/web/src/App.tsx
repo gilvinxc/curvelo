@@ -20,6 +20,7 @@ import {
 import { WorkoutDetailPage } from "./features/workouts/WorkoutDetailPage";
 import { PersonalCalendarPage } from "./features/calendar/PersonalCalendar";
 import { InviteAcceptPage } from "./features/invitations/InviteAcceptPage";
+import { JoinTeamPage } from "./features/teams/JoinTeamPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 import {
   EditActivityPage,
@@ -85,6 +86,7 @@ export function App() {
       <Routes>
         {/* Public invitation flow — no shell, no auth required to view */}
         <Route path="/invite/:token" element={<InviteAcceptPage />} />
+        <Route path="/join/:token" element={<JoinTeamPage />} />
         <Route
           path="/guardian-invite/:token"
           element={<GuardianInviteAcceptPage />}
@@ -199,6 +201,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <TeamPage initialTab="coaching" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teams/:id/manage"
+            element={
+              <ProtectedRoute>
+                <TeamPage initialTab="manage" />
               </ProtectedRoute>
             }
           />

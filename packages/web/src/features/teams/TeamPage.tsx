@@ -18,13 +18,22 @@ import { InviteDialog } from "./InviteDialog";
 import { WorkoutList } from "../workouts/WorkoutList";
 import { TeamCalendar } from "../calendar/TeamCalendar";
 import { GroupsSection } from "./GroupsSection";
+import { ManageTab } from "./ManageTab";
 import { FeedPage } from "../feed/FeedPage";
 import { MessagesSection } from "../messages/MessagesSection";
 import { TeamDigestSection } from "../insights/TeamDigestSection";
 
 const CAN_INVITE = new Set(["COACH", "TEAM_ADMIN"]);
 
-export type TeamTab = "roster" | "feed" | "messages" | "workouts" | "groups" | "calendar" | "coaching";
+export type TeamTab =
+  | "roster"
+  | "feed"
+  | "messages"
+  | "workouts"
+  | "groups"
+  | "calendar"
+  | "coaching"
+  | "manage";
 
 const TABS: { id: TeamTab; label: string; href: (id: string) => string; coachOnly?: boolean }[] = [
   { id: "roster", label: "Roster", href: (id) => `/teams/${id}` },
@@ -34,6 +43,7 @@ const TABS: { id: TeamTab; label: string; href: (id: string) => string; coachOnl
   { id: "groups", label: "Groups", href: (id) => `/teams/${id}/groups` },
   { id: "calendar", label: "Calendar", href: (id) => `/teams/${id}/calendar` },
   { id: "coaching", label: "Coaching", href: (id) => `/teams/${id}/coaching`, coachOnly: true },
+  { id: "manage", label: "Manage", href: (id) => `/teams/${id}/manage`, coachOnly: true },
 ];
 
 function RosterTab({
@@ -242,6 +252,9 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
       )}
       {initialTab === "coaching" && canInvite && (
         <TeamDigestSection teamId={team.id} />
+      )}
+      {initialTab === "manage" && canInvite && (
+        <ManageTab teamId={team.id} isOwner={team.isOwner ?? false} />
       )}
 
       <InviteDialog

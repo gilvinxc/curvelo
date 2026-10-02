@@ -27,6 +27,8 @@ export interface TeamDTO {
   visibility: string;
   memberCount: number;
   myRole: string | null;
+  /** Present on single-team fetches; true when the viewer owns the team. */
+  isOwner?: boolean;
   createdAt: string;
 }
 
@@ -60,6 +62,36 @@ export interface InvitationPreviewDTO {
   expiresAt: string;
   invitedEmail: string;
   status: string;
+}
+
+/** Shareable team invite link. */
+export interface JoinLinkDTO {
+  id: string;
+  teamId: string;
+  teamName: string;
+  state: "ACTIVE" | "EXPIRED" | "REVOKED" | "FULL";
+  expiresAt: string;
+  maxUses: number | null;
+  useCount: number;
+  createdAt: string;
+  token?: string; // included when listing/creating for managers
+}
+
+/** Public join-link preview (no auth required). */
+export interface JoinLinkPreviewDTO {
+  teamName: string;
+  teamDescription: string | null;
+  expiresAt: string;
+  usesLeft: number | null;
+}
+
+/** Pending join request awaiting coach approval. */
+export interface JoinRequestDTO {
+  id: string;
+  teamId: string;
+  status: string;
+  createdAt: string;
+  user: { id: string; displayName: string; email: string };
 }
 
 export interface WorkoutStepDTO {

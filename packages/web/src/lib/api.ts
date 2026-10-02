@@ -16,6 +16,9 @@ import type {
   InvitationDTO,
   InvitationPreviewDTO,
   InviteGuardianInput,
+  JoinLinkDTO,
+  JoinLinkPreviewDTO,
+  JoinRequestDTO,
   PostDTO,
   RegisterInput,
   ReportDTO,
@@ -231,6 +234,41 @@ export const api = {
     request<{ invitation: InvitationPreviewDTO }>(`/invitations/${token}`),
   acceptInvitation: (token: string) =>
     post<{ teamId: string; role: string }>(`/invitations/${token}/accept`),
+
+  // shareable join links
+  createJoinLink: (teamId: string, input: { expiresInDays: number; maxUses?: number }) =>
+    post<{ link: JoinLinkDTO }>(`/teams/${teamId}/join-links`, input),
+  listJoinLinks: (teamId: string) =>
+    request<{ links: JoinLinkDTO[] }>(`/teams/${teamId}/join-links`),
+  revokeJoinLink: (teamId: string, linkId: string) =>
+    post<{ ok: boolean }>(`/teams/${teamId}/join-links/${linkId}/revoke`),
+  previewJoinLink: (token: string) =>
+    request<{ link: JoinLinkPreviewDTO }>(`/join/${token}`),
+  requestJoin: (token: string) =>
+    post<{ requestId: string; teamId: string; teamName: string }>(
+      `/join/${token}/request`,
+    ),
+  listJoinRequests: (teamId: string) =>
+    request<{ requests: JoinRequestDTO[] }>(`/teams/${teamId}/join-requests`),
+  approveJoinRequest: (teamId: string, requestId: string, role: TeamRole) =>
+    post<{ ok: boolean; role: string }>(
+      `/teams/${teamId}/join-requests/${requestId}/approve`,
+      { role },
+    ),
+  denyJoinRequest: (teamId: string, requestId: string) =>
+    post<{ ok: boolean }>(`/teams/${teamId}/join-requests/${requestId}/deny`),
+
+  // member management
+  updateMemberRole: (teamId: string, userId: string, role: TeamRole) =>
+    patch<{ ok: boolean; role: string }>(`/teams/${teamId}/members/${userId}`, {
+      role,
+    }),
+  removeMember: (teamId: string, userId: string) =>
+    del<{ ok: boolean }>(`/teams/${teamId}/members/${userId}`),
+  transferTeam: (teamId: string, newOwnerId: string) =>
+    post<{ ok: boolean; newOwnerId: string }>(`/teams/${teamId}/transfer`, {
+      newOwnerId,
+    }),
 
   // workouts
   listWorkouts: (teamId: string, templatesOnly = false) =>
