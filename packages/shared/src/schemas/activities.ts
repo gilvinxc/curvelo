@@ -59,6 +59,38 @@ export const createActivitySchema = z
   );
 export type CreateActivityInput = z.infer<typeof createActivitySchema>;
 
+/**
+ * Coach bulk-log: one run recorded for many athletes at once (e.g. after a
+ * team practice). Omit userIds to target every active runner on the team
+ * (or every member of groupId when given).
+ */
+export const logTeamRunSchema = z
+  .object({
+    teamId: z.string().uuid(),
+    groupId: z.string().uuid().optional(),
+    userIds: z.array(z.string().uuid()).min(1).max(200).optional(),
+    kind: z.enum(ACTIVITY_KINDS).default("RUN"),
+    title: z.string().min(1).max(120).optional(),
+    startedAt: z.string().datetime({ offset: true }),
+    ...metrics,
+    notes: z.string().max(2000).optional(),
+    visibility: z.enum(ACTIVITY_VISIBILITY).default("TEAM"),
+  })
+  .refine((a) => a.distanceM !== undefined || a.durationS !== undefined, {
+    message: "Log at least a distance or a duration",
+  })
+  .refine((a) => notFuture(a.startedAt), {
+    message: "Cannot log an activity in the future",
+  })
+  .refine(
+    (a) =>
+      a.maxHrBpm === undefined ||
+      a.avgHrBpm === undefined ||
+      a.maxHrBpm >= a.avgHrBpm,
+    { message: "Max HR must be at least average HR" },
+  );
+export type LogTeamRunInput = z.infer<typeof logTeamRunSchema>;
+
 export const updateActivitySchema = z
   .object({
     kind: z.enum(ACTIVITY_KINDS).optional(),

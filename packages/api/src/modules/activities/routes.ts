@@ -4,6 +4,7 @@ import {
   activityQuerySchema,
   athleteParamsSchema,
   createActivitySchema,
+  logTeamRunSchema,
   statsQuerySchema,
   updateActivitySchema,
 } from "@curvelo/shared";
@@ -13,6 +14,7 @@ import {
   deleteActivity,
   getActivity,
   listMyActivities,
+  logTeamRun,
   myStats,
   updateActivity,
 } from "./service.js";
@@ -29,6 +31,17 @@ export async function activityRoutes(app: FastifyInstance): Promise<void> {
         request.ip,
       );
       return reply.status(201).send({ activity });
+    },
+  );
+
+  // Coach bulk-log: one run for the whole team or a training group.
+  app.post(
+    "/activities/team-log",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const body = logTeamRunSchema.parse(request.body);
+      const result = await logTeamRun(request.user!.id, body, request.ip);
+      return reply.status(201).send(result);
     },
   );
 

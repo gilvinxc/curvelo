@@ -86,6 +86,7 @@ model User {
   receivedAssignments WorkoutAssignment[] @relation("AssignmentRecipient")
   groupMemberships    TeamGroupMember[]
   activities          Activity[]
+  loggedActivities    Activity[]              @relation("ActivityLogger")
   authoredPosts       FeedPost[]    @relation("PostAuthor")
   authoredComments    PostComment[] @relation("CommentAuthor")
   authoredReactions   PostReaction[] @relation("ReactionAuthor")
@@ -479,6 +480,11 @@ model Activity {
   shoeId       String?
   shoe         Shoe?          @relation(fields: [shoeId], references: [id], onDelete: SetNull)
   raceResult   RaceResult?    @relation("ActivityRaceResult")
+  // Who entered this activity; null = the athlete themself. Coaches (and
+  // later guardians) can log on someone's behalf; the run still belongs to
+  // the athlete.
+  loggedByUserId String?
+  loggedBy       User?          @relation("ActivityLogger", fields: [loggedByUserId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

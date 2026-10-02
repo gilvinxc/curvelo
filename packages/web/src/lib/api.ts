@@ -392,6 +392,22 @@ export const api = {
   deleteShoe: (id: string) => del<{ ok: boolean }>(`/shoes/${id}`),
   setDefaultShoe: (id: string) =>
     post<{ shoe: ShoeDTO }>(`/shoes/${id}/default`, {}),
+  logTeamRun: (input: {
+    teamId: string;
+    groupId?: string;
+    userIds?: string[];
+    kind?: string;
+    title?: string;
+    startedAt: string;
+    distanceM?: number;
+    durationS?: number;
+    notes?: string;
+    visibility?: "TEAM" | "PRIVATE";
+  }) =>
+    post<{ count: number; activityIds: string[] }>(
+      "/activities/team-log",
+      input,
+    ),
   setTeamLogo: (teamId: string, image: string) =>
     put<{ ok: boolean }>(`/teams/${teamId}/logo`, { image }),
   removeTeamLogo: (teamId: string) => del<{ ok: boolean }>(`/teams/${teamId}/logo`),

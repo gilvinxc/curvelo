@@ -24,6 +24,7 @@ import { GoalsTab } from "../goals/GoalsTab";
 import { FeedPage } from "../feed/FeedPage";
 import { MessagesSection } from "../messages/MessagesSection";
 import { TeamDigestSection } from "../insights/TeamDigestSection";
+import { TeamLogDialog } from "../activities/TeamLogDialog";
 
 const CAN_INVITE = new Set(["COACH", "TEAM_ADMIN"]);
 
@@ -167,6 +168,7 @@ function RosterTab({
 export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
   const { id } = useParams<{ id: string }>();
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [teamLogOpen, setTeamLogOpen] = useState(false);
 
   const teamQuery = useQuery({
     queryKey: ["team", id],
@@ -276,7 +278,14 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
         <TeamCalendar teamId={team.id} myRole={team.myRole} />
       )}
       {initialTab === "coaching" && canInvite && (
-        <TeamDigestSection teamId={team.id} />
+        <>
+          <div className="mb-4">
+            <Button onClick={() => setTeamLogOpen(true)}>
+              🏃 Log team run
+            </Button>
+          </div>
+          <TeamDigestSection teamId={team.id} />
+        </>
       )}
       {initialTab === "goals" && (
         <GoalsTab teamId={team.id} canManage={canInvite} />
@@ -290,6 +299,12 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
         teamName={team.name}
         open={inviteOpen}
         onClose={() => setInviteOpen(false)}
+      />
+
+      <TeamLogDialog
+        teamId={team.id}
+        open={teamLogOpen}
+        onClose={() => setTeamLogOpen(false)}
       />
     </div>
   );

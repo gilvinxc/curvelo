@@ -4,13 +4,14 @@ import type {
   AssignmentDTO,
   AthleteViewDTO,
   CreateActivityInput,
+  LogTeamRunInput,
   UpdateActivityInput,
 } from "@curvelo/shared";
 import { db } from "../../db.js";
 import { checkGoalCompletions } from "../goals/service.js";
 import { assertOwnShoe, getDefaultShoeId } from "../records/service.js";
 import { audit } from "../../lib/audit.js";
-import { forbidden, notFound } from "../../lib/errors.js";
+import { AppError, forbidden, notFound } from "../../lib/errors.js";
 import {
   activeMembership,
   requireManager,
@@ -35,13 +36,16 @@ export type ActivityWithJoins = {
   source: string;
   visibility: string;
   shoeId: string | null;
+  loggedByUserId: string | null;
   user: { displayName: string };
+  loggedBy: { displayName: string } | null;
   team: { name: string } | null;
   shoe: { name: string } | null;
 };
 
 const WITH_JOINS = {
   user: { select: { displayName: true } },
+  loggedBy: { select: { displayName: true } },
   team: { select: { name: true } },
   shoe: { select: { name: true } },
 } as const;
@@ -69,6 +73,8 @@ export function toActivityDTO(a: ActivityWithJoins): ActivityDTO {
     notes: a.notes,
     shoeId: a.shoeId,
     shoeName: a.shoe?.name ?? null,
+    loggedByUserId: a.loggedByUserId,
+    loggedByName: a.loggedBy?.displayName ?? null,
     source: a.source,
     visibility: a.visibility,
   };
@@ -139,7 +145,12 @@ export async function createActivity(
   input: CreateActivityInput,
   ipAddress?: string,
   provenance?: { source: "FILE_IMPORT"; externalId: string },
+  onBehalfOf?: { userId: string; loggedByUserId: string },
 ): Promise<ActivityDTO> {
+  // The run belongs to the athlete; loggedBy records who entered it.
+  const ownerId = onBehalfOf?.userId ?? actorId;
+  const loggedByUserId = onBehalfOf?.loggedByUserId ?? null;
+
   let teamId: string | null = null;
   if (input.teamId) {
     await activeMembership(actorId, input.teamId);
@@ -148,17 +159,17 @@ export async function createActivity(
 
   let shoeId: string | null = null;
   if (input.shoeId) {
-    await assertOwnShoe(actorId, input.shoeId);
+    await assertOwnShoe(ownerId, input.shoeId);
     shoeId = input.shoeId;
   } else {
     // Fall back to the runner's default shoe, if they set one.
-    shoeId = await getDefaultShoeId(actorId);
+    shoeId = await getDefaultShoeId(ownerId);
   }
 
   let assignmentId: string | null = null;
   if (input.assignmentId) {
     const { teamId: aTeam } = await assertAssignmentVisible(
-      actorId,
+      ownerId,
       input.assignmentId,
     );
     assignmentId = input.assignmentId;
@@ -168,7 +179,8 @@ export async function createActivity(
 
   const activity = await db.activity.create({
     data: {
-      userId: actorId,
+      userId: ownerId,
+      loggedByUserId,
       teamId,
       assignmentId,
       kind: input.kind,
@@ -182,7 +194,7 @@ export async function createActivity(
       effortRpe: input.effortRpe,
       calories: input.calories,
       notes: input.notes?.trim() || null,
-      visibility: input.visibility ?? (await defaultVisibility(actorId)),
+      visibility: input.visibility ?? (await defaultVisibility(ownerId)),
       shoeId,
       source: provenance?.source ?? "MANUAL",
       externalId: provenance?.externalId ?? null,
@@ -192,7 +204,7 @@ export async function createActivity(
 
   // Goal completions (personal + team) are checked on every logged run.
   // Fire-and-forget: celebrations must never break activity logging.
-  checkGoalCompletions(actorId).catch(() => {});
+  checkGoalCompletions(ownerId).catch(() => {});
 
   await audit({
     actorId,
@@ -203,6 +215,7 @@ export async function createActivity(
       kind: activity.kind,
       distanceM: activity.distanceM,
       assignmentId,
+      ...(onBehalfOf ? { onBehalfOf: onBehalfOf.userId } : {}),
     },
     ipAddress,
   });
@@ -254,14 +267,19 @@ export async function updateActivity(
   const existing = await db.activity.findUnique({
     where: { id: activityId },
   });
-  if (!existing || existing.userId !== actorId) {
+  if (
+    !existing ||
+    (existing.userId !== actorId && existing.loggedByUserId !== actorId)
+  ) {
     throw notFound("Activity not found");
   }
+  // Ownership-scoped checks run against the athlete the run belongs to.
+  const ownerId = existing.userId;
 
   let teamId: string | null | undefined;
   if (input.teamId !== undefined) {
     if (input.teamId) {
-      await activeMembership(actorId, input.teamId);
+      await activeMembership(ownerId, input.teamId);
       teamId = input.teamId;
     } else {
       teamId = null;
@@ -271,7 +289,7 @@ export async function updateActivity(
   let shoeId: string | null | undefined;
   if (input.shoeId !== undefined) {
     if (input.shoeId) {
-      await assertOwnShoe(actorId, input.shoeId);
+      await assertOwnShoe(ownerId, input.shoeId);
       shoeId = input.shoeId;
     } else {
       shoeId = null;
@@ -281,7 +299,7 @@ export async function updateActivity(
   let assignmentId: string | null | undefined;
   if (input.assignmentId !== undefined) {
     if (input.assignmentId) {
-      await assertAssignmentVisible(actorId, input.assignmentId);
+      await assertAssignmentVisible(ownerId, input.assignmentId);
       assignmentId = input.assignmentId;
     } else {
       assignmentId = null;
@@ -338,7 +356,10 @@ export async function deleteActivity(
   const existing = await db.activity.findUnique({
     where: { id: activityId },
   });
-  if (!existing || existing.userId !== actorId) {
+  if (
+    !existing ||
+    (existing.userId !== actorId && existing.loggedByUserId !== actorId)
+  ) {
     throw notFound("Activity not found");
   }
   await db.activity.delete({ where: { id: activityId } });
@@ -349,6 +370,112 @@ export async function deleteActivity(
     entityId: activityId,
     ipAddress,
   });
+}
+
+/**
+ * Coach bulk-log: record one run for many athletes at once (e.g. after a
+ * team practice). Each athlete gets their own activity, attributed to them
+ * and stamped as logged by the coach. The coach can later edit or delete
+ * the entries they logged.
+ */
+export async function logTeamRun(
+  coachId: string,
+  input: LogTeamRunInput,
+  ipAddress?: string,
+): Promise<{ count: number; activityIds: string[] }> {
+  const membership = await activeMembership(coachId, input.teamId);
+  requireManager(membership);
+
+  // Resolve the athlete list.
+  let athleteIds: string[];
+  if (input.userIds) {
+    // Explicit selection: everyone must be an active member of the team.
+    const members = await db.teamMembership.findMany({
+      where: {
+        teamId: input.teamId,
+        userId: { in: input.userIds },
+        status: "ACTIVE",
+      },
+      select: { userId: true },
+    });
+    const found = new Set(members.map((m) => m.userId));
+    const missing = input.userIds.filter((id) => !found.has(id));
+    if (missing.length > 0) {
+      throw forbidden("Some selected athletes are not on this team");
+    }
+    athleteIds = [...found];
+  } else if (input.groupId) {
+    const group = await db.teamGroup.findUnique({
+      where: { id: input.groupId },
+      select: { teamId: true },
+    });
+    if (!group || group.teamId !== input.teamId) {
+      throw notFound("Training group not found");
+    }
+    const members = await db.teamGroupMember.findMany({
+      where: { groupId: input.groupId },
+      select: { userId: true },
+    });
+    const active = await db.teamMembership.findMany({
+      where: {
+        teamId: input.teamId,
+        userId: { in: members.map((m) => m.userId) },
+        status: "ACTIVE",
+        role: "RUNNER",
+      },
+      select: { userId: true },
+    });
+    athleteIds = active.map((m) => m.userId);
+  } else {
+    // Whole team: every active runner.
+    const runners = await db.teamMembership.findMany({
+      where: { teamId: input.teamId, status: "ACTIVE", role: "RUNNER" },
+      select: { userId: true },
+    });
+    athleteIds = runners.map((m) => m.userId);
+  }
+
+  if (athleteIds.length === 0) {
+    throw new AppError(400, "NO_ATHLETES", "No athletes to log for");
+  }
+
+  const base = {
+    kind: input.kind,
+    title: input.title,
+    startedAt: input.startedAt,
+    distanceM: input.distanceM,
+    durationS: input.durationS,
+    avgHrBpm: input.avgHrBpm,
+    maxHrBpm: input.maxHrBpm,
+    effortRpe: input.effortRpe,
+    calories: input.calories,
+    notes: input.notes,
+    teamId: input.teamId,
+    visibility: input.visibility,
+  };
+
+  const activityIds: string[] = [];
+  for (const athleteId of athleteIds) {
+    const created = await createActivity(
+      coachId,
+      base,
+      ipAddress,
+      undefined,
+      { userId: athleteId, loggedByUserId: coachId },
+    );
+    activityIds.push(created.id);
+  }
+
+  await audit({
+    actorId: coachId,
+    action: "TEAM_RUN_LOGGED",
+    entityType: "Team",
+    entityId: input.teamId,
+    metadata: { count: activityIds.length, groupId: input.groupId ?? null },
+    ipAddress,
+  });
+
+  return { count: activityIds.length, activityIds };
 }
 
 export async function myStats(

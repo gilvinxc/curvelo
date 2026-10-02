@@ -56,6 +56,8 @@ export function ActivityDetailPage() {
 
   const activity = detailQuery.data?.activity;
   const isOwner = !!activity && !!user && activity.userId === user.id;
+  const canEdit =
+    isOwner || (!!activity && !!user && activity.loggedByUserId === user.id);
   const [shareOpen, setShareOpen] = useState(false);
   const [raceOpen, setRaceOpen] = useState(false);
   const canShare = isOwner && activity?.visibility === "TEAM";
@@ -126,9 +128,9 @@ export function ActivityDetailPage() {
         subtitle={formatActivityDateTime(activity.startedAt)}
         backTo="/dashboard"
         action={
-          isOwner ? (
+          canEdit ? (
             <div className="flex shrink-0 gap-2">
-              {canShare && (
+              {isOwner && canShare && (
                 <Button
                   variant="secondary"
                   onClick={() => setShareOpen(true)}
@@ -137,13 +139,15 @@ export function ActivityDetailPage() {
                   Share
                 </Button>
               )}
-              <Button
-                variant="secondary"
-                onClick={() => setRaceOpen(true)}
-                className="min-h-[44px] px-4 text-[14px]"
-              >
-                🏁 Race
-              </Button>
+              {isOwner && (
+                <Button
+                  variant="secondary"
+                  onClick={() => setRaceOpen(true)}
+                  className="min-h-[44px] px-4 text-[14px]"
+                >
+                  🏁 Race
+                </Button>
+              )}
               <Link to={`/activities/${activity.id}/edit`}>
                 <Button variant="secondary" className="min-h-[44px] px-4 text-[14px]">
                   Edit
@@ -153,6 +157,12 @@ export function ActivityDetailPage() {
           ) : undefined
         }
       />
+
+      {activity.loggedByName && (
+        <p className="mb-4 text-[13px] text-mist">
+          Logged by {activity.loggedByName}
+        </p>
+      )}
 
       {activity && isOwner && (
         <AddRaceResultDialog

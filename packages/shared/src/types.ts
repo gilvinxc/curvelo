@@ -263,6 +263,8 @@ export interface ActivityDTO {
   visibility: string;
   shoeId: string | null;
   shoeName: string | null;
+  loggedByUserId: string | null;
+  loggedByName: string | null;
 }
 
 export interface ActivityStatsDTO {

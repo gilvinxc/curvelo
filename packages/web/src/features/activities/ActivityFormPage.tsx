@@ -166,6 +166,9 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
 
   const isOwner =
     mode === "new" || detailQuery.data?.activity.userId === user?.id;
+  // A coach who logged this run on the athlete's behalf can edit it too.
+  const canEdit =
+    isOwner || detailQuery.data?.activity.loggedByUserId === user?.id;
 
   function validate(): boolean {
     const errs: Record<string, string> = {};
@@ -257,11 +260,11 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       </div>
     );
   }
-  if (mode === "edit" && !isOwner) {
+  if (mode === "edit" && !canEdit) {
     return (
       <div className="flex flex-col gap-4">
         <PageHeader title="Edit activity" backTo="/dashboard" />
-        <ErrorBanner message="Only the athlete who logged this activity can edit it." />
+        <ErrorBanner message="You can't edit this activity." />
       </div>
     );
   }
@@ -470,7 +473,9 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
           />
         </Field>
 
-        <ShoePicker value={form.shoeId} onChange={(v) => set("shoeId", v)} applyDefault={mode === "new"} />
+        {(mode === "new" || isOwner) && (
+          <ShoePicker value={form.shoeId} onChange={(v) => set("shoeId", v)} applyDefault={mode === "new"} />
+        )}
 
         <Field label="Notes" hint="Optional — how it felt, conditions, etc.">
           <TextArea
