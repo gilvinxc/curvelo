@@ -114,6 +114,9 @@ model User {
   mentionsReceived          Mention[]            @relation("MentionedUser")
   mentionsGiven             Mention[]            @relation("Mentioner")
   notifications             Notification[]
+  uploadedPhotos            Photo[]              @relation("PhotoUploader")
+  reviewedPhotos            Photo[]              @relation("PhotoReviewer")
+  createdAlbums             Album[]              @relation("AlbumAuthor")
 }
 
 model RefreshToken {
@@ -199,6 +202,8 @@ model Team {
   trainingPlans        TrainingPlan[]
   events               TeamEvent[]
   Mention              Mention[]
+  albums               Album[]
+  photos               Photo[]
 }
 
 // ─── Slice 6: team messaging (youth-safe, no private DMs) ───────────────
@@ -556,6 +561,7 @@ model FeedPost {
   comments  PostComment[]
   reactions PostReaction[]
   reports   PostReport[]
+  photos    Photo[]
 
   @@index([teamId, createdAt])
 }
@@ -932,4 +938,42 @@ model Notification {
   createdAt DateTime  @default(now())
 
   @@index([userId, createdAt])
+}
+
+model Album {
+  id          String   @id @default(uuid())
+  teamId      String
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  createdById String
+  createdBy   User     @relation("AlbumAuthor", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  photos      Photo[]
+
+  @@index([teamId, createdAt])
+}
+
+model Photo {
+  id           String    @id @default(uuid())
+  teamId       String
+  team         Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  albumId      String?
+  album        Album?    @relation(fields: [albumId], references: [id], onDelete: SetNull)
+  postId       String?
+  post         FeedPost? @relation(fields: [postId], references: [id], onDelete: SetNull)
+  uploaderId   String
+  uploader     User      @relation("PhotoUploader", fields: [uploaderId], references: [id], onDelete: Cascade)
+  storageKey   String
+  mimeType     String
+  sizeBytes    Int
+  caption      String?
+  status       String    @default("PENDING") // PENDING | APPROVED | REJECTED
+  reviewedById String?
+  reviewedBy   User?     @relation("PhotoReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([teamId, status, createdAt])
+  @@index([albumId, createdAt])
 }

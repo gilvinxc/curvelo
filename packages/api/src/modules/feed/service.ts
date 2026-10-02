@@ -9,6 +9,8 @@ import type {
 } from "@curvelo/shared";
 import { db } from "../../db.js";
 import { mentionRefsFor, syncMentions } from "../../lib/mentions.js";
+import { attachPhotosToPost } from "../photos/service.js";
+import type { PhotoDTO } from "@curvelo/shared";
 import { audit } from "../../lib/audit.js";
 import { AppError, forbidden, notFound } from "../../lib/errors.js";
 import {
@@ -32,6 +34,18 @@ type PostWithJoins = {
   activity: ActivityWithJoins | null;
   _count: { comments: number };
   reactions: Array<{ emoji: string; userId: string }>;
+  photos: Array<{
+    id: string;
+    teamId: string;
+    albumId: string | null;
+    postId: string | null;
+    uploaderId: string;
+    uploader: { displayName: string };
+    mimeType: string;
+    caption: string | null;
+    status: string;
+    createdAt: Date;
+  }>;
 };
 
 const POST_INCLUDE = {
@@ -39,6 +53,11 @@ const POST_INCLUDE = {
   activity: { include: ACTIVITY_WITH_JOINS },
   _count: { select: { comments: true } },
   reactions: { select: { emoji: true, userId: true } },
+  photos: {
+    where: { status: "APPROVED" },
+    include: { uploader: { select: { displayName: true } } },
+    orderBy: { createdAt: "asc" },
+  },
 } as const;
 
 function summarizeReactions(
@@ -60,6 +79,32 @@ function summarizeReactions(
   };
 }
 
+function toPhotoDTO(p: {
+  id: string;
+  teamId: string;
+  albumId: string | null;
+  postId: string | null;
+  uploaderId: string;
+  uploader: { displayName: string };
+  mimeType: string;
+  caption: string | null;
+  status: string;
+  createdAt: Date;
+}): PhotoDTO {
+  return {
+    id: p.id,
+    teamId: p.teamId,
+    albumId: p.albumId,
+    postId: p.postId,
+    uploaderId: p.uploaderId,
+    uploaderName: p.uploader.displayName,
+    mimeType: p.mimeType,
+    caption: p.caption,
+    status: p.status,
+    createdAt: p.createdAt.toISOString(),
+  };
+}
+
 async function toPostDTO(
   p: PostWithJoins,
   actorId: string,
@@ -78,6 +123,7 @@ async function toPostDTO(
     reactions,
     myReactions,
     mentions: mentions.get(p.id) ?? [],
+    photos: (p.photos ?? []).map(toPhotoDTO),
     createdAt: p.createdAt.toISOString(),
   };
 }
@@ -132,6 +178,16 @@ export async function createPost(
     include: POST_INCLUDE,
   });
 
+  let fullPost = post;
+  if (input.photoIds?.length) {
+    await attachPhotosToPost(actorId, teamId, post.id, input.photoIds);
+    // Re-fetch so the attached photos are included in the response.
+    fullPost = await db.feedPost.findUniqueOrThrow({
+      where: { id: post.id },
+      include: POST_INCLUDE,
+    });
+  }
+
   const author = await db.user.findUnique({
     where: { id: actorId },
     select: { displayName: true },
@@ -142,7 +198,7 @@ export async function createPost(
     teamId,
     mentionerId: actorId,
     mentionerName: author?.displayName ?? "Someone",
-    text: post.body,
+    text: fullPost.body,
     link: `/teams/${teamId}/feed#post-${post.id}`,
   });
 
@@ -156,7 +212,7 @@ export async function createPost(
   });
 
   const mentions = await mentionRefsFor("POST", [post.id]);
-  return toPostDTO(post, actorId, mentions);
+  return toPostDTO(fullPost, actorId, mentions);
 }
 
 export async function listFeed(

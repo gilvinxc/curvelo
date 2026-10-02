@@ -19,6 +19,7 @@ import {
 import { formatRelativeTime } from "./feedFormat";
 import { RichText } from "../../components/RichText";
 import { MentionTextarea } from "../../components/MentionTextarea";
+import { PhotoImg } from "../../components/PhotoImg";
 
 const REPORT_REASONS = [
   "Inappropriate content",
@@ -82,6 +83,23 @@ function ReportDialog({
           </button>
         ))}
       </div>
+      {post.photos && post.photos.length > 0 && (
+        <div
+          className={`mt-3 grid gap-2 ${
+            post.photos.length > 1 ? "grid-cols-2" : "grid-cols-1"
+          }`}
+        >
+          {post.photos.map((ph) => (
+            <PhotoImg
+              key={ph.id}
+              photoId={ph.id}
+              alt={ph.caption ?? "Team photo"}
+              className="w-full rounded-xl object-cover max-h-80"
+            />
+          ))}
+        </div>
+      )}
+
       {error && (
         <div className="mt-3">
           <ErrorBanner message={error} />
@@ -353,6 +371,23 @@ export function PostCard({
             </p>
           </div>
         </Link>
+      )}
+
+      {post.photos && post.photos.length > 0 && (
+        <div
+          className={`mt-3 grid gap-2 ${
+            post.photos.length > 1 ? "grid-cols-2" : "grid-cols-1"
+          }`}
+        >
+          {post.photos.map((ph) => (
+            <PhotoImg
+              key={ph.id}
+              photoId={ph.id}
+              alt={ph.caption ?? "Team photo"}
+              className="w-full rounded-xl object-cover max-h-80"
+            />
+          ))}
+        </div>
       )}
 
       {error && (

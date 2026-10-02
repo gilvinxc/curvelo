@@ -9,9 +9,10 @@ export const createPostSchema = z
   .object({
     body: z.string().trim().min(1).max(2000).optional(),
     activityId: z.string().uuid().optional(),
+    photoIds: z.array(z.string().uuid()).max(5).optional(),
   })
-  .refine((p) => p.body !== undefined || p.activityId !== undefined, {
-    message: "A post needs text or a shared activity",
+  .refine((p) => p.body !== undefined || p.activityId !== undefined || (p.photoIds?.length ?? 0) > 0, {
+    message: "A post needs text, a shared activity, or photos",
   });
 export type CreatePostInput = z.infer<typeof createPostSchema>;
 

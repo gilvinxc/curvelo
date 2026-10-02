@@ -28,11 +28,13 @@ import { PracticePlanner } from "./PracticePlanner";
 import { TeamLogDialog } from "../activities/TeamLogDialog";
 import { TeamRaceDialog } from "../records/TeamRaceDialog";
 import { DocumentsTab } from "../documents/DocumentsTab";
+import { PhotosTab } from "../photos/PhotosTab";
 
 const CAN_INVITE = new Set(["COACH", "TEAM_ADMIN"]);
 
 export type TeamTab =
   | "roster"
+  | "photos"
   | "feed"
   | "messages"
   | "workouts"
@@ -44,6 +46,7 @@ export type TeamTab =
 
 const TABS: { id: TeamTab; label: string; href: (id: string) => string; coachOnly?: boolean }[] = [
   { id: "roster", label: "Roster", href: (id) => `/teams/${id}` },
+  { id: "photos", label: "Photos", href: (id) => `/teams/${id}/photos` },
   { id: "feed", label: "Feed", href: (id) => `/teams/${id}/feed` },
   { id: "messages", label: "Messages", href: (id) => `/teams/${id}/messages` },
   { id: "workouts", label: "Workouts", href: (id) => `/teams/${id}/workouts` },
@@ -297,6 +300,9 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
           myUserId={user?.id ?? ""}
           onInvite={() => setInviteOpen(true)}
         />
+      )}
+      {initialTab === "photos" && (
+        <PhotosTab teamId={team.id} isCoach={canInvite} />
       )}
       {initialTab === "feed" && (
         <FeedPage teamId={team.id} myRole={team.myRole} />

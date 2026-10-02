@@ -317,6 +317,29 @@ export interface MentionRef {
   displayName: string;
 }
 
+export interface PhotoDTO {
+  id: string;
+  teamId: string;
+  albumId: string | null;
+  postId: string | null;
+  uploaderId: string;
+  uploaderName: string;
+  mimeType: string;
+  caption: string | null;
+  status: string;
+  createdAt: string;
+}
+
+export interface AlbumDTO {
+  id: string;
+  teamId: string;
+  title: string;
+  description: string | null;
+  photoCount: number;
+  coverPhotoId: string | null;
+  createdAt: string;
+}
+
 export interface NotificationDTO {
   id: string;
   type: string;
@@ -390,6 +413,7 @@ export interface PostDTO {
   reactions: ReactionSummaryDTO[];
   myReactions: string[];
   mentions: MentionRef[];
+  photos: PhotoDTO[];
   createdAt: string;
 }
 

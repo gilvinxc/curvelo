@@ -29,6 +29,8 @@ import type {
   JoinRequestDTO,
   LeaderboardDTO,
   NotificationDTO,
+  PhotoDTO,
+  AlbumDTO,
   PersonalRecordDTO,
   PostDTO,
   ProgressDTO,
@@ -350,6 +352,29 @@ export const api = {
     post<{ ok: boolean }>(`/notifications/${id}/read`, {}),
   markAllNotificationsRead: () => post<{ ok: boolean }>("/notifications/read-all", {}),
 
+  listAlbums: (teamId: string) =>
+    request<{ albums: AlbumDTO[] }>(`/teams/${teamId}/albums`),
+  createAlbum: (teamId: string, input: { title: string; description?: string }) =>
+    post<{ album: AlbumDTO }>(`/teams/${teamId}/albums`, input),
+  listPhotos: (teamId: string, opts?: { albumId?: string; includePending?: boolean }) => {
+    const q = new URLSearchParams();
+    if (opts?.albumId) q.set("albumId", opts.albumId);
+    if (opts?.includePending) q.set("includePending", "true");
+    const qs = q.toString();
+    return request<{ photos: PhotoDTO[] }>(`/teams/${teamId}/photos${qs ? `?${qs}` : ""}`);
+  },
+  pendingPhotos: (teamId: string) =>
+    request<{ photos: PhotoDTO[] }>(`/teams/${teamId}/photos/pending`),
+  reviewPhoto: (photoId: string, approve: boolean) =>
+    post<{ photo: PhotoDTO }>(`/photos/${photoId}/review`, { approve }),
+  deletePhoto: (photoId: string) => del<{ ok: boolean }>(`/photos/${photoId}`),
+  uploadPhoto: (teamId: string, form: FormData) =>
+    request<{ photo: PhotoDTO }>(`/teams/${teamId}/photos`, {
+      method: "POST",
+      body: form,
+    }),
+  photoFileUrl: (photoId: string) => `${BASE_URL}/photos/${photoId}/file`,
+
   getRoster: (id: string) =>
     request<{ roster: RosterMemberDTO[] }>(`/teams/${id}/roster`),
 
@@ -599,8 +624,10 @@ export const api = {
     ),
 
   // team feed
-  createPost: (teamId: string, input: { body?: string; activityId?: string }) =>
-    post<{ post: PostDTO }>(`/teams/${teamId}/feed`, input),
+  createPost: (
+    teamId: string,
+    input: { body?: string; activityId?: string; photoIds?: string[] },
+  ) => post<{ post: PostDTO }>(`/teams/${teamId}/feed`, input),
   listFeed: (teamId: string, before?: string, limit = 20) =>
     request<{ posts: PostDTO[] }>(
       `/teams/${teamId}/feed?limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ""}`,
