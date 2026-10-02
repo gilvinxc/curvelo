@@ -1,10 +1,18 @@
 import type { TrainingStats } from "@curvelo/shared";
 import { formatDistance, formatPace } from "./stats.js";
+import type { DeterministicRaceAnalysis } from "./raceAnalysis.js";
 
 export interface NarrativeInput {
   athleteName: string;
   periodDays: number;
   stats: TrainingStats;
+}
+
+export interface RaceNarrativeInput {
+  athleteName: string;
+  raceName: string;
+  distanceLabel: string;
+  analysis: DeterministicRaceAnalysis;
 }
 
 /**
@@ -31,6 +39,14 @@ export interface InsightProvider {
       status: string;
     }>,
   ): Promise<string>;
+  /**
+   * Narrate one race. The analysis is deterministic and data-derived;
+   * the provider only writes the words around it.
+   */
+  raceNarrative(input: RaceNarrativeInput): Promise<{
+    narrative: string;
+    cues: string[];
+  }>;
 }
 
 function plural(n: number, one: string, many: string): string {
@@ -128,5 +144,14 @@ export class LocalAnalyst implements InsightProvider {
       summary += ` Needs attention: ${attention.slice(0, 5).join(", ")}${attention.length > 5 ? ` (+${attention.length - 5} more)` : ""}.`;
     }
     return summary;
+  }
+
+  async raceNarrative(input: RaceNarrativeInput) {
+    const { athleteName, raceName, distanceLabel, analysis: a } = input;
+    const first = athleteName.split(" ")[0];
+    let narrative = `${first}'s ${distanceLabel} at ${raceName}: ${a.verdictDetail}`;
+    if (a.fadeOrKick) narrative += ` They ${a.fadeOrKick}.`;
+    if (a.vsPrevious) narrative += ` ${a.vsPrevious}.`;
+    return { narrative, cues: a.coachingCues };
   }
 }

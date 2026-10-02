@@ -1,6 +1,6 @@
 import type { TrainingStats } from "@curvelo/shared";
 import { formatDistance, formatPace } from "./stats.js";
-import { LocalAnalyst, type InsightProvider, type NarrativeInput } from "./providers.js";
+import { LocalAnalyst, type InsightProvider, type NarrativeInput, type RaceNarrativeInput } from "./providers.js";
 import { config } from "../../config.js";
 
 /**
@@ -104,6 +104,42 @@ export class LlmProvider implements InsightProvider {
       system,
       JSON.stringify({ team: teamName, period_days: periodDays, athletes: rows }),
     );
+  }
+
+  async raceNarrative(input: RaceNarrativeInput) {
+    const system =
+      "You are an assistant running coach. You receive a deterministic analysis of one race as JSON — " +
+      "pacing verdict, splits, place, and history comparison are all verified numbers. " +
+      "Write a 2-3 sentence race recap plus 1-3 coaching cues. Never invent numbers — only use the data given. " +
+      "Respond in exactly two sections: NARRATIVE (2-3 sentences), CUES (bullets, each under 20 words).";
+    const raw = await this.complete(
+      system,
+      JSON.stringify({
+        athlete: input.athleteName,
+        race: input.raceName,
+        distance: input.distanceLabel,
+        pacing_verdict: input.analysis.pacingVerdict,
+        verdict_detail: input.analysis.verdictDetail,
+        fade_or_kick: input.analysis.fadeOrKick,
+        vs_previous: input.analysis.vsPrevious,
+        highlights: input.analysis.highlights,
+        coaching_cues: input.analysis.coachingCues,
+      }),
+    );
+    const cues: string[] = [];
+    let narrative = "";
+    let section: "n" | "c" | null = null;
+    for (const line of raw.split("\n")) {
+      const t = line.trim();
+      if (/^narrative/i.test(t)) { section = "n"; continue; }
+      if (/^cues/i.test(t)) { section = "c"; continue; }
+      const clean = t.replace(/^[-*•\d.)\s]+/, "").trim();
+      if (!clean) continue;
+      if (section === "n") narrative += (narrative ? " " : "") + clean;
+      else if (section === "c") cues.push(clean);
+    }
+    if (!narrative) narrative = raw.slice(0, 400);
+    return { narrative, cues: cues.length > 0 ? cues : input.analysis.coachingCues };
   }
 }
 

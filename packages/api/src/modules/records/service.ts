@@ -1,6 +1,7 @@
 import type {
   CreateRaceResultInput,
   CreateShoeInput,
+  LogTeamRaceInput,
   UpdateShoeInput,
 } from "@curvelo/shared";
 import { STANDARD_RACE_DISTANCES } from "@curvelo/shared";
@@ -12,7 +13,7 @@ import type {
 } from "@curvelo/shared";
 import { db } from "../../db.js";
 import { AppError, forbidden, notFound } from "../../lib/errors.js";
-import { activeMembership } from "../../lib/permissions.js";
+import { activeMembership, requireManager } from "../../lib/permissions.js";
 import { audit } from "../../lib/audit.js";
 
 const distanceLabel = (meters: number): string =>
@@ -23,6 +24,29 @@ const distanceLabel = (meters: number): string =>
 // Race results (official: exact distance, exact time)
 // ---------------------------------------------------------------------------
 
+function parseSplits(
+  raw: unknown,
+): Array<{ distanceM: number; durationS: number }> | null {
+  if (!Array.isArray(raw)) return null;
+  const out: Array<{ distanceM: number; durationS: number }> = [];
+  for (const s of raw) {
+    if (
+      typeof s === "object" &&
+      s !== null &&
+      typeof (s as any).distanceM === "number" &&
+      typeof (s as any).durationS === "number" &&
+      (s as any).distanceM > 0 &&
+      (s as any).durationS > 0
+    ) {
+      out.push({
+        distanceM: (s as any).distanceM,
+        durationS: Math.round((s as any).durationS),
+      });
+    }
+  }
+  return out.length >= 2 ? out : null;
+}
+
 function toRaceResultDTO(r: {
   id: string;
   raceName: string;
@@ -30,6 +54,10 @@ function toRaceResultDTO(r: {
   durationS: number;
   racedAt: Date;
   activityId: string | null;
+  splits: unknown;
+  finishPlace: number | null;
+  ageGroupPlace: number | null;
+  fieldSize: number | null;
 }): RaceResultDTO {
   return {
     id: r.id,
@@ -38,6 +66,10 @@ function toRaceResultDTO(r: {
     durationS: r.durationS,
     racedAt: r.racedAt.toISOString(),
     activityId: r.activityId,
+    splits: parseSplits(r.splits),
+    finishPlace: r.finishPlace,
+    ageGroupPlace: r.ageGroupPlace,
+    fieldSize: r.fieldSize,
   };
 }
 
@@ -45,21 +77,27 @@ export async function createRaceResult(
   userId: string,
   input: CreateRaceResultInput,
   ipAddress?: string,
+  onBehalfOf?: { userId: string; loggedByUserId: string },
 ): Promise<RaceResultDTO> {
+  const ownerId = onBehalfOf?.userId ?? userId;
   if (input.activityId) {
     const activity = await db.activity.findFirst({
-      where: { id: input.activityId, userId },
+      where: { id: input.activityId, userId: ownerId },
     });
     if (!activity) throw notFound("Activity not found");
   }
   const result = await db.raceResult.create({
     data: {
-      userId,
+      userId: ownerId,
       raceName: input.raceName,
       distanceM: input.distanceM,
       durationS: input.durationS,
       racedAt: new Date(input.racedAt),
       activityId: input.activityId ?? null,
+      splits: input.splits ?? undefined,
+      finishPlace: input.finishPlace ?? null,
+      ageGroupPlace: input.ageGroupPlace ?? null,
+      fieldSize: input.fieldSize ?? null,
     },
   });
   await audit({
@@ -67,7 +105,10 @@ export async function createRaceResult(
     action: "RACE_RESULT_CREATED",
     entityType: "RaceResult",
     entityId: result.id,
-    metadata: { distanceM: result.distanceM },
+    metadata: {
+      distanceM: result.distanceM,
+      ...(onBehalfOf ? { onBehalfOf: onBehalfOf.userId } : {}),
+    },
     ipAddress,
   });
   return toRaceResultDTO(result);
@@ -97,6 +138,100 @@ export async function deleteRaceResult(
     ipAddress,
   });
   return { ok: true as const };
+}
+
+/**
+ * Coach bulk race entry: official results for many athletes in one race.
+ * Each athlete gets their own result; times/places/splits are per athlete.
+ */
+export async function logTeamRaceResults(
+  coachId: string,
+  input: LogTeamRaceInput,
+  ipAddress?: string,
+): Promise<{ count: number; raceResultIds: string[] }> {
+  const membership = await activeMembership(coachId, input.teamId);
+  requireManager(membership);
+
+  const members = await db.teamMembership.findMany({
+    where: {
+      teamId: input.teamId,
+      userId: { in: input.entries.map((e) => e.userId) },
+      status: "ACTIVE",
+    },
+    select: { userId: true },
+  });
+  const found = new Set(members.map((m) => m.userId));
+  const missing = input.entries.filter((e) => !found.has(e.userId));
+  if (missing.length > 0) {
+    throw forbidden("Some athletes are not on this team");
+  }
+
+  const ids: string[] = [];
+  for (const entry of input.entries) {
+    if (
+      entry.finishPlace !== undefined &&
+      input.fieldSize !== undefined &&
+      entry.finishPlace > input.fieldSize
+    ) {
+      throw new AppError(
+        400,
+        "PLACE_EXCEEDS_FIELD",
+        "Finish place can't be larger than the field size",
+      );
+    }
+    const created = await createRaceResult(
+      coachId,
+      {
+        raceName: input.raceName,
+        distanceM: input.distanceM,
+        durationS: entry.durationS,
+        racedAt: input.racedAt,
+        splits: entry.splits,
+        finishPlace: entry.finishPlace,
+        ageGroupPlace: entry.ageGroupPlace,
+        fieldSize: input.fieldSize,
+      },
+      ipAddress,
+      { userId: entry.userId, loggedByUserId: coachId },
+    );
+    ids.push(created.id);
+  }
+
+  await audit({
+    actorId: coachId,
+    action: "TEAM_RACE_LOGGED",
+    entityType: "Team",
+    entityId: input.teamId,
+    metadata: { count: ids.length, raceName: input.raceName },
+    ipAddress,
+  });
+
+  return { count: ids.length, raceResultIds: ids };
+}
+
+/** Fetch a race result the actor is allowed to analyze: the owner, or a coach/admin of any team the athlete is on. */
+export async function getAnalyzableRaceResult(actorId: string, raceResultId: string) {
+  const row = await db.raceResult.findUnique({
+    where: { id: raceResultId },
+    include: { user: { select: { id: true, displayName: true } } },
+  });
+  if (!row) throw notFound("Race result not found");
+  if (row.userId !== actorId) {
+    const memberships = await db.teamMembership.findMany({
+      where: { userId: row.userId, status: "ACTIVE" },
+      select: { teamId: true },
+    });
+    let manager = false;
+    for (const m of memberships) {
+      const mine = await activeMembership(actorId, m.teamId).catch(() => null);
+      if (mine && (mine.role === "COACH" || mine.role === "TEAM_ADMIN")) {
+        manager = true;
+        break;
+      }
+    }
+    if (!manager) throw forbidden("You cannot view this race result");
+  }
+  return row;
 }
 
 /** Personal bests: best official time at each standard distance. */

@@ -703,6 +703,12 @@ model RaceResult {
   distanceM  Int
   durationS  Int
   racedAt    DateTime
+  // Per-segment splits: [{ distanceM: number, durationS: number }].
+  splits        Json?
+  finishPlace   Int?
+  ageGroupPlace Int?
+  // How many athletes were in the race (for place context).
+  fieldSize     Int?
   createdAt  DateTime  @default(now())
 
   @@index([userId])

@@ -55,8 +55,36 @@ export interface RaceResultDTO {
   durationS: number;
   racedAt: string;
   activityId: string | null;
+  splits: Array<{ distanceM: number; durationS: number }> | null;
+  finishPlace: number | null;
+  ageGroupPlace: number | null;
+  fieldSize: number | null;
 }
 
+/** Deterministic + narrated analysis of one race result. */
+export interface RaceSplitAnalysis {
+  index: number;
+  distanceM: number;
+  durationS: number;
+  /** Seconds per km for this split. */
+  paceSecPerKm: number;
+  /** Percent slower (+) / faster (-) than the race average pace. */
+  vsAvgPct: number;
+}
+export interface RaceAnalysisDTO {
+  hasSplits: boolean;
+  pacingVerdict: "even" | "positive" | "negative" | "insufficient";
+  verdictDetail: string;
+  splits: RaceSplitAnalysis[];
+  /** e.g. "faded 8% over the final mile" / "closed 5% faster" / null. */
+  fadeOrKick: string | null;
+  /** Comparison with the athlete's previous race at this distance. */
+  vsPrevious: string | null;
+  highlights: string[];
+  coachingCues: string[];
+  narrative: string;
+  provider: "local" | "llm";
+}
 /** A personal best at one standard distance. */
 export interface PersonalRecordDTO {
   distanceM: number;

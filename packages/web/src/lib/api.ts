@@ -24,6 +24,7 @@ import type {
   PersonalRecordDTO,
   PostDTO,
   ProgressDTO,
+  RaceAnalysisDTO,
   RaceResultDTO,
   RegisterInput,
   ReportDTO,
@@ -377,9 +378,33 @@ export const api = {
     durationS: number;
     racedAt: string;
     activityId?: string;
+    splits?: Array<{ distanceM: number; durationS: number }>;
+    finishPlace?: number;
+    ageGroupPlace?: number;
+    fieldSize?: number;
   }) => post<{ raceResult: RaceResultDTO }>("/race-results", input),
   myRaceResults: () => request<{ raceResults: RaceResultDTO[] }>("/race-results"),
   deleteRaceResult: (id: string) => del<{ ok: boolean }>(`/race-results/${id}`),
+  raceAnalysis: (id: string) =>
+    request<{ analysis: RaceAnalysisDTO }>(`/race-results/${id}/analysis`),
+  logTeamRace: (input: {
+    teamId: string;
+    raceName: string;
+    distanceM: number;
+    racedAt: string;
+    fieldSize?: number;
+    entries: Array<{
+      userId: string;
+      durationS: number;
+      finishPlace?: number;
+      ageGroupPlace?: number;
+      splits?: Array<{ distanceM: number; durationS: number }>;
+    }>;
+  }) =>
+    post<{ count: number; raceResultIds: string[] }>(
+      "/race-results/team-log",
+      input,
+    ),
   myRecords: () => request<{ records: PersonalRecordDTO[] }>("/users/me/records"),
   teamRecords: (teamId: string) =>
     request<{ records: TeamRecordDTO[] }>(`/teams/${teamId}/records`),

@@ -25,6 +25,7 @@ import { FeedPage } from "../feed/FeedPage";
 import { MessagesSection } from "../messages/MessagesSection";
 import { TeamDigestSection } from "../insights/TeamDigestSection";
 import { TeamLogDialog } from "../activities/TeamLogDialog";
+import { TeamRaceDialog } from "../records/TeamRaceDialog";
 
 const CAN_INVITE = new Set(["COACH", "TEAM_ADMIN"]);
 
@@ -169,6 +170,7 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
   const { id } = useParams<{ id: string }>();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [teamLogOpen, setTeamLogOpen] = useState(false);
+  const [teamRaceOpen, setTeamRaceOpen] = useState(false);
 
   const teamQuery = useQuery({
     queryKey: ["team", id],
@@ -279,9 +281,12 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
       )}
       {initialTab === "coaching" && canInvite && (
         <>
-          <div className="mb-4">
+          <div className="mb-4 flex flex-wrap gap-2">
             <Button onClick={() => setTeamLogOpen(true)}>
               🏃 Log team run
+            </Button>
+            <Button variant="secondary" onClick={() => setTeamRaceOpen(true)}>
+              🏁 Log race results
             </Button>
           </div>
           <TeamDigestSection teamId={team.id} />
@@ -305,6 +310,12 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
         teamId={team.id}
         open={teamLogOpen}
         onClose={() => setTeamLogOpen(false)}
+      />
+
+      <TeamRaceDialog
+        teamId={team.id}
+        open={teamRaceOpen}
+        onClose={() => setTeamRaceOpen(false)}
       />
     </div>
   );

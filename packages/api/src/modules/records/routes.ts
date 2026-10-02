@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import {
   createRaceResultSchema,
   createShoeSchema,
+  logTeamRaceSchema,
   raceResultParamsSchema,
   shoeParamsSchema,
   teamParamsSchema,
@@ -16,6 +17,7 @@ import {
   getTeamRecords,
   listMyRaceResults,
   listShoes,
+  logTeamRaceResults,
   setDefaultShoe,
   updateShoe,
 } from "./service.js";
@@ -29,6 +31,17 @@ export async function recordRoutes(app: FastifyInstance) {
       const input = createRaceResultSchema.parse(request.body);
       const result = await createRaceResult(request.user!.id, input, request.ip);
       return reply.code(201).send({ raceResult: result });
+    },
+  );
+
+  // Coach bulk entry: official results for many athletes in one race.
+  app.post(
+    "/race-results/team-log",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const input = logTeamRaceSchema.parse(request.body);
+      const result = await logTeamRaceResults(request.user!.id, input, request.ip);
+      return reply.code(201).send(result);
     },
   );
 

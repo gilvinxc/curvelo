@@ -261,4 +261,129 @@ describe("records + shoes", () => {
     expect(hidden.phone).toBeUndefined();
     expect(hidden.email).toBeUndefined();
   });
+
+  it("race result stores splits, place, and field size; bad splits rejected", async () => {
+    const { app, runner } = await setup();
+    const splits = [
+      { distanceM: 1609, durationS: 500 },
+      { distanceM: 1609, durationS: 500 },
+      { distanceM: 1782, durationS: 500 },
+    ];
+    const created = await request(app.server)
+      .post("/api/v1/race-results")
+      .set(cookieHeader(runner))
+      .send({
+        ...RACE,
+        durationS: 1500,
+        splits,
+        finishPlace: 7,
+        ageGroupPlace: 2,
+        fieldSize: 342,
+      });
+    expect(created.status).toBe(201);
+    expect(created.body.raceResult.splits).toHaveLength(3);
+    expect(created.body.raceResult.finishPlace).toBe(7);
+    expect(created.body.raceResult.fieldSize).toBe(342);
+
+    const bad = await request(app.server)
+      .post("/api/v1/race-results")
+      .set(cookieHeader(runner))
+      .send({
+        ...RACE,
+        durationS: 1500,
+        splits: [
+          { distanceM: 1609, durationS: 300 },
+          { distanceM: 1609, durationS: 300 },
+        ],
+      });
+    expect(bad.status).toBe(400);
+  });
+
+  it("coach bulk-logs race results for the team", async () => {
+    const { app, coach, runner, teamId } = await setup();
+    const other = await registerUser("RUNNER", "raceteamother");
+    await addRunnerToTeam(coach, teamId, other);
+
+    const res = await request(app.server)
+      .post("/api/v1/race-results/team-log")
+      .set(cookieHeader(coach))
+      .send({
+        teamId,
+        raceName: "City 5K",
+        distanceM: 5000,
+        racedAt: new Date().toISOString(),
+        fieldSize: 500,
+        entries: [
+          { userId: runner.id, durationS: 1500, finishPlace: 42 },
+          { userId: other.id, durationS: 1560, finishPlace: 87 },
+        ],
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.count).toBe(2);
+
+    const mine = await request(app.server)
+      .get("/api/v1/race-results")
+      .set(cookieHeader(other));
+    expect(mine.body.raceResults).toHaveLength(1);
+    expect(mine.body.raceResults[0].durationS).toBe(1560);
+    expect(mine.body.raceResults[0].finishPlace).toBe(87);
+    expect(mine.body.raceResults[0].fieldSize).toBe(500);
+
+    // Runner cannot bulk-log.
+    const denied = await request(app.server)
+      .post("/api/v1/race-results/team-log")
+      .set(cookieHeader(runner))
+      .send({
+        teamId,
+        raceName: "City 5K",
+        distanceM: 5000,
+        racedAt: new Date().toISOString(),
+        entries: [{ userId: runner.id, durationS: 1500 }],
+      });
+    expect(denied.status).toBe(403);
+  });
+
+  it("AI race analysis calls out a positive split; access is owner/coach-only", async () => {
+    const { app, coach, runner, teamId } = await setup();
+    // Went out hot: first 5K split well under average, faded late.
+    const created = await request(app.server)
+      .post("/api/v1/race-results")
+      .set(cookieHeader(runner))
+      .send({
+        ...RACE,
+        durationS: 1240,
+        splits: [
+          { distanceM: 1609, durationS: 380 },
+          { distanceM: 1609, durationS: 400 },
+          { distanceM: 1782, durationS: 460 },
+        ],
+        finishPlace: 15,
+        fieldSize: 200,
+      });
+    expect(created.status).toBe(201);
+    const id = created.body.raceResult.id;
+
+    const analysis = await request(app.server)
+      .get(`/api/v1/race-results/${id}/analysis`)
+      .set(cookieHeader(runner));
+    expect(analysis.status).toBe(200);
+    expect(analysis.body.analysis.pacingVerdict).toBe("positive");
+    expect(analysis.body.analysis.hasSplits).toBe(true);
+    expect(analysis.body.analysis.narrative.length).toBeGreaterThan(0);
+    expect(analysis.body.analysis.coachingCues.length).toBeGreaterThan(0);
+    expect(analysis.body.analysis.provider).toBe("local");
+
+    // Coach of the athlete's team can view it.
+    const coachView = await request(app.server)
+      .get(`/api/v1/race-results/${id}/analysis`)
+      .set(cookieHeader(coach));
+    expect(coachView.status).toBe(200);
+
+    // Unrelated runner cannot.
+    const stranger = await registerUser("RUNNER", "racestranger");
+    const denied = await request(app.server)
+      .get(`/api/v1/race-results/${id}/analysis`)
+      .set(cookieHeader(stranger));
+    expect([403, 404]).toContain(denied.status);
+  });
 });

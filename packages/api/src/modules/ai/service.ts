@@ -1,8 +1,10 @@
 import type {
   AthleteInsight,
+  RaceAnalysisDTO,
   TeamDigest,
   TeamDigestAthlete,
 } from "@curvelo/shared";
+import { STANDARD_RACE_DISTANCES } from "@curvelo/shared";
 import { db } from "../../db.js";
 import { audit } from "../../lib/audit.js";
 import { notFound } from "../../lib/errors.js";
@@ -189,4 +191,111 @@ export async function getTeamDigest(
     provider: provider.name,
     generatedAt: new Date().toISOString(),
   };
+}
+
+/**
+ * AI race analysis: deterministic pacing/splits analysis of one official
+ * race result, narrated by the insight provider (LLM when configured,
+ * local analyst otherwise — with fallback on outage).
+ */
+export async function getRaceAnalysis(
+  actorId: string,
+  raceResultId: string,
+  ipAddress?: string,
+): Promise<RaceAnalysisDTO> {
+  const { getAnalyzableRaceResult } = await import("../records/service.js");
+  const row = await getAnalyzableRaceResult(actorId, raceResultId);
+
+  const distanceLabel =
+    STANDARD_RACE_DISTANCES.find((d) => d.meters === row.distanceM)?.label ??
+    `${row.distanceM} m`;
+
+  const history = await db.raceResult.findMany({
+    where: {
+      userId: row.userId,
+      distanceM: row.distanceM,
+      id: { not: row.id },
+    },
+    orderBy: { racedAt: "desc" },
+    take: 5,
+  });
+  const pb =
+    history.length > 0
+      ? Math.min(...history.map((h) => h.durationS), row.durationS)
+      : row.durationS;
+
+  const { analyzeRaceDeterministic, toRaceAnalysisDTO } = await import(
+    "./raceAnalysis.js"
+  );
+  const det = analyzeRaceDeterministic({
+    athleteName: row.user.displayName,
+    raceName: row.raceName,
+    distanceM: row.distanceM,
+    distanceLabel,
+    durationS: row.durationS,
+    racedAt: row.racedAt.toISOString(),
+    splits: parseSplitsLoose(row.splits),
+    finishPlace: row.finishPlace,
+    ageGroupPlace: row.ageGroupPlace,
+    fieldSize: row.fieldSize,
+    history: history.map((h) => ({
+      durationS: h.durationS,
+      racedAt: h.racedAt.toISOString(),
+      raceName: h.raceName,
+    })),
+    personalBestS: pb,
+  });
+
+  const provider = selectProvider();
+  let narrated: { narrative: string; cues: string[] };
+  try {
+    narrated = await provider.raceNarrative({
+      athleteName: row.user.displayName,
+      raceName: row.raceName,
+      distanceLabel,
+      analysis: det,
+    });
+  } catch {
+    const { LocalAnalyst } = await import("./providers.js");
+    narrated = await new LocalAnalyst().raceNarrative({
+      athleteName: row.user.displayName,
+      raceName: row.raceName,
+      distanceLabel,
+      analysis: det,
+    });
+  }
+
+  await audit({
+    actorId,
+    action: "AI_RACE_ANALYSIS_GENERATED",
+    entityType: "RaceResult",
+    entityId: row.id,
+    metadata: { provider: provider.name },
+    ipAddress,
+  });
+
+  return toRaceAnalysisDTO(det, narrated.narrative, provider.name);
+}
+
+function parseSplitsLoose(
+  raw: unknown,
+): Array<{ distanceM: number; durationS: number }> | null {
+  if (!Array.isArray(raw)) return null;
+  const out: Array<{ distanceM: number; durationS: number }> = [];
+  for (const s of raw) {
+    if (
+      typeof s === "object" &&
+      s !== null &&
+      typeof (s as any).distanceM === "number" &&
+      typeof (s as any).durationS === "number" &&
+      (s as any).distanceM > 0 &&
+      (s as any).durationS > 0
+    ) {
+      out.push({
+        distanceM: (s as any).distanceM,
+        durationS: Math.round((s as any).durationS),
+      });
+    }
+  }
+  return out.length >= 2 ? out : null;
 }
