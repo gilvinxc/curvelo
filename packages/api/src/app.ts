@@ -18,6 +18,7 @@ import { teamEventRoutes } from "./modules/team-events/routes.js";
 import { activityRoutes } from "./modules/activities/routes.js";
 import { feedRoutes } from "./modules/feed/routes.js";
 import { placeRoutes } from "./modules/places/routes.js";
+import { trackerRoutes } from "./modules/trackers/routes.js";
 import { guardianRoutes } from "./modules/guardians/routes.js";
 import { messageRoutes } from "./modules/messages/routes.js";
 import { aiRoutes } from "./modules/ai/routes.js";
@@ -76,6 +77,7 @@ export async function buildApp() {
   await app.register(notificationRoutes, { prefix: "/api/v1" });
   await app.register(photoRoutes, { prefix: "/api/v1" });
   await app.register(placeRoutes, { prefix: "/api/v1" });
+  await app.register(trackerRoutes, { prefix: "/api/v1" });
 
   return app;
 }

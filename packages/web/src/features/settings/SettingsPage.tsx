@@ -26,6 +26,7 @@ import {
   TextInput,
 } from "../../components/ui";
 import { CityInput } from "../../components/CityInput";
+import { TrackerSection } from "./TrackerSection";
 
 const SHARE_LEVELS = [
   { value: "FULL", label: "Full details" },
@@ -303,6 +304,8 @@ export function SettingsPage() {
           </Button>
         </form>
       </Card>
+
+      <TrackerSection />
 
       <Card className="mt-4">
         <h3 className="text-[15px] font-extrabold">Account</h3>

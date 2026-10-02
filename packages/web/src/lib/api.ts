@@ -386,6 +386,13 @@ export const api = {
   searchPlaces: (q: string) =>
     request<{ places: Place[] }>(`/places/search?q=${encodeURIComponent(q)}`),
 
+  // trackers
+  trackerStatus: () =>
+    request<{ trackers: Array<{ provider: string; connected: boolean; lastSyncAt: string | null }> }>("/trackers/status"),
+  syncCoros: () =>
+    post<{ result: { checked: number; imported: number; skipped: number; errors: string[] } }>("/trackers/coros/sync"),
+  disconnectCoros: () => del<{ ok: boolean }>("/trackers/coros"),
+
   // teams
   listTeams: () => request<{ teams: TeamDTO[] }>("/teams"),
   getTeam: (id: string) => request<{ team: TeamDTO }>(`/teams/${id}`),

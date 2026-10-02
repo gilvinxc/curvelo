@@ -117,6 +117,7 @@ model User {
   uploadedPhotos            Photo[]              @relation("PhotoUploader")
   reviewedPhotos            Photo[]              @relation("PhotoReviewer")
   createdAlbums             Album[]              @relation("AlbumAuthor")
+  trackerConnections        TrackerConnection[]  @relation("UserTrackerConnections")
 }
 
 model RefreshToken {
@@ -488,6 +489,7 @@ enum ActivitySource {
   MANUAL
   GARMIN
   STRAVA
+  COROS
   APPLE_HEALTH
   GOOGLE_HEALTH
   FILE_IMPORT
@@ -980,4 +982,39 @@ model Photo {
 
   @@index([teamId, status, createdAt])
   @@index([albumId, createdAt])
+}
+
+model TrackerConnection {
+  id             String   @id @default(uuid())
+  userId         String
+  user           User     @relation("UserTrackerConnections", fields: [userId], references: [id], onDelete: Cascade)
+  provider       String   // COROS
+  providerUserId String?
+  accessToken    String   // encrypted
+  refreshToken   String?  // encrypted
+  expiresAt      DateTime?
+  lastSyncAt     DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([userId, provider])
+  @@index([provider])
+}
+
+model TrackerOAuthState {
+  state        String   @id
+  userId       String
+  provider     String
+  codeVerifier String
+  redirectUri  String
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+
+  @@index([expiresAt])
+}
+
+model TrackerOAuthClient {
+  provider   String   @id // COROS
+  clientId   String
+  createdAt  DateTime @default(now())
 }

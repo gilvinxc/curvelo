@@ -163,7 +163,7 @@ export async function createActivity(
   actorId: string,
   input: CreateActivityInput,
   ipAddress?: string,
-  provenance?: { source: "FILE_IMPORT"; externalId: string },
+  provenance?: { source: "FILE_IMPORT" | "COROS"; externalId: string },
   onBehalfOf?: { userId: string; loggedByUserId: string },
 ): Promise<ActivityDTO> {
   // The run belongs to the athlete; loggedBy records who entered it.
