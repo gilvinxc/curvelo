@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import type { ActivityDTO, AssignmentDTO } from "@curvelo/shared";
+import type { ActivityDTO, AssignmentDTO, TeamEventDTO } from "@curvelo/shared";
 import { addDaysYMD, formatYMDCompact, toYMD } from "../../lib/workoutFormat";
 import { activityYMD } from "../../lib/activityFormat";
 import { cn } from "../../components/cx";
@@ -27,12 +27,14 @@ const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 export function CalendarMonth({
   assignments,
   activities = [],
+  events = [],
   monthOffset,
   selectedDate,
   onSelectDate,
 }: {
   assignments: AssignmentDTO[];
   activities?: ActivityDTO[];
+  events?: TeamEventDTO[];
   monthOffset: number;
   selectedDate: string | null;
   onSelectDate: (ymd: string) => void;
@@ -53,7 +55,7 @@ export function CalendarMonth({
   }, [monthOffset]);
 
   const byDate = useMemo(() => {
-    const map = new Map<string, { kind: "planned" | "done"; id: string; needsApproval?: boolean }[]>();
+    const map = new Map<string, { kind: "planned" | "done" | "event"; id: string; needsApproval?: boolean }[]>();
     for (const a of assignments) {
       const arr = map.get(a.scheduledDate) ?? [];
       arr.push({ kind: "planned", id: a.id, needsApproval: a.needsApproval });
@@ -65,8 +67,14 @@ export function CalendarMonth({
       arr.push({ kind: "done", id: act.id });
       map.set(ymd, arr);
     }
+    for (const ev of events) {
+      const ymd = ev.startAt.slice(0, 10);
+      const arr = map.get(ymd) ?? [];
+      arr.push({ kind: "event", id: ev.id });
+      map.set(ymd, arr);
+    }
     return map;
-  }, [assignments, activities]);
+  }, [assignments, activities, events]);
 
   const today = toYMD(new Date());
 
@@ -116,7 +124,9 @@ export function CalendarMonth({
                         ? "bg-amber-400"
                         : e.kind === "done"
                           ? "bg-volt-400"
-                          : "border border-volt-400/70",
+                          : e.kind === "event"
+                            ? "bg-sky-400"
+                            : "border border-volt-400/70",
                     )}
                   />
                 ))}

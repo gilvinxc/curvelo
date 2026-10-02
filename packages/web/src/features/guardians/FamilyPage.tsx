@@ -59,33 +59,45 @@ function ChildCard({ child }: { child: ChildSummaryDTO }) {
         </p>
       )}
 
-      <div className="mt-4">
-        <Link
-          to={`/family/${child.athleteId}/${child.teamId}/messages`}
-          className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 text-[14px] font-semibold text-ink-50 transition hover:border-volt-400/40"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
-          </svg>
-          Team conversations
-          <span className="text-[12px] font-normal text-mist">read-only</span>
-        </Link>
-      </div>
+      {!child.teamActive && (
+        <p className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3 text-[13px] leading-snug text-mist">
+          {child.athleteName.split(" ")[0]} is no longer on {child.teamName}.
+          Your parent association is unchanged — their documents below remain
+          available to you.
+        </p>
+      )}
 
-      <div className="mt-4">
-        <h4 className="mb-2 text-[12px] font-bold uppercase tracking-[0.14em] text-mist">
-          Upcoming training
-        </h4>
-        {child.upcomingAssignments.length === 0 ? (
-          <p className="text-[13px] text-mist">Nothing scheduled.</p>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {child.upcomingAssignments.map((a) => (
-              <AssignmentRow key={a.id} assignment={a} />
-            ))}
-          </div>
-        )}
-      </div>
+      {child.teamActive && (
+        <div className="mt-4">
+          <Link
+            to={`/family/${child.athleteId}/${child.teamId}/messages`}
+            className="inline-flex min-h-[44px] items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-4 text-[14px] font-semibold text-ink-50 transition hover:border-volt-400/40"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+            </svg>
+            Team conversations
+            <span className="text-[12px] font-normal text-mist">read-only</span>
+          </Link>
+        </div>
+      )}
+
+      {child.teamActive && (
+        <div className="mt-4">
+          <h4 className="mb-2 text-[12px] font-bold uppercase tracking-[0.14em] text-mist">
+            Upcoming training
+          </h4>
+          {child.upcomingAssignments.length === 0 ? (
+            <p className="text-[13px] text-mist">Nothing scheduled.</p>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {child.upcomingAssignments.map((a) => (
+                <AssignmentRow key={a.id} assignment={a} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="mt-4">
         <h4 className="mb-2 text-[12px] font-bold uppercase tracking-[0.14em] text-mist">

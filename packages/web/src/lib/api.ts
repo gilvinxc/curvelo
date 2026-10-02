@@ -40,10 +40,18 @@ import type {
   ShoeDTO,
   TeamDigest,
   TeamDTO,
+  TeamEventDTO,
   TeamRecordDTO,
   TeamGroupDTO,
   TeamRole,
+  TrainingPlanDTO,
   UpdateProfileInput,
+  CreatePracticePlanInput,
+  CreateTeamEventInput,
+  CreateTrainingPlanInput,
+  UpdateTeamEventInput,
+  UpdateTrainingPlanInput,
+  ApplyTrainingPlanInput,
   WorkoutDTO,
 } from "@curvelo/shared";
 
@@ -318,6 +326,8 @@ export const api = {
   getTeam: (id: string) => request<{ team: TeamDTO }>(`/teams/${id}`),
   createTeam: (input: CreateTeamInput) =>
     post<{ team: TeamDTO }>("/teams", input),
+  updateTeam: (id: string, input: { name?: string; description?: string }) =>
+    patch<{ team: TeamDTO }>(`/teams/${id}`, input),
   getRoster: (id: string) =>
     request<{ roster: RosterMemberDTO[] }>(`/teams/${id}/roster`),
 
@@ -394,14 +404,53 @@ export const api = {
     post<{ assignment: AssignmentDTO }>(`/teams/${teamId}/assignments`, input),
   deleteAssignment: (assignmentId: string) =>
     del<{ ok: boolean }>(`/assignments/${assignmentId}`),
+  createPracticePlan: (teamId: string, input: CreatePracticePlanInput) =>
+    post<{ assignment: AssignmentDTO; postId: string | null }>(
+      `/teams/${teamId}/practice-plans`,
+      input,
+    ),
+  listTrainingPlans: (teamId: string) =>
+    request<{ plans: TrainingPlanDTO[] }>(`/teams/${teamId}/training-plans`),
+  createTrainingPlan: (teamId: string, input: CreateTrainingPlanInput) =>
+    post<{ plan: TrainingPlanDTO }>(`/teams/${teamId}/training-plans`, input),
+  updateTrainingPlan: (
+    teamId: string,
+    planId: string,
+    input: UpdateTrainingPlanInput,
+  ) =>
+    patch<{ plan: TrainingPlanDTO }>(
+      `/teams/${teamId}/training-plans/${planId}`,
+      input,
+    ),
+  deleteTrainingPlan: (teamId: string, planId: string) =>
+    del<{ ok: boolean }>(`/teams/${teamId}/training-plans/${planId}`),
+  applyTrainingPlan: (
+    teamId: string,
+    planId: string,
+    input: ApplyTrainingPlanInput,
+  ) =>
+    post<{ assignments: AssignmentDTO[]; postId: string | null }>(
+      `/teams/${teamId}/training-plans/${planId}/apply`,
+      input,
+    ),
   teamCalendar: (teamId: string, from: string, to: string) =>
-    request<{ assignments: AssignmentDTO[]; activities: ActivityDTO[] }>(
+    request<{ assignments: AssignmentDTO[]; activities: ActivityDTO[]; events: TeamEventDTO[] }>(
       `/teams/${teamId}/calendar?from=${from}&to=${to}`,
     ),
   myCalendar: (from: string, to: string) =>
-    request<{ assignments: AssignmentDTO[]; activities: ActivityDTO[] }>(
+    request<{ assignments: AssignmentDTO[]; activities: ActivityDTO[]; events: TeamEventDTO[] }>(
       `/users/me/calendar?from=${from}&to=${to}`,
     ),
+  listTeamEvents: (teamId: string, from: string, to: string) =>
+    request<{ events: TeamEventDTO[] }>(
+      `/teams/${teamId}/events?from=${from}&to=${to}`,
+    ),
+  createTeamEvent: (teamId: string, input: CreateTeamEventInput) =>
+    post<{ event: TeamEventDTO }>(`/teams/${teamId}/events`, input),
+  updateTeamEvent: (teamId: string, eventId: string, input: UpdateTeamEventInput) =>
+    patch<{ event: TeamEventDTO }>(`/teams/${teamId}/events/${eventId}`, input),
+  deleteTeamEvent: (teamId: string, eventId: string) =>
+    del<{ ok: boolean }>(`/teams/${teamId}/events/${eventId}`),
 
   // activities
   createActivity: (input: CreateActivityPayload) =>

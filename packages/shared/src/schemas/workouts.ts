@@ -92,3 +92,52 @@ export const addGroupMembersSchema = z.object({
   memberIds: z.array(z.string().uuid()).min(1).max(500),
 });
 export type AddGroupMembersInput = z.infer<typeof addGroupMembersSchema>;
+
+export const createPracticePlanSchema = z
+  .object({
+    workoutId: z.string().uuid(),
+    // Exactly one target: whole team (neither), one group, or one athlete.
+    groupId: z.string().uuid().optional(),
+    assignedToUserId: z.string().uuid().optional(),
+    scheduledDate: z.string().date(),
+    notes: z.string().max(1000).optional(),
+    // When true, the plan is also announced to the team feed.
+    announce: z.boolean().default(false),
+  })
+  .refine((a) => !(a.groupId && a.assignedToUserId), {
+    message: "Assign to a group or an individual, not both",
+  });
+export type CreatePracticePlanInput = z.infer<typeof createPracticePlanSchema>;
+
+const planDaySchema = z
+  .object({
+    // 0 = Monday .. 6 = Sunday
+    dayOfWeek: z.number().int().min(0).max(6),
+    workoutId: z.string().uuid(),
+    // Exactly one target: whole team (neither), one group, or one athlete.
+    groupId: z.string().uuid().optional(),
+    assignedToUserId: z.string().uuid().optional(),
+    notes: z.string().max(1000).optional(),
+  })
+  .refine((d) => !(d.groupId && d.assignedToUserId), {
+    message: "Assign to a group or an individual, not both",
+  });
+
+export const createTrainingPlanSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  description: z.string().trim().max(500).optional(),
+  days: z.array(planDaySchema).min(1).max(7),
+});
+export type CreateTrainingPlanInput = z.infer<typeof createTrainingPlanSchema>;
+
+export const updateTrainingPlanSchema = createTrainingPlanSchema.partial().extend({
+  days: z.array(planDaySchema).min(1).max(7).optional(),
+});
+export type UpdateTrainingPlanInput = z.infer<typeof updateTrainingPlanSchema>;
+
+export const applyTrainingPlanSchema = z.object({
+  // Monday of the target week.
+  weekStart: z.string().date(),
+  announce: z.boolean().default(false),
+});
+export type ApplyTrainingPlanInput = z.infer<typeof applyTrainingPlanSchema>;

@@ -228,3 +228,52 @@ export async function myCalendar(
   });
   return assignments.map(toDTO);
 }
+
+/**
+ * Practice planner: schedule a workout ahead of time, optionally announcing
+ * it to the team feed in the same action.
+ */
+export async function createPracticePlan(
+  actorId: string,
+  teamId: string,
+  input: {
+    workoutId: string;
+    groupId?: string;
+    assignedToUserId?: string;
+    scheduledDate: string;
+    notes?: string;
+    announce: boolean;
+  },
+  ipAddress?: string,
+): Promise<{ assignment: AssignmentDTO; postId: string | null }> {
+  const assignment = await createAssignment(
+    actorId,
+    teamId,
+    {
+      workoutId: input.workoutId,
+      groupId: input.groupId,
+      assignedToUserId: input.assignedToUserId,
+      scheduledDate: input.scheduledDate,
+      notes: input.notes,
+    },
+    ipAddress,
+  );
+
+  let postId: string | null = null;
+  if (input.announce) {
+    const { createPost } = await import("../feed/service.js");
+    const target = assignment.groupName
+      ? ` (${assignment.groupName})`
+      : assignment.assignedToName
+        ? ` — ${assignment.assignedToName}`
+        : "";
+    const body = [
+      `📋 Practice plan for ${input.scheduledDate}${target}: ${assignment.workoutTitle}.`,
+      input.notes?.trim() ? `\n${input.notes.trim()}` : "",
+    ].join("");
+    const post = await createPost(actorId, teamId, { body }, ipAddress);
+    postId = post.id;
+  }
+
+  return { assignment, postId };
+}

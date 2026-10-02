@@ -1,5 +1,6 @@
 import {
   activeMembership,
+  isGuardianOfTeamMember,
   requireManager,
 } from "../../lib/permissions.js";
 import { db } from "../../db.js";
@@ -131,7 +132,13 @@ export async function listRequirements(
   actorId: string,
   teamId: string,
 ): Promise<DocumentRequirementDTO[]> {
-  await activeMembership(actorId, teamId);
+  const membership = await db.teamMembership.findUnique({
+    where: { teamId_userId: { teamId, userId: actorId } },
+  });
+  const isMember = membership?.status === "ACTIVE";
+  if (!isMember && !(await isGuardianOfTeamMember(actorId, teamId))) {
+    throw notFound("Team not found");
+  }
   const rows = await db.documentRequirement.findMany({
     where: { teamId },
     orderBy: { label: "asc" },
@@ -219,8 +226,15 @@ export async function uploadDocument(
   file: { buffer: Buffer; fileName: string; mimeType: string; sizeBytes: number },
   ipAddress?: string,
 ): Promise<DocumentDTO> {
-  const membership = await activeMembership(actorId, input.teamId);
-  const isManager = membership.role === "COACH" || membership.role === "TEAM_ADMIN";
+  const membership = await db.teamMembership.findUnique({
+    where: { teamId_userId: { teamId: input.teamId, userId: actorId } },
+  });
+  const isMember = membership?.status === "ACTIVE";
+  const isManager =
+    isMember && (membership!.role === "COACH" || membership!.role === "TEAM_ADMIN");
+  if (!isMember && !(await isGuardianOfTeamMember(actorId, input.teamId))) {
+    throw notFound("Team not found");
+  }
 
   if (!ALLOWED_MIME.has(file.mimeType)) {
     throw badRequest("Only PDF and image uploads are accepted.");
@@ -460,11 +474,13 @@ export async function listAthleteDocuments(
   teamId: string,
   athleteId: string,
 ): Promise<DocumentDTO[]> {
-  const membership = await activeMembership(actorId, teamId);
-  const isManager = membership.role === "COACH" || membership.role === "TEAM_ADMIN";
   const isSelf = athleteId === actorId;
-  if (!isSelf && !isManager && !(await isGuardianOf(actorId, athleteId))) {
-    throw forbidden("Not allowed.");
+  // Guardian access rides on the guardian link itself — it survives the
+  // athlete being removed from the team.
+  const guardian = !isSelf && (await isGuardianOf(actorId, athleteId));
+  if (!isSelf && !guardian) {
+    const membership = await activeMembership(actorId, teamId);
+    requireManager(membership);
   }
   const rows = await db.document.findMany({
     where: {

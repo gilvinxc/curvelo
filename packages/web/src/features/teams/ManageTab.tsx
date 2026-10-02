@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { GroupsSection } from "./GroupsSection";
 import { TeamLogo, resizeImageFile } from "./TeamLogo";
 import {
   Avatar,
@@ -528,6 +529,116 @@ function TransferSection({
 }
 
 
+/** Team name + description. Managers only; audited server-side. */
+function TeamSettingsSection({
+  teamId,
+  teamName,
+}: {
+  teamId: string;
+  teamName: string;
+}) {
+  const queryClient = useQueryClient();
+  const teamQuery = useQuery({
+    queryKey: ["team", teamId],
+    queryFn: () => api.getTeam(teamId),
+  });
+  const [name, setName] = useState(teamName);
+  const [description, setDescription] = useState(
+    teamQuery.data?.team.description ?? "",
+  );
+  const [editing, setEditing] = useState(false);
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      api.updateTeam(teamId, {
+        name: name.trim(),
+        description: description.trim() || undefined,
+      }),
+    onSuccess: () => {
+      setEditing(false);
+      queryClient.invalidateQueries({ queryKey: ["team", teamId] });
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
+    },
+  });
+
+  if (!editing) {
+    return (
+      <Card>
+        <div className="flex items-center justify-between">
+          <SectionTitle>Team settings</SectionTitle>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setName(teamQuery.data?.team.name ?? teamName);
+              setDescription(teamQuery.data?.team.description ?? "");
+              setEditing(true);
+            }}
+            className="min-h-[44px] px-4 text-[13px]"
+          >
+            Edit
+          </Button>
+        </div>
+        <p className="mt-2 text-[15px] font-bold text-ink-50">
+          {teamQuery.data?.team.name ?? teamName}
+        </p>
+        {teamQuery.data?.team.description && (
+          <p className="mt-1 text-[13px] text-mist">
+            {teamQuery.data.team.description}
+          </p>
+        )}
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <SectionTitle>Team settings</SectionTitle>
+      <div className="mt-3 flex flex-col gap-3">
+        {mutation.isError && (
+          <ErrorBanner
+            message={
+              mutation.error instanceof ApiError
+                ? mutation.error.message
+                : "Couldn't save."
+            }
+          />
+        )}
+        <Field label="Team name">
+          <TextInput
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={80}
+          />
+        </Field>
+        <Field label="Description (optional)">
+          <TextInput
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            maxLength={280}
+            placeholder="What this team is about"
+          />
+        </Field>
+        <div className="flex gap-2">
+          <Button
+            onClick={() => mutation.mutate()}
+            disabled={mutation.isPending || !name.trim()}
+            className="min-h-[48px] flex-1"
+          >
+            {mutation.isPending ? "Saving…" : "Save"}
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => setEditing(false)}
+            className="min-h-[48px] px-5"
+          >
+            Cancel
+          </Button>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 /** Team logo: upload (resized in-browser) or remove. Stored in the database. */
 function LogoSection({ teamId, teamName }: { teamId: string; teamName: string }) {
   const queryClient = useQueryClient();
@@ -653,20 +764,29 @@ export function ManageTab({
   teamId,
   teamName,
   isOwner,
+  myRole,
 }: {
   teamId: string;
   teamName: string;
   isOwner: boolean;
+  myRole: string | null;
 }) {
   const { user } = useAuth();
   if (!user) return <FullScreenLoader />;
 
   return (
     <div className="flex flex-col gap-4">
+      <TeamSettingsSection teamId={teamId} teamName={teamName} />
       <LogoSection teamId={teamId} teamName={teamName} />
       <JoinLinksSection teamId={teamId} />
       <JoinRequestsSection teamId={teamId} />
       <MembersSection teamId={teamId} myUserId={user.id} isOwner={isOwner} />
+      <Card>
+        <SectionTitle>Training groups</SectionTitle>
+        <div className="mt-3">
+          <GroupsSection teamId={teamId} myRole={myRole} />
+        </div>
+      </Card>
       {isOwner && <TransferSection teamId={teamId} myUserId={user.id} />}
     </div>
   );

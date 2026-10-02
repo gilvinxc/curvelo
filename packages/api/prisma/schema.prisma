@@ -85,6 +85,9 @@ model User {
   verifiedDocuments   Document[]          @relation("DocumentVerifier")
   uploadedDocuments   Document[]          @relation("DocumentUploader")
   authoredWorkouts    Workout[]           @relation("WorkoutAuthor")
+  createdTrainingPlans TrainingPlan[]  @relation("TrainingPlanAuthor")
+  createdTeamEvents    TeamEvent[]     @relation("TeamEventAuthor")
+  assignedPlanDays     TrainingPlanDay[] @relation("TrainingPlanDayAssignee")
   authoredGroups      TeamGroup[]         @relation("GroupAuthor")
   authoredAssignments WorkoutAssignment[] @relation("AssignmentAuthor")
   receivedAssignments WorkoutAssignment[] @relation("AssignmentRecipient")
@@ -188,6 +191,8 @@ model Team {
   conversations   Conversation[]
   documentRequirements DocumentRequirement[]
   documents       Document[]
+  trainingPlans   TrainingPlan[]
+  events          TeamEvent[]
 }
 
 // ─── Slice 6: team messaging (youth-safe, no private DMs) ───────────────
@@ -379,6 +384,7 @@ model Workout {
 
   steps       WorkoutStep[]
   assignments WorkoutAssignment[]
+  planDays    TrainingPlanDay[]
 
   @@index([teamId, isTemplate])
 }
@@ -413,6 +419,7 @@ model TeamGroup {
   members     TeamGroupMember[]
   assignments WorkoutAssignment[]
   conversations Conversation[]
+  planDays TrainingPlanDay[]
 
   @@unique([teamId, name])
 }
@@ -828,4 +835,59 @@ model Document {
   @@index([teamId])
   @@index([ownerId])
   @@index([requirementId])
+}
+
+// Coach practice-planning: reusable week templates ("Base week", "Race week").
+// dayOfWeek: 0 = Monday .. 6 = Sunday.
+model TrainingPlan {
+  id          String           @id @default(uuid())
+  teamId      String
+  team        Team             @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  createdById String
+  createdBy   User             @relation("TrainingPlanAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+  days        TrainingPlanDay[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([teamId])
+}
+
+model TrainingPlanDay {
+  id               String       @id @default(uuid())
+  planId           String
+  plan             TrainingPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  dayOfWeek        Int
+  workoutId        String
+  workout          Workout      @relation(fields: [workoutId], references: [id], onDelete: Restrict)
+  groupId          String?
+  group            TeamGroup?   @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  assignedToUserId String?
+  assignedTo       User?        @relation("TrainingPlanDayAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  notes            String?
+
+  @@index([planId])
+}
+
+// Team calendar events: practices, meetings, race days (with itineraries),
+// socials. Optional weekly recurrence expands into occurrences on read.
+model TeamEvent {
+  id          String   @id @default(uuid())
+  teamId      String
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  eventType   String   // PRACTICE | MEETING | RACE | SOCIAL | OTHER
+  startAt     DateTime
+  endAt       DateTime?
+  location    String?
+  itinerary   String?
+  recurrence  Json?
+  createdById String
+  createdBy   User     @relation("TeamEventAuthor", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([teamId])
 }

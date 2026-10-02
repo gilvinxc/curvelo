@@ -363,11 +363,12 @@ export async function myChildren(actorId: string): Promise<ChildSummaryDTO[]> {
           displayName: true,
           dateOfBirth: true,
           memberships: {
-            where: { status: "ACTIVE" },
             select: {
               role: true,
+              status: true,
               team: { select: { id: true, name: true } },
             },
+            orderBy: { createdAt: "desc" },
           },
         },
       },
@@ -385,8 +386,17 @@ export async function myChildren(actorId: string): Promise<ChildSummaryDTO[]> {
       include: { guardian: { select: { displayName: true } } },
     });
 
-    // One summary per team the athlete is on.
-    for (const m of link.athlete.memberships) {
+    // One summary per team the athlete is (or was) on. Removing a member
+    // from a team never breaks the parent/child association — the child
+    // stays visible, flagged inactive.
+    const seenTeams = new Set<string>();
+    const memberships = [...link.athlete.memberships].sort((a, b) =>
+      a.status === "ACTIVE" ? -1 : b.status === "ACTIVE" ? 1 : 0,
+    );
+    for (const m of memberships) {
+      if (seenTeams.has(m.team.id)) continue;
+      seenTeams.add(m.team.id);
+      const teamActive = m.status === "ACTIVE";
       const teamId = m.team.id;
       const today = new Date().toISOString().slice(0, 10);
       const upcoming = await db.workoutAssignment.findMany({
@@ -438,6 +448,7 @@ export async function myChildren(actorId: string): Promise<ChildSummaryDTO[]> {
         athleteName: link.athlete.displayName,
         teamId,
         teamName: m.team.name,
+        teamActive,
         role: m.role,
         consentRequired: consentRequiredFor(link.athlete.dateOfBirth),
         consents: consents.map((c) => ({

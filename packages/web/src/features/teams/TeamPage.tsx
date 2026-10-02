@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../../lib/api";
+import { useAuth } from "../../lib/auth";
 import {
   Avatar,
   Button,
@@ -17,13 +18,13 @@ import { cn } from "../../components/cx";
 import { InviteDialog } from "./InviteDialog";
 import { WorkoutList } from "../workouts/WorkoutList";
 import { TeamCalendar } from "../calendar/TeamCalendar";
-import { GroupsSection } from "./GroupsSection";
 import { ManageTab } from "./ManageTab";
 import { TeamLogo } from "./TeamLogo";
 import { GoalsTab } from "../goals/GoalsTab";
 import { FeedPage } from "../feed/FeedPage";
 import { MessagesSection } from "../messages/MessagesSection";
 import { TeamDigestSection } from "../insights/TeamDigestSection";
+import { PracticePlanner } from "./PracticePlanner";
 import { TeamLogDialog } from "../activities/TeamLogDialog";
 import { TeamRaceDialog } from "../records/TeamRaceDialog";
 import { DocumentsTab } from "../documents/DocumentsTab";
@@ -35,7 +36,6 @@ export type TeamTab =
   | "feed"
   | "messages"
   | "workouts"
-  | "groups"
   | "calendar"
   | "coaching"
   | "goals"
@@ -47,7 +47,6 @@ const TABS: { id: TeamTab; label: string; href: (id: string) => string; coachOnl
   { id: "feed", label: "Feed", href: (id) => `/teams/${id}/feed` },
   { id: "messages", label: "Messages", href: (id) => `/teams/${id}/messages` },
   { id: "workouts", label: "Workouts", href: (id) => `/teams/${id}/workouts` },
-  { id: "groups", label: "Groups", href: (id) => `/teams/${id}/groups` },
   { id: "calendar", label: "Calendar", href: (id) => `/teams/${id}/calendar` },
   { id: "coaching", label: "Coaching", href: (id) => `/teams/${id}/coaching`, coachOnly: true },
   { id: "goals", label: "Goals", href: (id) => `/teams/${id}/goals` },
@@ -59,17 +58,24 @@ function RosterTab({
   teamId,
   canInvite,
   canViewAthlete,
+  myUserId,
   onInvite,
 }: {
   teamId: string;
   canInvite: boolean;
   canViewAthlete: boolean;
+  myUserId: string;
   onInvite: () => void;
 }) {
   const rosterQuery = useQuery({
     queryKey: ["roster", teamId],
     queryFn: () => api.getRoster(teamId),
     enabled: !!teamId,
+  });
+  const groupsQuery = useQuery({
+    queryKey: ["groups", teamId],
+    queryFn: () => api.listGroups(teamId),
+    enabled: !!teamId && !canInvite,
   });
 
   if (rosterQuery.isLoading) {
@@ -165,12 +171,36 @@ function RosterTab({
           })}
         </div>
       )}
+      {!canInvite && (groupsQuery.data?.groups ?? []).length > 0 && (
+        <div className="mt-6">
+          <h3 className="mb-2 text-[13px] font-black uppercase tracking-[0.14em] text-mist">
+            My training groups
+          </h3>
+          <div className="flex flex-col gap-2">
+            {(groupsQuery.data?.groups ?? [])
+              .filter((g) =>
+                (g.members ?? []).some((m) => m.userId === myUserId),
+              )
+              .map((g) => (
+                <Card key={g.id} className="p-4">
+                  <p className="text-[15px] font-bold text-ink-50">{g.name}</p>
+                  <p className="mt-1 text-[13px] text-mist">
+                    {(g.members ?? [])
+                      .map((m) => m.displayName)
+                      .join(", ")}
+                  </p>
+                </Card>
+              ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
   const [inviteOpen, setInviteOpen] = useState(false);
   const [teamLogOpen, setTeamLogOpen] = useState(false);
   const [teamRaceOpen, setTeamRaceOpen] = useState(false);
@@ -240,7 +270,7 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
 
       <nav
         aria-label="Team sections"
-        className="mb-5 grid auto-cols-fr grid-flow-col gap-1 overflow-x-auto rounded-xl border border-white/10 bg-ink-900 p-1"
+        className="mb-5 flex gap-1 overflow-x-auto rounded-xl border border-white/10 bg-ink-900 p-1"
       >
         {tabs.map((tab) => (
           <Link
@@ -248,7 +278,7 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
             to={tab.href(team.id)}
             aria-current={initialTab === tab.id ? "page" : undefined}
             className={cn(
-              "min-h-[44px] whitespace-nowrap rounded-lg px-3 text-center text-[14px] font-semibold leading-[44px] transition",
+              "min-h-[44px] shrink-0 whitespace-nowrap rounded-lg px-4 text-center text-[14px] font-semibold leading-[44px] transition",
               initialTab === tab.id
                 ? "bg-volt-400 text-ink-950"
                 : "text-mist hover:text-ink-50",
@@ -264,6 +294,7 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
           teamId={team.id}
           canInvite={canInvite}
           canViewAthlete={canInvite}
+          myUserId={user?.id ?? ""}
           onInvite={() => setInviteOpen(true)}
         />
       )}
@@ -275,9 +306,6 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
       )}
       {initialTab === "workouts" && (
         <WorkoutList teamId={team.id} myRole={team.myRole} />
-      )}
-      {initialTab === "groups" && (
-        <GroupsSection teamId={team.id} myRole={team.myRole} />
       )}
       {initialTab === "calendar" && (
         <TeamCalendar teamId={team.id} myRole={team.myRole} />
@@ -293,6 +321,9 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
             </Button>
           </div>
           <TeamDigestSection teamId={team.id} />
+          <div className="mt-6">
+            <PracticePlanner teamId={team.id} />
+          </div>
         </>
       )}
       {initialTab === "goals" && (
@@ -302,7 +333,7 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
         <DocumentsTab teamId={team.id} isCoach={canInvite} />
       )}
       {initialTab === "manage" && canInvite && (
-        <ManageTab teamId={team.id} teamName={team.name} isOwner={team.isOwner ?? false} />
+        <ManageTab teamId={team.id} teamName={team.name} isOwner={team.isOwner ?? false} myRole={team.myRole} />
       )}
 
       <InviteDialog

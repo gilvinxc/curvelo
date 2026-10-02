@@ -222,11 +222,7 @@ export function App() {
           />
           <Route
             path="/teams/:id/groups"
-            element={
-              <ProtectedRoute>
-                <TeamPage initialTab="groups" />
-              </ProtectedRoute>
-            }
+            element={<Navigate to=".." replace />}
           />
           <Route
             path="/teams/:id/calendar"

@@ -12,6 +12,7 @@ import {
   teamCalendar,
 } from "./service.js";
 import { calendarActivities } from "../activities/service.js";
+import { listTeamEvents, myTeamEvents } from "../team-events/service.js";
 import { activeMembership } from "../../lib/permissions.js";
 
 const assignmentParams = z.object({ assignmentId: z.string().uuid() });
@@ -55,11 +56,12 @@ export async function assignmentRoutes(app: FastifyInstance): Promise<void> {
       const membership = await activeMembership(actorId, id);
       const isManager =
         membership.role === "COACH" || membership.role === "TEAM_ADMIN";
-      const [assignments, activities] = await Promise.all([
+      const [assignments, activities, events] = await Promise.all([
         teamCalendar(actorId, id, from, to),
         calendarActivities(actorId, id, from, to, isManager),
+        listTeamEvents(actorId, id, from, to),
       ]);
-      return reply.send({ assignments, activities });
+      return reply.send({ assignments, activities, events });
     },
   );
 
@@ -70,11 +72,12 @@ export async function assignmentRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const { from, to } = calendarQuerySchema.parse(request.query);
       const actorId = request.user!.id;
-      const [assignments, activities] = await Promise.all([
+      const [assignments, activities, events] = await Promise.all([
         myCalendar(actorId, from, to),
         calendarActivities(actorId, null, from, to, false),
+        myTeamEvents(actorId, from, to),
       ]);
-      return reply.send({ assignments, activities });
+      return reply.send({ assignments, activities, events });
     },
   );
 }

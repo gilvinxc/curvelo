@@ -269,8 +269,50 @@ export interface AssignmentDTO {
   createdByName: string;
 }
 
-export interface ActivityDTO {
+export interface TrainingPlanDayDTO {
   id: string;
+  dayOfWeek: number;
+  workoutId: string;
+  workoutTitle: string;
+  groupId: string | null;
+  groupName: string | null;
+  assignedToUserId: string | null;
+  assignedToName: string | null;
+  notes: string | null;
+}
+
+export interface TrainingPlanDTO {
+  id: string;
+  teamId: string;
+  name: string;
+  description: string | null;
+  createdByName: string;
+  days: TrainingPlanDayDTO[];
+  createdAt: string;
+}
+
+export interface TeamEventRecurrence {
+  freq: "WEEKLY";
+  days: number[];
+  until: string;
+}
+
+export interface TeamEventDTO {
+  id: string;
+  teamId: string;
+  title: string;
+  description: string | null;
+  eventType: string;
+  startAt: string;
+  endAt: string | null;
+  location: string | null;
+  itinerary: string | null;
+  recurrence: TeamEventRecurrence | null;
+  recurring: boolean;
+  createdByName: string;
+}
+
+export interface ActivityDTO {  id: string;
   userId: string;
   userName: string;
   teamId: string | null;
@@ -470,6 +512,7 @@ export interface ChildSummaryDTO {
   athleteName: string;
   teamId: string;
   teamName: string;
+  teamActive: boolean;
   role: string;
   consentRequired: boolean;
   consents: ConsentDTO[];

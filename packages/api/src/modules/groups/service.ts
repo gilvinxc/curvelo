@@ -107,7 +107,7 @@ export async function listGroups(actorId: string, teamId: string): Promise<TeamG
     include: { members: { include: { user: { select: { id: true, displayName: true } } } } },
     orderBy: { name: "asc" },
   });
-  return groups.map((g) => toDTO(g, false));
+  return groups.map((g) => toDTO(g, true));
 }
 
 export async function getGroup(actorId: string, groupId: string): Promise<TeamGroupDTO> {
