@@ -42,4 +42,7 @@ ENV WEB_DIST=/app/packages/web/dist
 
 EXPOSE 4000
 # Apply pending migrations, then start. Render injects PORT automatically.
-CMD ["sh", "-c", "node packages/api/scripts/with-engines.mjs prisma migrate deploy --schema packages/api/prisma/schema.prisma && node packages/api/dist/index.js"]
+# Apply pending migrations (with retries: Neon free tier can be slow to wake and
+# Prisma's advisory-lock acquisition times out after 10s), then start the API.
+# If migrations still fail after 5 attempts, exit without starting the app.
+CMD ["sh", "-c", "n=0; until [ $n -ge 5 ]; do node packages/api/scripts/with-engines.mjs prisma migrate deploy --schema packages/api/prisma/schema.prisma && break; n=$((n+1)); echo \"migrate attempt $n failed, retrying in 15s...\"; sleep 15; done; if [ $n -ge 5 ]; then echo \"migrations failed after 5 attempts\"; exit 1; fi; node packages/api/dist/index.js"]
