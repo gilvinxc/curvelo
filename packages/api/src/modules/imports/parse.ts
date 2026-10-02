@@ -12,6 +12,7 @@ export interface ParsedWorkout {
   avgHrBpm: number | null;
   maxHrBpm: number | null;
   calories: number | null;
+  steps: number | null;
 }
 
 export const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
@@ -100,6 +101,7 @@ function parseGpx(buf: Buffer): ParsedWorkout {
     avgHrBpm: null,
     maxHrBpm: null,
     calories: null,
+    steps: null,
   };
 }
 
@@ -155,6 +157,7 @@ function parseTcx(buf: Buffer): ParsedWorkout {
     avgHrBpm: avgHr,
     maxHrBpm: maxHr,
     calories: calories ? Math.round(calories) : null,
+    steps: null,
   };
 }
 
@@ -164,6 +167,7 @@ interface FitSession {
   total_elapsed_time?: unknown;
   total_timer_time?: unknown;
   total_distance?: unknown;
+  total_cycles?: unknown;
   avg_heart_rate?: unknown;
   max_heart_rate?: unknown;
   total_calories?: unknown;
@@ -200,6 +204,8 @@ function parseFit(buf: Buffer): Promise<ParsedWorkout> {
           avgHrBpm: hr(s.avg_heart_rate),
           maxHrBpm: hr(s.max_heart_rate),
           calories: num(s.total_calories) ? Math.round(num(s.total_calories)!) : null,
+          // FIT counts strides (cycles) for running; steps ≈ 2 per stride.
+          steps: num(s.total_cycles) ? Math.round(num(s.total_cycles)!) * 2 : null,
         });
       } catch (e) {
         reject(e instanceof Error ? e : new Error("Could not parse FIT file."));

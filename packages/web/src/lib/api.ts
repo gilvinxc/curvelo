@@ -211,6 +211,10 @@ export interface CreateActivityPayload {
   visibility?: "PRIVATE" | "TEAM";
   shoeId?: string | null;
   weightKg?: number;
+  steps?: number;
+  city?: string;
+  weatherTempC?: number;
+  weatherCondition?: string;
 }
 
 export interface UpdateActivityPayload {
@@ -229,6 +233,10 @@ export interface UpdateActivityPayload {
   visibility?: "PRIVATE" | "TEAM";
   shoeId?: string | null;
   weightKg?: number;
+  steps?: number;
+  city?: string;
+  weatherTempC?: number;
+  weatherCondition?: string;
 }
 
 /** Public preview of a guardian invite — no email or token included. */

@@ -29,12 +29,16 @@ import {
   formatWeight,
   fromKg,
   fromMeters,
+  fromTemp,
   parseDurationInput,
   toKg,
+  toTemp,
   toMeters,
+  tempUnitLabel,
   useUnits,
   weightUnitLabel,
 } from "../../lib/units";
+import { estimateCalories, estimateSteps } from "@curvelo/shared";
 
 const ACTIVITY_KINDS = [
   "RUN",
@@ -65,6 +69,10 @@ interface FormState {
   rpeOn: boolean;
   rpe: number;
   calories: string;
+  steps: string;
+  city: string;
+  weatherTemp: string;
+  weatherCondition: string;
   notes: string;
   teamId: string;
   visibility: "TEAM" | "PRIVATE";
@@ -88,6 +96,10 @@ function blankForm(): FormState {  return {
     rpeOn: false,
     rpe: 7,
     calories: "",
+    steps: "",
+    city: "",
+    weatherTemp: "",
+    weatherCondition: "",
     notes: "",
     teamId: "",
     visibility: "TEAM",
@@ -176,6 +188,10 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       rpeOn: a.effortRpe != null,
       rpe: a.effortRpe ?? 7,
       calories: a.calories != null ? String(a.calories) : "",
+      steps: a.steps != null ? String(a.steps) : "",
+      city: a.city ?? "",
+      weatherTemp: a.weatherTempC != null ? String(Math.round(fromTemp(a.weatherTempC, units) * 10) / 10) : "",
+      weatherCondition: a.weatherCondition ?? "",
       notes: a.notes ?? "",
       teamId: a.teamId ?? "",
       visibility: a.visibility === "PRIVATE" ? "PRIVATE" : "TEAM",
@@ -195,6 +211,35 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
   // A coach who logged this run on the athlete's behalf can edit it too.
   const canEdit =
     isOwner || detailQuery.data?.activity.loggedByUserId === user?.id;
+
+  // Live estimates (labeled as such; the athlete's own numbers always win).
+  const estSteps = useMemo(() => {
+    const d = parseFloat(form.distance);
+    if (form.distance.trim() === "" || Number.isNaN(d) || d <= 0) return null;
+    return estimateSteps(Math.round(toMeters(d, units)), profileHeightCm, form.kind);
+  }, [form.distance, form.kind, profileHeightCm, units]);
+
+  const estCalories = useMemo(() => {
+    const d = parseFloat(form.distance);
+    const durS = parseDurationInput(form.duration);
+    const w = parseFloat(form.weight);
+    const wKg =
+      form.weight.trim() === ""
+        ? profileWeightKg
+        : Number.isNaN(w) || w <= 0
+          ? null
+          : toKg(w, units);
+    const distanceM =
+      form.distance.trim() === "" || Number.isNaN(d) || d <= 0
+        ? null
+        : Math.round(toMeters(d, units));
+    return estimateCalories({
+      kind: form.kind,
+      distanceM,
+      durationS: durS ?? null,
+      weightKg: wKg,
+    });
+  }, [form.distance, form.duration, form.kind, form.weight, profileWeightKg, units]);
 
   function validate(): boolean {
     const errs: Record<string, string> = {};
@@ -251,6 +296,12 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       if (form.rpeOn) payload.effortRpe = form.rpe;
       const cal = parseInt(form.calories, 10);
       if (!Number.isNaN(cal) && cal > 0) payload.calories = cal;
+      const stp = parseInt(form.steps, 10);
+      if (!Number.isNaN(stp) && stp > 0) payload.steps = stp;
+      if (form.city.trim()) payload.city = form.city.trim();
+      const wt = parseFloat(form.weatherTemp);
+      if (!Number.isNaN(wt)) payload.weatherTempC = Math.round(toTemp(wt, units) * 10) / 10;
+      if (form.weatherCondition.trim()) payload.weatherCondition = form.weatherCondition.trim();
       if (form.title.trim()) payload.title = form.title.trim();
       if (form.notes.trim()) payload.notes = form.notes.trim();
       if (form.teamId) payload.teamId = form.teamId;
@@ -473,14 +524,73 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
           </div>
         </Field>
 
-        <Field label="Calories" hint="Optional">
+        <Field
+          label="Calories"
+          hint={
+            form.calories.trim() === "" && estCalories != null
+              ? `Optional · ~${estCalories.toLocaleString()} estimated`
+              : "Optional"
+          }
+        >
           <TextInput
             type="number"
             inputMode="numeric"
             min="0"
             value={form.calories}
             onChange={(e) => set("calories", e.target.value)}
-            placeholder="520"
+            placeholder={estCalories != null ? `~${estCalories.toLocaleString()}` : "520"}
+          />
+        </Field>
+
+        <Field
+          label="Steps"
+          hint={
+            form.steps.trim() === "" && estSteps != null
+              ? `Optional · ~${estSteps.toLocaleString()} estimated`
+              : "Optional"
+          }
+        >
+          <TextInput
+            type="number"
+            inputMode="numeric"
+            min="0"
+            value={form.steps}
+            onChange={(e) => set("steps", e.target.value)}
+            placeholder={estSteps != null ? `~${estSteps.toLocaleString()}` : "8000"}
+          />
+        </Field>
+
+        <Field
+          label="City"
+          hint="Optional — weather is pulled automatically for this city and time"
+        >
+          <TextInput
+            value={form.city}
+            onChange={(e) => set("city", e.target.value)}
+            placeholder="Winchester"
+            maxLength={120}
+          />
+        </Field>
+
+        <Field
+          label={`Temp (${tempUnitLabel(units)})`}
+          hint="Optional — auto-filled from the city, or enter your own"
+        >
+          <TextInput
+            type="number"
+            inputMode="decimal"
+            value={form.weatherTemp}
+            onChange={(e) => set("weatherTemp", e.target.value)}
+            placeholder="72"
+          />
+        </Field>
+
+        <Field label="Conditions" hint="Optional — auto-filled from the city, or enter your own">
+          <TextInput
+            value={form.weatherCondition}
+            onChange={(e) => set("weatherCondition", e.target.value)}
+            placeholder="Clear"
+            maxLength={40}
           />
         </Field>
 

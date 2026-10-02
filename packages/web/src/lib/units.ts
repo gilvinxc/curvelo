@@ -169,3 +169,17 @@ export function formatWeight(kg: number, units: Units): string {
   const v = fromKg(kg, units);
   return `${Math.round(v)} ${weightUnitLabel(units)}`;
 }
+
+/** Celsius → the user's unit value (°C or °F), for input fields. */
+export function fromTemp(celsius: number, units: Units): number {
+  return units === "metric" ? celsius : (celsius * 9) / 5 + 32;
+}
+
+/** User's unit value → Celsius. */
+export function toTemp(value: number, units: Units): number {
+  return units === "metric" ? value : ((value - 32) * 5) / 9;
+}
+
+export function tempUnitLabel(units: Units): "°C" | "°F" {
+  return units === "metric" ? "°C" : "°F";
+}

@@ -328,6 +328,10 @@ export interface ActivityDTO {  id: string;
   maxHrBpm: number | null;
   effortRpe: number | null;
   calories: number | null;
+  steps: number | null;
+  city: string | null;
+  weatherTempC: number | null;
+  weatherCondition: string | null;
   notes: string | null;
   source: string;
   visibility: string;
@@ -472,6 +476,7 @@ export interface ImportedActivitySummary {
   avgHrBpm: number | null;
   maxHrBpm: number | null;
   calories: number | null;
+  steps: number | null;
   alreadyImported: boolean;
 }
 

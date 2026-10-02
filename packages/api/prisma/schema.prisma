@@ -502,6 +502,10 @@ model Activity {
   maxHrBpm     Int?
   effortRpe    Int?
   calories     Int?
+  steps        Int?
+  city         String?
+  weatherTempC Float?
+  weatherCondition String?
   notes        String?
   source       ActivitySource @default(MANUAL)
   externalId   String?

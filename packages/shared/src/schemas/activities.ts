@@ -27,6 +27,10 @@ const metrics = {
   maxHrBpm: z.number().int().positive().max(250).optional(),
   effortRpe: z.number().int().min(1).max(10).optional(),
   calories: z.number().int().positive().max(50_000).optional(),
+  steps: z.number().int().positive().max(200_000).optional(),
+  city: z.string().trim().max(120).optional(),
+  weatherTempC: z.number().min(-60).max(60).optional(),
+  weatherCondition: z.string().trim().max(40).optional(),
 };
 
 const notFuture = (startedAt: string) =>

@@ -7,6 +7,8 @@ import type {
   LogTeamRunInput,
   UpdateActivityInput,
 } from "@curvelo/shared";
+import { estimateCalories, estimateSteps } from "@curvelo/shared";
+import { lookupWeather } from "../../lib/weather.js";
 import { db } from "../../db.js";
 import { checkGoalCompletions } from "../goals/service.js";
 import { assertOwnShoe, getDefaultShoeId } from "../records/service.js";
@@ -32,6 +34,10 @@ export type ActivityWithJoins = {
   maxHrBpm: number | null;
   effortRpe: number | null;
   calories: number | null;
+  steps: number | null;
+  city: string | null;
+  weatherTempC: number | null;
+  weatherCondition: string | null;
   notes: string | null;
   source: string;
   visibility: string;
@@ -70,6 +76,10 @@ export function toActivityDTO(a: ActivityWithJoins): ActivityDTO {
     maxHrBpm: a.maxHrBpm,
     effortRpe: a.effortRpe,
     calories: a.calories,
+    steps: a.steps,
+    city: a.city,
+    weatherTempC: a.weatherTempC,
+    weatherCondition: a.weatherCondition,
     notes: a.notes,
     shoeId: a.shoeId,
     shoeName: a.shoe?.name ?? null,
@@ -192,7 +202,11 @@ export async function createActivity(
       avgHrBpm: input.avgHrBpm,
       maxHrBpm: input.maxHrBpm,
       effortRpe: input.effortRpe,
-      calories: input.calories,
+      calories: input.calories ?? undefined,
+      steps: input.steps ?? undefined,
+      city: input.city?.trim() || null,
+      weatherTempC: input.weatherTempC ?? undefined,
+      weatherCondition: input.weatherCondition?.trim() || null,
       notes: input.notes?.trim() || null,
       visibility: input.visibility ?? (await defaultVisibility(ownerId)),
       shoeId,
@@ -201,6 +215,56 @@ export async function createActivity(
     },
     include: WITH_JOINS,
   });
+
+  // Auto-estimate calories/steps when the athlete didn't provide them
+  // (tracker imports keep their own values). Uses profile height/weight.
+  if (activity.calories == null || activity.steps == null) {
+    const ownerProfile = await db.profile.findUnique({
+      where: { userId: ownerId },
+    });
+    const effWeightKg = input.weightKg ?? ownerProfile?.weightKg ?? null;
+    const patch: { calories?: number; steps?: number } = {};
+    if (activity.calories == null) {
+      const est = estimateCalories({
+        kind: input.kind,
+        distanceM: input.distanceM,
+        durationS: input.durationS,
+        weightKg: effWeightKg,
+      });
+      if (est != null) patch.calories = est;
+    }
+    if (activity.steps == null) {
+      const est = estimateSteps(
+        input.distanceM,
+        ownerProfile?.heightCm ?? null,
+        input.kind,
+      );
+      if (est != null) patch.steps = est;
+    }
+    if (Object.keys(patch).length > 0) {
+      await db.activity.update({ where: { id: activity.id }, data: patch });
+      Object.assign(activity, patch);
+    }
+  }
+
+  // Auto-pull weather when a city was logged but no manual weather given.
+  if (
+    activity.city &&
+    activity.weatherTempC == null &&
+    activity.weatherCondition == null
+  ) {
+    const wx = await lookupWeather(activity.city, activity.startedAt);
+    if (wx) {
+      await db.activity.update({
+        where: { id: activity.id },
+        data: { weatherTempC: wx.tempC, weatherCondition: wx.condition },
+      });
+      Object.assign(activity, {
+        weatherTempC: wx.tempC,
+        weatherCondition: wx.condition,
+      });
+    }
+  }
 
   // Goal completions (personal + team) are checked on every logged run.
   // Fire-and-forget: celebrations must never break activity logging.
@@ -341,6 +405,13 @@ export async function updateActivity(
       assignmentId,
       shoeId,
       visibility: input.visibility,
+      steps: input.steps,
+      city: input.city === undefined ? undefined : input.city?.trim() || null,
+      weatherTempC: input.weatherTempC,
+      weatherCondition:
+        input.weatherCondition === undefined
+          ? undefined
+          : input.weatherCondition?.trim() || null,
     },
     include: WITH_JOINS,
   });
@@ -351,6 +422,39 @@ export async function updateActivity(
       create: { userId: ownerId, weightKg: input.weightKg },
       update: { weightKg: input.weightKg },
     });
+  }
+
+  // Fill estimates for values the athlete left blank.
+  if (
+    (input.calories === undefined && activity.calories == null) ||
+    (input.steps === undefined && activity.steps == null)
+  ) {
+    const ownerProfile = await db.profile.findUnique({
+      where: { userId: ownerId },
+    });
+    const effWeightKg = input.weightKg ?? ownerProfile?.weightKg ?? null;
+    const patch: { calories?: number; steps?: number } = {};
+    if (input.calories === undefined && activity.calories == null) {
+      const est = estimateCalories({
+        kind: activity.kind,
+        distanceM: input.distanceM ?? activity.distanceM,
+        durationS: input.durationS ?? activity.durationS,
+        weightKg: effWeightKg,
+      });
+      if (est != null) patch.calories = est;
+    }
+    if (input.steps === undefined && activity.steps == null) {
+      const est = estimateSteps(
+        input.distanceM ?? activity.distanceM ?? undefined,
+        ownerProfile?.heightCm ?? null,
+        activity.kind,
+      );
+      if (est != null) patch.steps = est;
+    }
+    if (Object.keys(patch).length > 0) {
+      await db.activity.update({ where: { id: activity.id }, data: patch });
+      Object.assign(activity, patch);
+    }
   }
 
   await audit({
