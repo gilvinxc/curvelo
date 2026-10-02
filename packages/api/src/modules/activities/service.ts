@@ -7,6 +7,7 @@ import type {
   UpdateActivityInput,
 } from "@curvelo/shared";
 import { db } from "../../db.js";
+import { checkGoalCompletions } from "../goals/service.js";
 import { audit } from "../../lib/audit.js";
 import { forbidden, notFound } from "../../lib/errors.js";
 import {
@@ -172,6 +173,10 @@ export async function createActivity(
     },
     include: WITH_JOINS,
   });
+
+  // Goal completions (personal + team) are checked on every logged run.
+  // Fire-and-forget: celebrations must never break activity logging.
+  checkGoalCompletions(actorId).catch(() => {});
 
   await audit({
     actorId,

@@ -99,6 +99,86 @@ function Skeleton() {
   );
 }
 
+export function InsightCard({
+  insight,
+  footnote,
+}: {
+  insight: AthleteInsight;
+  footnote: string;
+}) {
+  const ins = insight;
+  const st = ins.stats;
+  const completion =
+    st.completionRate != null ? `${Math.round(st.completionRate * 100)}%` : "—";
+  return (
+    <Card className="p-4">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <ProviderBadge provider={ins.provider} />
+        <span className="text-[12px] font-semibold text-mist">
+          {ins.periodDays}-day window
+        </span>
+        <TrendBadge trend={st.paceTrend} />
+      </div>
+
+      <div className="mb-4 grid grid-cols-3 gap-2">
+        <InsightStat label="Sessions" value={String(st.sessions)} />
+        <InsightStat label="Active days" value={String(st.activeDays)} />
+        <InsightStat label="Distance" value={formatDistanceM(st.totalDistanceM)} />
+        <InsightStat
+          label="Avg pace"
+          value={st.avgPaceSecPerKm != null ? formatPaceSec(st.avgPaceSecPerKm) : "—"}
+        />
+        <InsightStat label="Day streak" value={String(st.streakDays)} />
+        <InsightStat label="Completion" value={completion} />
+      </div>
+
+      <p className="mb-4 text-[14px] leading-relaxed text-ink-50/90">
+        {ins.narrative}
+      </p>
+
+      {ins.highlights.length > 0 && (
+        <div className="mb-3">
+          <h3 className="mb-1.5 text-[12px] font-bold uppercase tracking-[0.14em] text-emerald-300">
+            Highlights
+          </h3>
+          <ul className="flex flex-col gap-1.5">
+            {ins.highlights.map((h, i) => (
+              <li key={i} className="flex items-start gap-2 text-[14px]">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="mt-0.5 shrink-0">
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+                <span className="text-ink-50/90">{h}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {ins.watchOuts.length > 0 && (
+        <div>
+          <h3 className="mb-1.5 text-[12px] font-bold uppercase tracking-[0.14em] text-amber-300">
+            Watch-outs
+          </h3>
+          <ul className="flex flex-col gap-1.5">
+            {ins.watchOuts.map((w, i) => (
+              <li key={i} className="flex items-start gap-2 text-[14px]">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fcd34d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="mt-0.5 shrink-0">
+                  <path d="m12 9-4.9 8h9.8L12 9Z" />
+                  <path d="M12 4v0" />
+                  <path d="M12 13v3" />
+                </svg>
+                <span className="text-ink-50/90">{w}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <p className="mt-4 text-[11px] text-mist/70">{footnote}</p>
+    </Card>
+  );
+}
+
 export function AthleteInsights({
   teamId,
   athleteId,
@@ -149,92 +229,60 @@ export function AthleteInsights({
           </div>
         </div>
       ) : (
-        (() => {
-          const { insight } = insightQuery.data;
-          const s = insight.stats;
-          const completion =
-            s.completionRate != null
-              ? `${Math.round(s.completionRate * 100)}%`
-              : "—";
-          return (
-            <Card className="p-4">
-              <div className="mb-3 flex flex-wrap items-center gap-2">
-                <ProviderBadge provider={insight.provider} />
-                <span className="text-[12px] font-semibold text-mist">
-                  {insight.periodDays}-day window
-                </span>
-                <TrendBadge trend={s.paceTrend} />
-              </div>
+        <InsightCard
+          insight={insightQuery.data.insight}
+          footnote={`Generated ${new Date(
+            insightQuery.data.insight.generatedAt,
+          ).toLocaleString()} · ${
+            athleteName.split(" ")[0]
+          }'s coach sees this, not the whole team.`}
+        />
+      )}
+    </section>
+  );
+}
 
-              <div className="mb-4 grid grid-cols-3 gap-2">
-                <InsightStat label="Sessions" value={String(s.sessions)} />
-                <InsightStat label="Active days" value={String(s.activeDays)} />
-                <InsightStat
-                  label="Distance"
-                  value={formatDistanceM(s.totalDistanceM)}
-                />
-                <InsightStat
-                  label="Avg pace"
-                  value={
-                    s.avgPaceSecPerKm != null
-                      ? formatPaceSec(s.avgPaceSecPerKm)
-                      : "—"
-                  }
-                />
-                <InsightStat label="Day streak" value={String(s.streakDays)} />
-                <InsightStat label="Completion" value={completion} />
-              </div>
+/** The athlete's own 28-day insight — same engine, their own data. */
+export function MyInsights() {
+  const insightQuery = useQuery({
+    queryKey: ["myInsights"],
+    queryFn: () => api.myInsights(),
+  });
 
-              <p className="mb-4 text-[14px] leading-relaxed text-ink-50/90">
-                {insight.narrative}
-              </p>
+  return (
+    <section aria-label="My AI insights" className="mb-8">
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="text-[13px] font-bold uppercase tracking-[0.18em] text-mist">
+          My AI Insights
+        </h2>
+        <Button
+          variant="secondary"
+          onClick={() => insightQuery.refetch()}
+          disabled={insightQuery.isFetching}
+          className="min-h-[36px] px-3 py-1 text-[13px]"
+        >
+          {insightQuery.isFetching ? "Refreshing…" : "Refresh"}
+        </Button>
+      </div>
 
-              {insight.highlights.length > 0 && (
-                <div className="mb-3">
-                  <h3 className="mb-1.5 text-[12px] font-bold uppercase tracking-[0.14em] text-emerald-300">
-                    Highlights
-                  </h3>
-                  <ul className="flex flex-col gap-1.5">
-                    {insight.highlights.map((h, i) => (
-                      <li key={i} className="flex items-start gap-2 text-[14px]">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6ee7b7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="mt-0.5 shrink-0">
-                          <path d="M20 6 9 17l-5-5" />
-                        </svg>
-                        <span className="text-ink-50/90">{h}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {insight.watchOuts.length > 0 && (
-                <div>
-                  <h3 className="mb-1.5 text-[12px] font-bold uppercase tracking-[0.14em] text-amber-300">
-                    Watch-outs
-                  </h3>
-                  <ul className="flex flex-col gap-1.5">
-                    {insight.watchOuts.map((w, i) => (
-                      <li key={i} className="flex items-start gap-2 text-[14px]">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fcd34d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="mt-0.5 shrink-0">
-                          <path d="m12 9-4.9 8h9.8L12 9Z" />
-                          <path d="M12 4v0" />
-                          <path d="M12 13v3" />
-                        </svg>
-                        <span className="text-ink-50/90">{w}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <p className="mt-4 text-[11px] text-mist/70">
-                Generated {new Date(insight.generatedAt).toLocaleString()} ·{" "}
-                {athleteName.split(" ")[0]}'s coach sees this, not the whole
-                team.
-              </p>
-            </Card>
-          );
-        })()
+      {insightQuery.isLoading ? (
+        <Skeleton />
+      ) : insightQuery.isError || !insightQuery.data ? (
+        <div className="flex flex-col gap-3">
+          <ErrorBanner message="Couldn't generate your insights yet. Log a few runs first." />
+          <div>
+            <Button variant="secondary" onClick={() => insightQuery.refetch()}>
+              Try again
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <InsightCard
+          insight={insightQuery.data.insight}
+          footnote={`Generated ${new Date(
+            insightQuery.data.insight.generatedAt,
+          ).toLocaleString()} · Private to you.`}
+        />
       )}
     </section>
   );

@@ -4,7 +4,7 @@ import {
   teamDigestParamsSchema,
   teamDigestQuerySchema,
 } from "@curvelo/shared";
-import { getAthleteInsight, getTeamDigest } from "./service.js";
+import { getAthleteInsight, getMyInsight, getTeamDigest } from "./service.js";
 
 export async function aiRoutes(app: FastifyInstance): Promise<void> {
   // Coach view: AI-assisted insight for one athlete (28-day window).
@@ -14,6 +14,16 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const { id, userId } = athleteInsightParamsSchema.parse(request.params);
       const insight = await getAthleteInsight(request.user!.id, id, userId, request.ip);
+      return reply.send({ insight });
+    },
+  );
+
+  // Your own 28-day insight — same engine, your own data.
+  app.get(
+    "/users/me/insights",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const insight = await getMyInsight(request.user!.id, request.ip);
       return reply.send({ insight });
     },
   );

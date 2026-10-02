@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { TeamLogo, resizeImageFile } from "./TeamLogo";
 import {
   Avatar,
   Button,
@@ -526,11 +527,135 @@ function TransferSection({
   );
 }
 
+
+/** Team logo: upload (resized in-browser) or remove. Stored in the database. */
+function LogoSection({ teamId, teamName }: { teamId: string; teamName: string }) {
+  const queryClient = useQueryClient();
+  const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [logoTick, setLogoTick] = useState(0);
+
+  const teamQuery = useQuery({
+    queryKey: ["team", teamId],
+    queryFn: () => api.getTeam(teamId),
+  });
+  const team = teamQuery.data?.team;
+
+  const uploadMutation = useMutation({
+    mutationFn: (image: string) => api.setTeamLogo(teamId, image),
+    onSuccess: () => {
+      setPreview(null);
+      setLogoTick((t) => t + 1);
+      queryClient.invalidateQueries({ queryKey: ["team", teamId] });
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
+    },
+    onError: (e) => {
+      setError(e instanceof ApiError ? e.message : "Couldn't upload the logo.");
+    },
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: () => api.removeTeamLogo(teamId),
+    onSuccess: () => {
+      setLogoTick((t) => t + 1);
+      queryClient.invalidateQueries({ queryKey: ["team", teamId] });
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
+    },
+    onError: (e) => {
+      setError(e instanceof ApiError ? e.message : "Couldn't remove the logo.");
+    },
+  });
+
+  async function onFile(file: File | undefined) {
+    setError(null);
+    if (!file) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+      setError("Please choose a JPEG, PNG, or WebP image.");
+      return;
+    }
+    try {
+      const dataUrl = await resizeImageFile(file);
+      setPreview(dataUrl);
+    } catch {
+      setError("Could not read that image.");
+    }
+  }
+
+  return (
+    <Card>
+      <SectionTitle>Team logo</SectionTitle>
+      <div className="mt-3 flex items-center gap-4">
+        <TeamLogo
+          teamId={teamId}
+          teamName={teamName}
+          hasLogo={team?.hasLogo ?? false}
+          version={logoTick}
+          size={64}
+        />
+        <div className="flex-1">
+          {preview ? (
+            <div className="flex items-center gap-3">
+              <img
+                src={preview}
+                alt="New logo preview"
+                className="h-16 w-16 rounded-xl object-cover"
+              />
+              <p className="text-[13px] font-semibold text-volt-400">
+                New logo — hit Save to apply it.
+              </p>
+            </div>
+          ) : (
+            <p className="text-[13px] text-mist">
+              A square image works best. It's resized in your browser before
+              uploading.
+            </p>
+          )}
+        </div>
+      </div>
+      {error && (
+        <div className="mt-3">
+          <ErrorBanner message={error} />
+        </div>
+      )}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <label className="inline-flex min-h-[44px] cursor-pointer items-center rounded-xl bg-white/10 px-4 text-[14px] font-bold text-ink-50 hover:bg-white/15">
+          {preview ? "Choose a different image" : "Upload logo"}
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={(e) => onFile(e.target.files?.[0])}
+          />
+        </label>
+        {preview && (
+          <Button
+            onClick={() => preview && uploadMutation.mutate(preview)}
+            disabled={uploadMutation.isPending}
+          >
+            {uploadMutation.isPending ? "Saving…" : "Save logo"}
+          </Button>
+        )}
+        {!preview && team?.hasLogo && (
+          <Button
+            variant="secondary"
+            onClick={() => removeMutation.mutate()}
+            disabled={removeMutation.isPending}
+          >
+            Remove logo
+          </Button>
+        )}
+      </div>
+    </Card>
+  );
+}
+
 export function ManageTab({
   teamId,
+  teamName,
   isOwner,
 }: {
   teamId: string;
+  teamName: string;
   isOwner: boolean;
 }) {
   const { user } = useAuth();
@@ -538,6 +663,7 @@ export function ManageTab({
 
   return (
     <div className="flex flex-col gap-4">
+      <LogoSection teamId={teamId} teamName={teamName} />
       <JoinLinksSection teamId={teamId} />
       <JoinRequestsSection teamId={teamId} />
       <MembersSection teamId={teamId} myUserId={user.id} isOwner={isOwner} />

@@ -19,6 +19,8 @@ import { WorkoutList } from "../workouts/WorkoutList";
 import { TeamCalendar } from "../calendar/TeamCalendar";
 import { GroupsSection } from "./GroupsSection";
 import { ManageTab } from "./ManageTab";
+import { TeamLogo } from "./TeamLogo";
+import { GoalsTab } from "../goals/GoalsTab";
 import { FeedPage } from "../feed/FeedPage";
 import { MessagesSection } from "../messages/MessagesSection";
 import { TeamDigestSection } from "../insights/TeamDigestSection";
@@ -33,6 +35,7 @@ export type TeamTab =
   | "groups"
   | "calendar"
   | "coaching"
+  | "goals"
   | "manage";
 
 const TABS: { id: TeamTab; label: string; href: (id: string) => string; coachOnly?: boolean }[] = [
@@ -43,6 +46,7 @@ const TABS: { id: TeamTab; label: string; href: (id: string) => string; coachOnl
   { id: "groups", label: "Groups", href: (id) => `/teams/${id}/groups` },
   { id: "calendar", label: "Calendar", href: (id) => `/teams/${id}/calendar` },
   { id: "coaching", label: "Coaching", href: (id) => `/teams/${id}/coaching`, coachOnly: true },
+  { id: "goals", label: "Goals", href: (id) => `/teams/${id}/goals` },
   { id: "manage", label: "Manage", href: (id) => `/teams/${id}/manage`, coachOnly: true },
 ];
 
@@ -175,6 +179,15 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
       <PageHeader title={team.name} backTo="/dashboard" />
 
       <Card className="mb-5">
+        <div className="mb-3 flex items-center gap-3">
+          <TeamLogo teamId={team.id} teamName={team.name} hasLogo={team.hasLogo ?? false} size={52} />
+          <div className="min-w-0">
+            <p className="truncate text-[18px] font-extrabold text-ink-50">{team.name}</p>
+            <p className="text-[12px] font-semibold text-mist">
+              {team.memberCount} {team.memberCount === 1 ? "member" : "members"}
+            </p>
+          </div>
+        </div>
         {team.description && (
           <p className="text-[15px] leading-relaxed text-ink-50/90">
             {team.description}
@@ -184,9 +197,6 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
           {team.myRole && <RoleBadge role={team.myRole} />}
           <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-mist">
             {team.visibility === "PUBLIC" ? "Public" : "Private"}
-          </span>
-          <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-mist">
-            {team.memberCount} {team.memberCount === 1 ? "member" : "members"}
           </span>
         </div>
         {canInvite && (
@@ -253,8 +263,11 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
       {initialTab === "coaching" && canInvite && (
         <TeamDigestSection teamId={team.id} />
       )}
+      {initialTab === "goals" && (
+        <GoalsTab teamId={team.id} canManage={canInvite} />
+      )}
       {initialTab === "manage" && canInvite && (
-        <ManageTab teamId={team.id} isOwner={team.isOwner ?? false} />
+        <ManageTab teamId={team.id} teamName={team.name} isOwner={team.isOwner ?? false} />
       )}
 
       <InviteDialog

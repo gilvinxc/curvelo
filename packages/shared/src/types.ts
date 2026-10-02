@@ -29,6 +29,8 @@ export interface TeamDTO {
   myRole: string | null;
   /** Present on single-team fetches; true when the viewer owns the team. */
   isOwner?: boolean;
+  /** True when the team has a logo (fetch it from /teams/:id/logo). */
+  hasLogo: boolean;
   createdAt: string;
 }
 
@@ -93,6 +95,60 @@ export interface JoinRequestDTO {
   createdAt: string;
   user: { id: string; displayName: string; email: string };
 }
+
+/** A personal or team goal with computed progress. */
+export interface GoalDTO {
+  id: string;
+  kind: "DISTANCE" | "SESSIONS" | "STREAK";
+  period: "WEEK" | "MONTH" | "CUSTOM";
+  title: string | null;
+  /** Canonical target: meters for DISTANCE, count for SESSIONS/STREAK. */
+  targetMeters: number | null;
+  targetCount: number | null;
+  startAt: string;
+  endAt: string;
+  recurring: boolean;
+  status: "ACTIVE" | "COMPLETED" | "ARCHIVED";
+  shareOnComplete: boolean;
+  completedAt: string | null;
+  /** Current progress in the same units as the target. */
+  progress: number;
+  progressLabel: string;
+  teamId: string | null;
+  teamName: string | null;
+}
+
+/** Within-team leaderboard. Values are meters (distance) or counts (sessions). */
+export interface LeaderboardEntryDTO {
+  userId: string;
+  displayName: string;
+  value: number;
+  rank: number;
+}
+
+export interface LeaderboardDTO {
+  metric: "distance" | "sessions";
+  days: number;
+  entries: LeaderboardEntryDTO[];
+  /** The viewer's rank (null when they have no activity in the window). */
+  myRank: number | null;
+}
+
+/** Personal progress analytics: weekly buckets plus streaks. */
+export interface ProgressWeekDTO {
+  weekStart: string;
+  distanceM: number;
+  sessions: number;
+  durationS: number;
+}
+
+export interface ProgressDTO {
+  weeks: ProgressWeekDTO[];
+  currentStreakDays: number;
+  totalDistanceM: number;
+  totalSessions: number;
+}
+
 
 export interface WorkoutStepDTO {
   id: string;

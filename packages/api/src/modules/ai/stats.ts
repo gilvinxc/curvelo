@@ -8,7 +8,7 @@ import { db } from "../../db.js";
  */
 export async function computeStats(
   userId: string,
-  teamId: string,
+  teamId: string | undefined,
   days: number,
 ): Promise<TrainingStats> {
   const since = new Date();
@@ -16,7 +16,7 @@ export async function computeStats(
   since.setUTCHours(0, 0, 0, 0);
 
   const activities = await db.activity.findMany({
-    where: { userId, teamId, startedAt: { gte: since } },
+    where: { userId, ...(teamId ? { teamId } : {}), startedAt: { gte: since } },
     select: {
       startedAt: true,
       kind: true,

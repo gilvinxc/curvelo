@@ -18,6 +18,7 @@ import { feedRoutes } from "./modules/feed/routes.js";
 import { guardianRoutes } from "./modules/guardians/routes.js";
 import { messageRoutes } from "./modules/messages/routes.js";
 import { aiRoutes } from "./modules/ai/routes.js";
+import { goalRoutes } from "./modules/goals/routes.js";
 import { importRoutes } from "./modules/imports/routes.js";
 
 export async function buildApp() {
@@ -54,6 +55,7 @@ export async function buildApp() {
   await app.register(guardianRoutes, { prefix: "/api/v1" });
   await app.register(messageRoutes, { prefix: "/api/v1" });
   await app.register(aiRoutes, { prefix: "/api/v1" });
+  await app.register(goalRoutes, { prefix: "/api/v1" });
   await app.register(importRoutes, { prefix: "/api/v1" });
 
   return app;

@@ -12,6 +12,7 @@ import type {
   ConversationDTO,
   CreateTeamInput,
   GuardianInviteDTO,
+  GoalDTO,
   GuardianLinkDTO,
   InvitationDTO,
   InvitationPreviewDTO,
@@ -19,7 +20,9 @@ import type {
   JoinLinkDTO,
   JoinLinkPreviewDTO,
   JoinRequestDTO,
+  LeaderboardDTO,
   PostDTO,
+  ProgressDTO,
   RegisterInput,
   ReportDTO,
   RosterMemberDTO,
@@ -110,6 +113,9 @@ const patch = <T>(path: string, payload: unknown): Promise<T> =>
 
 const del = <T>(path: string): Promise<T> =>
   request<T>(path, { method: "DELETE" });
+
+const put = <T>(path: string, payload: unknown): Promise<T> =>
+  request<T>(path, { method: "PUT", body: JSON.stringify(payload) });
 
 /** Full user + profile shape returned by GET/PATCH /users/me. */
 export interface FullUser {
@@ -325,6 +331,40 @@ export const api = {
     request<{ stats: ActivityStatsDTO }>(
       `/users/me/stats?from=${from}&to=${to}`,
     ),
+
+  // goals + leaderboard + analytics
+  createGoal: (input: {
+    kind: "DISTANCE" | "SESSIONS" | "STREAK";
+    period: "WEEK" | "MONTH" | "CUSTOM";
+    target: number;
+    title?: string;
+    recurring?: boolean;
+    shareOnComplete?: boolean;
+    feedTeamId?: string;
+    startAt?: string;
+    endAt?: string;
+  }) => post<{ goal: GoalDTO }>("/goals", input),
+  myGoals: () => request<{ goals: GoalDTO[] }>("/goals"),
+  archiveGoal: (goalId: string) => del<{ ok: boolean }>(`/goals/${goalId}`),
+  createTeamGoal: (
+    teamId: string,
+    input: { kind: "DISTANCE" | "SESSIONS"; title: string; target: number; startAt: string; endAt: string },
+  ) => post<{ goal: GoalDTO }>(`/teams/${teamId}/goals`, input),
+  teamGoals: (teamId: string) =>
+    request<{ goals: GoalDTO[] }>(`/teams/${teamId}/goals`),
+  archiveTeamGoal: (teamId: string, goalId: string) =>
+    del<{ ok: boolean }>(`/teams/${teamId}/goals/${goalId}`),
+  leaderboard: (teamId: string, metric: "distance" | "sessions", days = 7) =>
+    request<{ leaderboard: LeaderboardDTO }>(
+      `/teams/${teamId}/leaderboard?metric=${metric}&days=${days}`,
+    ),
+  myProgress: (weeks = 12) =>
+    request<{ progress: ProgressDTO }>(`/users/me/progress?weeks=${weeks}`),
+  myInsights: () => request<{ insight: AthleteInsight }>(`/users/me/insights`),
+  setTeamLogo: (teamId: string, image: string) =>
+    put<{ ok: boolean }>(`/teams/${teamId}/logo`, { image }),
+  removeTeamLogo: (teamId: string) => del<{ ok: boolean }>(`/teams/${teamId}/logo`),
+  teamLogoUrl: (teamId: string) => `${BASE_URL}/teams/${teamId}/logo`,
 
   // coach athlete view
   getAthlete: (teamId: string, userId: string) =>

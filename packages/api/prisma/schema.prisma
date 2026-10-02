@@ -97,6 +97,8 @@ model User {
   conversationsAuthored Conversation[] @relation("ConversationAuthor")
   messagesAuthored    Message[]     @relation("MessageAuthor")
   createdJoinLinks    TeamJoinLink[]    @relation("JoinLinkCreator")
+  personalGoals       Goal[]            @relation("PersonalGoals")
+  createdGoals        Goal[]            @relation("GoalCreator")
   joinRequests        TeamJoinRequest[]
   decidedJoinRequests TeamJoinRequest[] @relation("JoinRequestDecider")
 }
@@ -161,6 +163,9 @@ model Team {
   invitations     Invitation[]
   joinLinks       TeamJoinLink[]
   joinRequests    TeamJoinRequest[]
+  goals           Goal[]          @relation("TeamGoals")
+  logoImage       Bytes?
+  logoMime        String?
   seasons         Season[]
   complianceRules ComplianceRule[]
   workouts        Workout[]
@@ -625,4 +630,49 @@ model TeamJoinRequest {
 
   @@index([teamId, status])
   @@index([userId])
+}
+
+enum GoalKind {
+  DISTANCE
+  SESSIONS
+  STREAK
+}
+
+enum GoalPeriod {
+  WEEK
+  MONTH
+  CUSTOM
+}
+
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+// Personal goal: userId set. Team goal: teamId set (collective).
+model Goal {
+  id            String     @id @default(uuid())
+  userId        String?
+  user          User?      @relation("PersonalGoals", fields: [userId], references: [id], onDelete: Cascade)
+  teamId        String?
+  team          Team?      @relation("TeamGoals", fields: [teamId], references: [id], onDelete: Cascade)
+  kind          GoalKind
+  period        GoalPeriod
+  title         String?
+  targetMeters  Int?       // DISTANCE goals, canonical meters
+  targetCount   Int?       // SESSIONS / STREAK goals
+  startAt       DateTime
+  endAt         DateTime
+  recurring     Boolean    @default(false) // personal WEEK/MONTH goals roll over
+  status        GoalStatus @default(ACTIVE)
+  shareOnComplete Boolean  @default(false) // personal: celebrate in team feed
+  feedTeamId    String?
+  createdById   String
+  createdBy     User       @relation("GoalCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt     DateTime   @default(now())
+  completedAt   DateTime?
+
+  @@index([userId, status])
+  @@index([teamId, status])
 }

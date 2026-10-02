@@ -81,6 +81,55 @@ export async function getAthleteInsight(
   };
 }
 
+/**
+ * The athlete's own 28-day insight — the same engine coaches see, but scoped
+ * to the athlete themself across all their teams. No membership gate: it is
+ * their own training data.
+ */
+export async function getMyInsight(
+  userId: string,
+  ipAddress?: string,
+): Promise<AthleteInsight> {
+  const user = await db.user.findUniqueOrThrow({
+    where: { id: userId },
+    select: { displayName: true },
+  });
+  const stats = await computeStats(userId, undefined, INSIGHT_DAYS);
+  const provider = selectProvider();
+  let generated: { highlights: string[]; watchOuts: string[]; narrative: string };
+  try {
+    generated = await provider.athleteNarrative({
+      athleteName: user.displayName,
+      periodDays: INSIGHT_DAYS,
+      stats,
+    });
+  } catch {
+    const { LocalAnalyst } = await import("./providers.js");
+    generated = await new LocalAnalyst().athleteNarrative({
+      athleteName: user.displayName,
+      periodDays: INSIGHT_DAYS,
+      stats,
+    });
+  }
+  await audit({
+    actorId: userId,
+    action: "AI_INSIGHT_GENERATED",
+    entityType: "User",
+    entityId: userId,
+    metadata: { self: true, provider: provider.name },
+    ipAddress,
+  });
+  return {
+    athleteId: userId,
+    athleteName: user.displayName,
+    periodDays: INSIGHT_DAYS,
+    stats,
+    ...generated,
+    provider: provider.name,
+    generatedAt: new Date().toISOString(),
+  };
+}
+
 export async function getTeamDigest(
   actorId: string,
   teamId: string,

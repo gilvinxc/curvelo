@@ -11,6 +11,7 @@ import { FullScreenLoader } from "./components/ui";
 import { SignInPage } from "./features/auth/SignInPage";
 import { RegisterPage } from "./features/auth/RegisterPage";
 import { DashboardPage } from "./features/dashboard/DashboardPage";
+import { ProgressPage } from "./features/progress/ProgressPage";
 import { NewTeamPage } from "./features/teams/NewTeamPage";
 import { TeamPage } from "./features/teams/TeamPage";
 import {
@@ -125,6 +126,14 @@ export function App() {
             }
           />
           <Route
+            path="/progress"
+            element={
+              <ProtectedRoute>
+                <ProgressPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/teams/new"
             element={
               <ProtectedRoute>
@@ -209,6 +218,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <TeamPage initialTab="manage" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teams/:id/goals"
+            element={
+              <ProtectedRoute>
+                <TeamPage initialTab="goals" />
               </ProtectedRoute>
             }
           />

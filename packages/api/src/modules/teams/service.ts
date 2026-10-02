@@ -7,7 +7,7 @@ import type {
 } from "@curvelo/shared";
 import { db } from "../../db.js";
 import { audit } from "../../lib/audit.js";
-import { conflict, forbidden, notFound } from "../../lib/errors.js";
+import { AppError, conflict, forbidden, notFound } from "../../lib/errors.js";
 import { ensureTeamConversations } from "../messages/service.js";
 import {
   activeMembership,
@@ -35,6 +35,7 @@ function toTeamDTO(
     visibility: string;
     ownerId: string;
     createdAt: Date;
+    logoImage: unknown;
     _count: { memberships: number };
   },
   myRole: string | null,
@@ -50,6 +51,7 @@ function toTeamDTO(
     myRole,
     isOwner: myUserId != null ? team.ownerId === myUserId : undefined,
     createdAt: team.createdAt.toISOString(),
+    hasLogo: team.logoImage != null,
   };
 }
 
@@ -351,4 +353,81 @@ export async function transferTeam(
   });
 
   return { ok: true as const, newOwnerId };
+}
+
+// ---------------------------------------------------------------------------
+// Team logo (stored in the DB — logos are small and one per team)
+// ---------------------------------------------------------------------------
+
+const LOGO_DATA_URL_RE = /^data:image\/(jpeg|png|webp);base64,/;
+const MAX_LOGO_BYTES = 500_000;
+
+export async function setTeamLogo(
+  actorId: string,
+  teamId: string,
+  image: string,
+  ipAddress?: string,
+): Promise<{ ok: true }> {
+  const membership = await activeMembership(actorId, teamId);
+  requireManager(membership);
+
+  const match = image.match(LOGO_DATA_URL_RE);
+  if (!match) throw new AppError(400, "BAD_REQUEST", "Invalid image data URL");
+  const buf = Buffer.from(image.slice(match[0].length), "base64");
+  if (buf.length === 0 || buf.length > MAX_LOGO_BYTES) {
+    throw new AppError(400, "BAD_REQUEST", "Image is too large");
+  }
+  // Cheap magic-byte check so a text blob can't be stored as an image.
+  const isJpeg = buf[0] === 0xff && buf[1] === 0xd8;
+  const isPng = buf[0] === 0x89 && buf[1] === 0x50;
+  const isWebp = buf[0] === 0x52 && buf[1] === 0x49; // "RI"
+  if (!isJpeg && !isPng && !isWebp) throw new AppError(400, "BAD_REQUEST", "Not a valid image");
+
+  await db.team.update({
+    where: { id: teamId },
+    data: { logoImage: buf, logoMime: `image/${match[1]}` },
+  });
+
+  await audit({
+    actorId,
+    action: "TEAM_LOGO_SET",
+    entityType: "Team",
+    entityId: teamId,
+    ipAddress,
+  });
+  return { ok: true as const };
+}
+
+export async function removeTeamLogo(
+  actorId: string,
+  teamId: string,
+  ipAddress?: string,
+): Promise<{ ok: true }> {
+  const membership = await activeMembership(actorId, teamId);
+  requireManager(membership);
+  await db.team.update({
+    where: { id: teamId },
+    data: { logoImage: null, logoMime: null },
+  });
+  await audit({
+    actorId,
+    action: "TEAM_LOGO_REMOVED",
+    entityType: "Team",
+    entityId: teamId,
+    ipAddress,
+  });
+  return { ok: true as const };
+}
+
+export async function getTeamLogo(
+  userId: string,
+  teamId: string,
+): Promise<{ image: Buffer; mime: string }> {
+  await activeMembership(userId, teamId);
+  const team = await db.team.findUnique({
+    where: { id: teamId },
+    select: { logoImage: true, logoMime: true },
+  });
+  if (!team?.logoImage || !team.logoMime) throw notFound("No team logo");
+  return { image: team.logoImage as Buffer, mime: team.logoMime };
 }

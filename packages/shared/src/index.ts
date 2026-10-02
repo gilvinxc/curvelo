@@ -10,4 +10,5 @@ export * from "./schemas/guardians.js";
 export * from "./schemas/messages.js";
 export * from "./schemas/ai.js";
 export * from "./schemas/imports.js";
+export * from "./schemas/goals.js";
 export * from "./types.js";

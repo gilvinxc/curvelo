@@ -69,6 +69,11 @@ export function TrainingLog() {
               + Log activity
             </Button>
           </Link>
+          <Link to="/progress">
+            <Button variant="secondary" className="min-h-[40px] px-4 text-[14px]">
+              📈 Progress
+            </Button>
+          </Link>
         </div>
       </div>
 

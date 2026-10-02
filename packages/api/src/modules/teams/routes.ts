@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import {
   createTeamSchema,
+  setTeamLogoSchema,
   teamMemberParamsSchema,
   teamParamsSchema,
   transferTeamSchema,
@@ -11,8 +12,11 @@ import {
   createTeam,
   getRoster,
   getTeam,
+  getTeamLogo,
   listMyTeams,
   removeMember,
+  removeTeamLogo,
+  setTeamLogo,
   transferTeam,
   updateMemberRole,
   updateTeam,
@@ -105,6 +109,37 @@ export async function teamRoutes(app: FastifyInstance): Promise<void> {
         request.ip,
       );
       return reply.send(result);
+    },
+  );
+
+  app.put(
+    "/:id/logo",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { id } = teamParamsSchema.parse(request.params);
+      const body = setTeamLogoSchema.parse(request.body);
+      const result = await setTeamLogo(request.user!.id, id, body.image, request.ip);
+      return reply.send(result);
+    },
+  );
+
+  app.delete(
+    "/:id/logo",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { id } = teamParamsSchema.parse(request.params);
+      const result = await removeTeamLogo(request.user!.id, id, request.ip);
+      return reply.send(result);
+    },
+  );
+
+  app.get(
+    "/:id/logo",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { id } = teamParamsSchema.parse(request.params);
+      const { image, mime } = await getTeamLogo(request.user!.id, id);
+      return reply.header("Content-Type", mime).header("Cache-Control", "public, max-age=3600").send(image);
     },
   );
 }
