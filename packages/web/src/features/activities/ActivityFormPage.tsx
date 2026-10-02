@@ -57,8 +57,12 @@ interface FormState {
   visibility: "TEAM" | "PRIVATE";
 }
 
-function blankForm(): FormState {
-  return {
+// Format a number for an input: up to 2 decimals, no trailing zeros.
+function trimNum(n: number): string {
+  return String(parseFloat(n.toFixed(2)));
+}
+
+function blankForm(): FormState {  return {
     kind: "RUN",
     title: "",
     startedAt: nowLocalInput(),
@@ -129,7 +133,7 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       title: a.title ?? "",
       startedAt: isoToLocalInput(a.startedAt),
       distanceKm: a.distanceM != null ? String(a.distanceM / 1000) : "",
-      durationMin: a.durationS != null ? String(Math.round(a.durationS / 60)) : "",
+      durationMin: a.durationS != null ? trimNum(a.durationS / 60) : "",
       avgHr: a.avgHrBpm != null ? String(a.avgHrBpm) : "",
       maxHr: a.maxHrBpm != null ? String(a.maxHrBpm) : "",
       rpeOn: a.effortRpe != null,
@@ -334,7 +338,7 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
               type="number"
               inputMode="decimal"
               min="0"
-              step="1"
+              step="any"
               value={form.durationMin}
               onChange={(e) => set("durationMin", e.target.value)}
               placeholder="40"
