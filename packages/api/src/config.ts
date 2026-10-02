@@ -32,4 +32,13 @@ export const config = {
   // Public web URL used to build links in emails.
   webUrl: process.env.WEB_URL ?? "http://localhost:5173",
   passwordResetTtlMinutes: parseInt(process.env.PASSWORD_RESET_TTL_MINUTES ?? "60", 10),
+  // Document storage. Set the S3 vars for any S3-compatible store
+  // (AWS S3, Cloudflare R2, Supabase Storage). Without them, uploads go
+  // to local disk — fine for dev, not for production.
+  s3Endpoint: process.env.S3_ENDPOINT || null,
+  s3Bucket: process.env.S3_BUCKET || null,
+  s3Region: process.env.S3_REGION ?? "auto",
+  s3AccessKey: process.env.S3_ACCESS_KEY || null,
+  s3SecretKey: process.env.S3_SECRET_KEY || null,
+  storageLocalDir: process.env.STORAGE_LOCAL_DIR ?? "./uploads",
 } as const;

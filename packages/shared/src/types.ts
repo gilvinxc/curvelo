@@ -476,3 +476,53 @@ export interface ChildSummaryDTO {
   upcomingAssignments: AssignmentDTO[];
   recentActivities: ActivityDTO[];
 }
+
+export interface DocumentDTO {
+  id: string;
+  teamId: string | null;
+  ownerId: string | null;
+  ownerName: string | null;
+  kind: string;
+  label: string;
+  requirementId: string | null;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  issuedAt: string | null;
+  expiresAt: string | null;
+  verifiedAt: string | null;
+  verifiedByName: string | null;
+  signedByName: string | null;
+  signedAt: string | null;
+  checkResult: string | null;
+  checkProvider: string | null;
+  visibility: string;
+  version: number;
+  uploadedByName: string;
+  createdAt: string;
+}
+
+export interface DocumentRequirementDTO {
+  id: string;
+  teamId: string;
+  kind: string;
+  label: string;
+  validDays: number | null;
+  required: boolean;
+}
+
+export type DocumentCheckStatus = "current" | "expiring" | "expired" | "missing";
+
+export interface AthleteDocumentStatus {
+  userId: string;
+  displayName: string;
+  requirements: Array<{
+    requirementId: string;
+    kind: string;
+    label: string;
+    status: DocumentCheckStatus;
+    documentId: string | null;
+    expiresAt: string | null;
+  }>;
+  cleared: boolean;
+}

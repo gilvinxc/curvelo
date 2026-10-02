@@ -3,11 +3,14 @@ import type {
   ActivityDTO,
   ActivityStatsDTO,
   AssignmentDTO,
+  AthleteDocumentStatus,
   AthleteInsight,
   AthleteViewDTO,
   ChatMessageDTO,
   ChildSummaryDTO,
   CommentDTO,
+  DocumentDTO,
+  DocumentRequirementDTO,
   ConsentDTO,
   ConversationDTO,
   CreateTeamInput,
@@ -70,7 +73,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = {
     ...(init.headers as Record<string, string> | undefined),
   };
-  if (hasBody && !headers["Content-Type"]) {
+  if (hasBody && !headers["Content-Type"] && !(init.body instanceof FormData)) {
     headers["Content-Type"] = "application/json";
   }
   let res: Response;
@@ -227,6 +230,58 @@ export const api = {
     post<{ ok: boolean }>("/auth/forgot-password", { email }),
   resetPassword: (token: string, password: string) =>
     post<{ ok: boolean }>("/auth/reset-password", { token, password }),
+  // documents
+  documentRequirements: (teamId: string) =>
+    request<{ requirements: DocumentRequirementDTO[] }>(
+      `/teams/${teamId}/document-requirements`,
+    ),
+  upsertRequirement: (
+    teamId: string,
+    input: { kind: string; label: string; validDays?: number; required: boolean },
+  ) =>
+    post<{ requirement: DocumentRequirementDTO }>(
+      `/teams/${teamId}/document-requirements`,
+      input,
+    ),
+  deleteRequirement: (teamId: string, requirementId: string) =>
+    del<{ ok: boolean }>(`/teams/${teamId}/document-requirements/${requirementId}`),
+  documentStatus: (teamId: string) =>
+    request<{ athletes: AthleteDocumentStatus[] }>(
+      `/teams/${teamId}/document-status`,
+    ),
+  uploadDocument: (form: FormData) =>
+    request<{ document: DocumentDTO }>("/documents/upload", {
+      method: "POST",
+      body: form,
+    }),
+  documentFileUrl: (id: string) => `${BASE_URL}/documents/${id}/file`,
+  myDocuments: (teamId: string) =>
+    request<{ documents: DocumentDTO[] }>(`/teams/${teamId}/documents/mine`),
+  athleteDocuments: (teamId: string, userId: string) =>
+    request<{ documents: DocumentDTO[] }>(
+      `/teams/${teamId}/documents/athlete/${userId}`,
+    ),
+  teamDocuments: (teamId: string) =>
+    request<{ documents: DocumentDTO[] }>(`/teams/${teamId}/documents/team`),
+  myCertifications: () =>
+    request<{ documents: DocumentDTO[] }>("/users/me/certifications"),
+  recordBackgroundCheck: (input: {
+    checkResult: "PASS" | "FAIL";
+    checkProvider: string;
+    checkedAt?: string;
+  }) => post<{ document: DocumentDTO }>("/documents/background-check", input),
+  verifyDocument: (id: string) =>
+    post<{ document: DocumentDTO }>(`/documents/${id}/verify`, {}),
+  signDocument: (id: string, signedByName: string) =>
+    post<{ document: DocumentDTO }>(`/documents/${id}/sign`, {
+      signedByName,
+      intentConfirmed: true,
+    }),
+  deleteDocument: (id: string, reason: string) =>
+    request<{ ok: boolean }>(`/documents/${id}`, {
+      method: "DELETE",
+      body: JSON.stringify({ reason }),
+    }),
   register: (input: RegisterInput) =>
     post<{ user: SessionUser }>("/auth/register", input),
   login: (input: { email: string; password: string }) =>

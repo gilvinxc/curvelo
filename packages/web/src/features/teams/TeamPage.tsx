@@ -26,6 +26,7 @@ import { MessagesSection } from "../messages/MessagesSection";
 import { TeamDigestSection } from "../insights/TeamDigestSection";
 import { TeamLogDialog } from "../activities/TeamLogDialog";
 import { TeamRaceDialog } from "../records/TeamRaceDialog";
+import { DocumentsTab } from "../documents/DocumentsTab";
 
 const CAN_INVITE = new Set(["COACH", "TEAM_ADMIN"]);
 
@@ -38,6 +39,7 @@ export type TeamTab =
   | "calendar"
   | "coaching"
   | "goals"
+  | "documents"
   | "manage";
 
 const TABS: { id: TeamTab; label: string; href: (id: string) => string; coachOnly?: boolean }[] = [
@@ -49,6 +51,7 @@ const TABS: { id: TeamTab; label: string; href: (id: string) => string; coachOnl
   { id: "calendar", label: "Calendar", href: (id) => `/teams/${id}/calendar` },
   { id: "coaching", label: "Coaching", href: (id) => `/teams/${id}/coaching`, coachOnly: true },
   { id: "goals", label: "Goals", href: (id) => `/teams/${id}/goals` },
+  { id: "documents", label: "Documents", href: (id) => `/teams/${id}/documents` },
   { id: "manage", label: "Manage", href: (id) => `/teams/${id}/manage`, coachOnly: true },
 ];
 
@@ -294,6 +297,9 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
       )}
       {initialTab === "goals" && (
         <GoalsTab teamId={team.id} canManage={canInvite} />
+      )}
+      {initialTab === "documents" && (
+        <DocumentsTab teamId={team.id} isCoach={canInvite} />
       )}
       {initialTab === "manage" && canInvite && (
         <ManageTab teamId={team.id} teamName={team.name} isOwner={team.isOwner ?? false} />

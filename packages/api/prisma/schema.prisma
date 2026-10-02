@@ -81,6 +81,9 @@ model User {
   auditLogs           AuditLog[]
   refreshTokens       RefreshToken[]
   passwordResetTokens PasswordResetToken[]
+  ownedDocuments      Document[]          @relation("DocumentOwner")
+  verifiedDocuments   Document[]          @relation("DocumentVerifier")
+  uploadedDocuments   Document[]          @relation("DocumentUploader")
   authoredWorkouts    Workout[]           @relation("WorkoutAuthor")
   authoredGroups      TeamGroup[]         @relation("GroupAuthor")
   authoredAssignments WorkoutAssignment[] @relation("AssignmentAuthor")
@@ -183,6 +186,8 @@ model Team {
   guardianInvites GuardianInvite[]
   consents        Consent[]
   conversations   Conversation[]
+  documentRequirements DocumentRequirement[]
+  documents       Document[]
 }
 
 // ─── Slice 6: team messaging (youth-safe, no private DMs) ───────────────
@@ -744,4 +749,83 @@ model Shoe {
   activities Activity[]
 
   @@index([userId])
+}
+
+// ─── Documents: athlete paperwork, coach certs, team docs ────────────────
+
+enum DocumentKind {
+  PHYSICAL
+  CONCUSSION
+  WAIVER
+  BIRTH_CERTIFICATE
+  CERTIFICATION
+  BACKGROUND_CHECK
+  TEAM_DOC
+  OTHER
+}
+
+enum DocumentVisibility {
+  TEAM
+  COACH_ONLY
+}
+
+// Coach-defined checklist: what each athlete must keep current.
+model DocumentRequirement {
+  id        String       @id @default(uuid())
+  teamId    String
+  team      Team         @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  kind      DocumentKind
+  label     String
+  validDays Int?
+  required  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  documents Document[]
+
+  @@unique([teamId, kind])
+  @@index([teamId])
+}
+
+// A stored file's metadata. Bytes live in object storage (or local disk in
+// dev); Postgres only keeps metadata. Never store full background reports.
+model Document {
+  id              String              @id @default(uuid())
+  teamId          String?
+  team            Team?               @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  ownerId         String?
+  owner           User?               @relation("DocumentOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  kind            DocumentKind
+  label           String
+  requirementId   String?
+  requirement     DocumentRequirement? @relation(fields: [requirementId], references: [id], onDelete: SetNull)
+  storageKey      String
+  fileName        String
+  mimeType        String
+  sizeBytes       Int
+  checksum        String?
+  issuedAt        DateTime?
+  expiresAt       DateTime?
+  // Coach verification (birth certificates, physicals).
+  verifiedAt      DateTime?
+  verifiedById    String?
+  verifiedBy      User?               @relation("DocumentVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  // E-signature (waivers, concussion acks): explicit intent, ESIGN/UETA.
+  signedByName    String?
+  signedAt        DateTime?
+  signIntent      Boolean             @default(false)
+  // Background checks: pass/fail only, never the full report.
+  checkResult     String?
+  checkProvider   String?
+  visibility      DocumentVisibility  @default(TEAM)
+  version         Int                 @default(1)
+  supersededById  String?
+  supersededBy    Document?           @relation("DocumentVersions", fields: [supersededById], references: [id], onDelete: SetNull)
+  previousVersions Document[]         @relation("DocumentVersions")
+  uploadedById    String
+  uploadedBy      User                @relation("DocumentUploader", fields: [uploadedById], references: [id], onDelete: Restrict)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([teamId])
+  @@index([ownerId])
+  @@index([requirementId])
 }

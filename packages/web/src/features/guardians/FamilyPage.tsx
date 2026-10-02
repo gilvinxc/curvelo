@@ -13,6 +13,7 @@ import {
 import { cn } from "../../components/cx";
 import { AssignmentRow } from "../calendar/CalendarBits";
 import { ActivityRow } from "../activities/ActivityRow";
+import { GuardianDocumentsSection } from "../documents/DocumentsTab";
 
 function consentBadge(child: ChildSummaryDTO): {
   label: string;
@@ -89,8 +90,7 @@ function ChildCard({ child }: { child: ChildSummaryDTO }) {
       <div className="mt-4">
         <h4 className="mb-2 text-[12px] font-bold uppercase tracking-[0.14em] text-mist">
           Recent runs
-        </h4>
-        {child.recentActivities.length === 0 ? (
+        </h4>        {child.recentActivities.length === 0 ? (
           <p className="text-[13px] text-mist">Nothing logged yet.</p>
         ) : (
           <div className="flex flex-col gap-2">
@@ -100,6 +100,12 @@ function ChildCard({ child }: { child: ChildSummaryDTO }) {
           </div>
         )}
       </div>
+
+      <GuardianDocumentsSection
+        teamId={child.teamId}
+        athleteId={child.athleteId}
+        athleteName={child.athleteName}
+      />
     </Card>
   );
 }
