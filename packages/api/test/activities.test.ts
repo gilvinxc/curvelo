@@ -232,6 +232,31 @@ describe("activities", () => {
   });
 });
 
+describe("verified city coordinates", () => {
+  beforeEach(truncate);
+
+  it("stores cityLat/cityLon and returns them on the DTO", async () => {
+    const app = await getApp();
+    const runner = await registerUser("RUNNER", "cityCoords");
+    const res = await request(app.server)
+      .post("/api/v1/activities")
+      .set(cookieHeader(runner))
+      .send({
+        kind: "RUN",
+        startedAt: new Date(Date.now() - 3600000).toISOString(),
+        distanceM: 5000,
+        durationS: 1500,
+        city: "Winchester, Kentucky, United States",
+        cityLat: 37.99,
+        cityLon: -84.18,
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.activity.city).toBe("Winchester, Kentucky, United States");
+    expect(res.body.activity.cityLat).toBeCloseTo(37.99);
+    expect(res.body.activity.cityLon).toBeCloseTo(-84.18);
+  });
+});
+
 describe("share to feed on log", () => {
   beforeEach(truncate);
 

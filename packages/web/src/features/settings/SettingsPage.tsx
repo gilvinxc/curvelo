@@ -25,6 +25,7 @@ import {
   TextArea,
   TextInput,
 } from "../../components/ui";
+import { CityInput } from "../../components/CityInput";
 
 const SHARE_LEVELS = [
   { value: "FULL", label: "Full details" },
@@ -201,12 +202,12 @@ export function SettingsPage() {
               placeholder="Distance runner, coffee enthusiast."
             />
           </Field>
-          <Field label="City">
-            <TextInput
-              maxLength={120}
+          <Field label="City" hint="Pick your verified city — it pre-fills on every run you log">
+            <CityInput
               value={cityVal}
-              onChange={(e) => setCity(e.target.value)}
+              verified={false}
               placeholder="Winchester, KY"
+              onChange={(value) => setCity(value)}
             />
           </Field>
           <Field label="Phone" hint="Visible to your coaches only. (optional)">

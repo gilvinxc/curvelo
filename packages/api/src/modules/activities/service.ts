@@ -37,6 +37,8 @@ export type ActivityWithJoins = {
   calories: number | null;
   steps: number | null;
   city: string | null;
+  cityLat: number | null;
+  cityLon: number | null;
   weatherTempC: number | null;
   weatherCondition: string | null;
   notes: string | null;
@@ -80,6 +82,8 @@ export async function toActivityDTO(a: ActivityWithJoins): Promise<ActivityDTO> 
     calories: a.calories,
     steps: a.steps,
     city: a.city,
+    cityLat: a.cityLat,
+    cityLon: a.cityLon,
     weatherTempC: a.weatherTempC,
     weatherCondition: a.weatherCondition,
     notes: a.notes,
@@ -214,6 +218,8 @@ export async function createActivity(
       calories: input.calories ?? undefined,
       steps: input.steps ?? undefined,
       city: activityCity,
+      cityLat: input.cityLat ?? undefined,
+      cityLon: input.cityLon ?? undefined,
       weatherTempC: input.weatherTempC ?? undefined,
       weatherCondition: input.weatherCondition?.trim() || null,
       notes: input.notes?.trim() || null,
@@ -259,7 +265,11 @@ export async function createActivity(
     activity.weatherTempC == null &&
     activity.weatherCondition == null
   ) {
-    const wx = await lookupWeather(activity.city, activity.startedAt);
+    const coords =
+      activity.cityLat != null && activity.cityLon != null
+        ? { lat: activity.cityLat, lon: activity.cityLon }
+        : null;
+    const wx = await lookupWeather(activity.city, activity.startedAt, coords);
     if (wx) {
       await db.activity.update({
         where: { id: activity.id },
@@ -430,6 +440,8 @@ export async function updateActivity(
       visibility: input.visibility,
       steps: input.steps,
       city: input.city === undefined ? undefined : input.city?.trim() || null,
+      cityLat: input.cityLat,
+      cityLon: input.cityLon,
       weatherTempC: input.weatherTempC,
       weatherCondition:
         input.weatherCondition === undefined

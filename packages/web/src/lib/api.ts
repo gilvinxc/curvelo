@@ -58,6 +58,16 @@ import type {
   WorkoutDTO,
 } from "@curvelo/shared";
 
+/** Verified place from /places/search. */
+export interface Place {
+  label: string;
+  name: string;
+  state: string | null;
+  country: string | null;
+  lat: number;
+  lon: number;
+}
+
 export const BASE_URL =
   import.meta.env.VITE_API_URL ?? "http://localhost:4000/api/v1";
 
@@ -245,6 +255,8 @@ export interface CreateActivityPayload {
   steps?: number;
   shareToFeed?: boolean;
   city?: string;
+  cityLat?: number;
+  cityLon?: number;
   weatherTempC?: number;
   weatherCondition?: string;
 }
@@ -268,6 +280,8 @@ export interface UpdateActivityPayload {
   steps?: number;
   shareToFeed?: boolean;
   city?: string;
+  cityLat?: number | null;
+  cityLon?: number | null;
   weatherTempC?: number;
   weatherCondition?: string;
 }
@@ -365,6 +379,10 @@ export const api = {
   getProfile: () => request<{ user: FullUser }>("/users/me"),
   updateProfile: (input: UpdateProfileInput) =>
     patch<{ user: FullUser }>("/users/me", input),
+
+  // places
+  searchPlaces: (q: string) =>
+    request<{ places: Place[] }>(`/places/search?q=${encodeURIComponent(q)}`),
 
   // teams
   listTeams: () => request<{ teams: TeamDTO[] }>("/teams"),

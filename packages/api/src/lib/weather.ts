@@ -45,9 +45,10 @@ function conditionLabel(code: number): string {
 export async function lookupWeather(
   city: string,
   at: Date,
+  coords?: { lat: number; lon: number } | null,
 ): Promise<{ tempC: number; condition: string } | null> {
   try {
-    const geo = await geocodeCity(city);
+    const geo = coords ?? (await geocodeCity(city));
     if (!geo) return null;
     const day = at.toISOString().slice(0, 10);
     const data = (await fetchJson(

@@ -16,6 +16,7 @@ import {
   TextInput,
 } from "../../components/ui";
 import { cn } from "../../components/cx";
+import { CityInput } from "../../components/CityInput";
 import {
   isoToLocalInput,
   localInputToISO,
@@ -71,6 +72,9 @@ interface FormState {
   calories: string;
   steps: string;
   city: string;
+  cityLat: number | null;
+  cityLon: number | null;
+  cityVerified: boolean;
   weatherTemp: string;
   weatherCondition: string;
   notes: string;
@@ -99,6 +103,9 @@ function blankForm(): FormState {  return {
     calories: "",
     steps: "",
     city: "",
+    cityLat: null,
+    cityLon: null,
+    cityVerified: false,
     weatherTemp: "",
     weatherCondition: "",
     notes: "",
@@ -200,6 +207,9 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       calories: a.calories != null ? String(a.calories) : "",
       steps: a.steps != null ? String(a.steps) : "",
       city: a.city ?? "",
+      cityLat: a.cityLat ?? null,
+      cityLon: a.cityLon ?? null,
+      cityVerified: a.cityLat != null && a.cityLon != null,
       weatherTemp: a.weatherTempC != null ? String(Math.round(fromTemp(a.weatherTempC, units) * 10) / 10) : "",
       weatherCondition: a.weatherCondition ?? "",
       notes: a.notes ?? "",
@@ -310,7 +320,13 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       if (!Number.isNaN(cal) && cal > 0) payload.calories = cal;
       const stp = parseInt(form.steps, 10);
       if (!Number.isNaN(stp) && stp > 0) payload.steps = stp;
-      if (form.city.trim()) payload.city = form.city.trim();
+      if (form.city.trim()) {
+        payload.city = form.city.trim();
+        if (form.cityLat != null && form.cityLon != null) {
+          payload.cityLat = form.cityLat;
+          payload.cityLon = form.cityLon;
+        }
+      }
       const wt = parseFloat(form.weatherTemp);
       if (!Number.isNaN(wt)) payload.weatherTempC = Math.round(toTemp(wt, units) * 10) / 10;
       if (form.weatherCondition.trim()) payload.weatherCondition = form.weatherCondition.trim();
@@ -574,13 +590,21 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
 
         <Field
           label="City"
-          hint="Optional — weather is pulled automatically for this city and time"
+          hint="Pick a verified place for exact weather — or type your own"
         >
-          <TextInput
+          <CityInput
             value={form.city}
-            onChange={(e) => set("city", e.target.value)}
+            verified={form.cityVerified}
             placeholder="Winchester"
-            maxLength={120}
+            onChange={(value, place) =>
+              setForm((f) => ({
+                ...f,
+                city: value,
+                cityLat: place ? place.lat : null,
+                cityLon: place ? place.lon : null,
+                cityVerified: place != null,
+              }))
+            }
           />
         </Field>
 

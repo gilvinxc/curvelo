@@ -30,6 +30,8 @@ const metrics = {
   steps: z.number().int().positive().max(200_000).optional(),
   shareToFeed: z.boolean().optional(),
   city: z.string().trim().max(120).optional(),
+  cityLat: z.number().min(-90).max(90).optional(),
+  cityLon: z.number().min(-180).max(180).optional(),
   weatherTempC: z.number().min(-60).max(60).optional(),
   weatherCondition: z.string().trim().max(40).optional(),
 };

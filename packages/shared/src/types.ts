@@ -368,6 +368,8 @@ export interface ActivityDTO {  id: string;
   calories: number | null;
   steps: number | null;
   city: string | null;
+  cityLat: number | null;
+  cityLon: number | null;
   weatherTempC: number | null;
   weatherCondition: string | null;
   notes: string | null;
