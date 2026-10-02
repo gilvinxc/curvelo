@@ -154,4 +154,43 @@ describe("coach team run logging", () => {
       .set(cookieHeader(coach));
     expect(got.body.activity.shoeId).toBe(shoe.body.shoe.id);
   });
+
+  it("per-athlete overrides win over team values; bad overrides rejected", async () => {
+    const { app, coach, teamId, r1, r2 } = await setup();
+
+    const res = await request(app.server)
+      .post("/api/v1/activities/team-log")
+      .set(cookieHeader(coach))
+      .send({
+        teamId,
+        ...TEAM_RUN,
+        overrides: [{ userId: r1.id, durationS: 2100 }],
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.count).toBe(2);
+
+    const r1mine = await request(app.server)
+      .get("/api/v1/activities?from=2020-01-01&to=2030-01-01")
+      .set(cookieHeader(r1));
+    expect(r1mine.body.activities[0].durationS).toBe(2100);
+    expect(r1mine.body.activities[0].distanceM).toBe(8000);
+
+    const r2mine = await request(app.server)
+      .get("/api/v1/activities?from=2020-01-01&to=2030-01-01")
+      .set(cookieHeader(r2));
+    expect(r2mine.body.activities[0].durationS).toBe(2400);
+
+    // Override for someone not selected is rejected.
+    const outsider = await registerUser("RUNNER", "tloutsider2");
+    const bad = await request(app.server)
+      .post("/api/v1/activities/team-log")
+      .set(cookieHeader(coach))
+      .send({
+        teamId,
+        userIds: [r1.id],
+        ...TEAM_RUN,
+        overrides: [{ userId: outsider.id, durationS: 2000 }],
+      });
+    expect(bad.status).toBe(400);
+  });
 });

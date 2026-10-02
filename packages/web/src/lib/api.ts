@@ -403,6 +403,11 @@ export const api = {
     durationS?: number;
     notes?: string;
     visibility?: "TEAM" | "PRIVATE";
+    overrides?: Array<{
+      userId: string;
+      distanceM?: number;
+      durationS?: number;
+    }>;
   }) =>
     post<{ count: number; activityIds: string[] }>(
       "/activities/team-log",

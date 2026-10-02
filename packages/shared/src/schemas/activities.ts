@@ -75,6 +75,19 @@ export const logTeamRunSchema = z
     ...metrics,
     notes: z.string().max(2000).optional(),
     visibility: z.enum(ACTIVITY_VISIBILITY).default("TEAM"),
+    // Per-athlete overrides: blank fields fall back to the team-level values.
+    overrides: z
+      .array(
+        z.object({
+          userId: z.string().uuid(),
+          distanceM: z.number().positive().max(500_000).optional(),
+          durationS: z.number().int().positive().max(86400).optional(),
+          avgHrBpm: z.number().int().positive().max(250).optional(),
+          maxHrBpm: z.number().int().positive().max(250).optional(),
+        }),
+      )
+      .max(200)
+      .optional(),
   })
   .refine((a) => a.distanceM !== undefined || a.durationS !== undefined, {
     message: "Log at least a distance or a duration",

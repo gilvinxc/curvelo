@@ -29,6 +29,10 @@ export function TeamLogDialog({
   const queryClient = useQueryClient();
   const [scope, setScope] = useState<string>("team");
   const [selected, setSelected] = useState<string[]>([]);
+  // Per-athlete overrides; empty string = use the team-level value.
+  const [overrides, setOverrides] = useState<
+    Record<string, { duration: string; distance: string }>
+  >({});
   const [startedAt, setStartedAt] = useState(nowLocalInput());
   const [distance, setDistance] = useState("");
   const [duration, setDuration] = useState("");
@@ -84,6 +88,31 @@ export function TeamLogDialog({
       ) {
         throw new Error("Enter a valid distance or duration.");
       }
+      // Per-athlete overrides: only send rows that differ from the team values.
+      const overrideList: Array<{
+        userId: string;
+        distanceM?: number;
+        durationS?: number;
+      }> = [];
+      for (const userId of selected) {
+        const o = overrides[userId];
+        if (!o) continue;
+        const oDist =
+          o.distance.trim() === ""
+            ? undefined
+            : Math.round(toMeters(parseFloat(o.distance), units) * 10) / 10;
+        const oDur =
+          o.duration.trim() === "" ? undefined : parseDurationInput(o.duration);
+        if (
+          (oDist !== undefined && !(oDist > 0)) ||
+          (oDur !== undefined && !(oDur > 0))
+        ) {
+          throw new Error("One of the per-athlete values isn't valid.");
+        }
+        if (oDist !== undefined || oDur !== undefined) {
+          overrideList.push({ userId, distanceM: oDist, durationS: oDur });
+        }
+      }
       return api.logTeamRun({
         teamId,
         ...(scope === "team" ? {} : { groupId: scope }),
@@ -95,6 +124,7 @@ export function TeamLogDialog({
         durationS,
         notes: notes.trim() || undefined,
         visibility: "TEAM",
+        overrides: overrideList.length > 0 ? overrideList : undefined,
       });
     },
     onSuccess: () => {
@@ -155,25 +185,54 @@ export function TeamLogDialog({
             </button>
           </div>
           <p className="mb-2 text-[12px] text-mist">
-            Everyone is checked — uncheck anyone who wasn't there.
+            Everyone is checked — uncheck anyone who wasn't there. Set a time
+            or distance per athlete when it differs from the team values.
           </p>
-          <div className="max-h-44 overflow-y-auto rounded-xl border border-white/10">
-            {candidates.map((c) => (
-              <label
-                key={c.userId}
-                className="flex cursor-pointer items-center gap-3 border-b border-white/5 px-3 py-2.5 last:border-0"
-              >
-                <input
-                  type="checkbox"
-                  checked={selected.includes(c.userId)}
-                  onChange={() => toggle(c.userId)}
-                  className="h-5 w-5 accent-lime-400"
-                />
-                <span className="text-[15px] text-ink-50">
-                  {c.displayName}
-                </span>
-              </label>
-            ))}
+          <div className="max-h-56 overflow-y-auto rounded-xl border border-white/10">
+            {candidates.map((c) => {
+              const o = overrides[c.userId] ?? { duration: "", distance: "" };
+              const setO = (patch: Partial<typeof o>) =>
+                setOverrides((prev) => ({
+                  ...prev,
+                  [c.userId]: { ...o, ...patch },
+                }));
+              const isSel = selected.includes(c.userId);
+              return (
+                <div
+                  key={c.userId}
+                  className={`flex items-center gap-2 border-b border-white/5 px-3 py-2 last:border-0 ${isSel ? "" : "opacity-50"}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={isSel}
+                    onChange={() => toggle(c.userId)}
+                    className="h-5 w-5 shrink-0 accent-lime-400"
+                    aria-label={`Include ${c.displayName}`}
+                  />
+                  <span className="min-w-0 flex-1 truncate text-[14px] text-ink-50">
+                    {c.displayName}
+                  </span>
+                  <input
+                    value={o.duration}
+                    onChange={(e) => setO({ duration: e.target.value })}
+                    inputMode="text"
+                    placeholder={duration.trim() || "time"}
+                    disabled={!isSel}
+                    aria-label={`Time for ${c.displayName}`}
+                    className="w-20 shrink-0 rounded-lg border border-white/15 bg-ink-900 px-2 py-1.5 text-[13px] text-ink-50 placeholder:text-mist/60"
+                  />
+                  <input
+                    value={o.distance}
+                    onChange={(e) => setO({ distance: e.target.value })}
+                    inputMode="decimal"
+                    placeholder={distance.trim() || distanceUnitLabel(units)}
+                    disabled={!isSel}
+                    aria-label={`Distance for ${c.displayName}`}
+                    className="w-16 shrink-0 rounded-lg border border-white/15 bg-ink-900 px-2 py-1.5 text-[13px] text-ink-50 placeholder:text-mist/60"
+                  />
+                </div>
+              );
+            })}
             {candidates.length === 0 && (
               <p className="px-3 py-4 text-[13px] text-mist">
                 No runners in this scope yet.

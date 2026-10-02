@@ -439,26 +439,38 @@ export async function logTeamRun(
     throw new AppError(400, "NO_ATHLETES", "No athletes to log for");
   }
 
-  const base = {
-    kind: input.kind,
-    title: input.title,
-    startedAt: input.startedAt,
-    distanceM: input.distanceM,
-    durationS: input.durationS,
-    avgHrBpm: input.avgHrBpm,
-    maxHrBpm: input.maxHrBpm,
-    effortRpe: input.effortRpe,
-    calories: input.calories,
-    notes: input.notes,
-    teamId: input.teamId,
-    visibility: input.visibility,
-  };
+  // Per-athlete overrides must target selected athletes.
+  const selected = new Set(athleteIds);
+  const overrideByUser = new Map<string, NonNullable<LogTeamRunInput["overrides"]>[number]>();
+  for (const o of input.overrides ?? []) {
+    if (!selected.has(o.userId)) {
+      throw new AppError(400, "OVERRIDE_NOT_SELECTED", "Overrides must be for selected athletes");
+    }
+    if (overrideByUser.has(o.userId)) {
+      throw new AppError(400, "DUPLICATE_OVERRIDE", "One override per athlete");
+    }
+    overrideByUser.set(o.userId, o);
+  }
 
   const activityIds: string[] = [];
   for (const athleteId of athleteIds) {
+    const o = overrideByUser.get(athleteId);
     const created = await createActivity(
       coachId,
-      base,
+      {
+        kind: input.kind,
+        title: input.title,
+        startedAt: input.startedAt,
+        distanceM: o?.distanceM ?? input.distanceM,
+        durationS: o?.durationS ?? input.durationS,
+        avgHrBpm: o?.avgHrBpm ?? input.avgHrBpm,
+        maxHrBpm: o?.maxHrBpm ?? input.maxHrBpm,
+        effortRpe: input.effortRpe,
+        calories: input.calories,
+        notes: input.notes,
+        teamId: input.teamId,
+        visibility: input.visibility,
+      },
       ipAddress,
       undefined,
       { userId: athleteId, loggedByUserId: coachId },
