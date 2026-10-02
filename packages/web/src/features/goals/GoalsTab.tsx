@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { GoalDTO, LeaderboardDTO } from "@curvelo/shared";
+import type { GoalDTO, LeaderboardDTO, TeamRecordDTO } from "@curvelo/shared";
 import { api, ApiError } from "../../lib/api";
+import { formatDurationS } from "../../lib/workoutFormat";
 import { formatDistance, useUnits } from "../../lib/units";
 import {
   Button,
@@ -249,6 +250,49 @@ function LeaderboardCard({ teamId }: { teamId: string }) {
   );
 }
 
+function TeamRecordsCard({ teamId }: { teamId: string }) {
+  const query = useQuery({
+    queryKey: ["teamRecords", teamId],
+    queryFn: () => api.teamRecords(teamId),
+  });
+  const records: TeamRecordDTO[] = query.data?.records ?? [];
+
+  return (
+    <Card>
+      <h3 className="mb-3 text-[16px] font-extrabold text-ink-50">Team records</h3>
+      {query.isLoading ? (
+        <FullScreenLoader />
+      ) : query.isError ? (
+        <ErrorBanner message="Couldn't load team records." />
+      ) : records.length === 0 ? (
+        <EmptyState
+          title="No records yet"
+          body="When members log official race results, the team's best times will live here."
+        />
+      ) : (
+        <ol className="divide-y divide-white/5">
+          {records.map((r) => (
+            <li key={r.distanceM} className="flex items-center gap-3 py-2.5">
+              <span className="w-24 shrink-0 text-[14px] font-bold text-volt-300">
+                {r.label}
+              </span>
+              <span className="flex-1 truncate text-[14px] text-mist">
+                {r.displayName} · {r.raceName}
+              </span>
+              <span className="text-[15px] font-extrabold text-ink-50">
+                {formatDurationS(r.durationS)}
+              </span>
+            </li>
+          ))}
+        </ol>
+      )}
+      <p className="mt-3 text-[12px] text-mist">
+        Official race results only — exact course distance, exact chip time.
+      </p>
+    </Card>
+  );
+}
+
 export function GoalsTab({
   teamId,
   canManage,
@@ -299,6 +343,8 @@ export function GoalsTab({
       )}
 
       <LeaderboardCard teamId={teamId} />
+
+      <TeamRecordsCard teamId={teamId} />
 
       <CreateTeamGoalDialog teamId={teamId} open={createOpen} onClose={() => setCreateOpen(false)} />
     </div>

@@ -8,6 +8,7 @@ import type {
 } from "@curvelo/shared";
 import { db } from "../../db.js";
 import { checkGoalCompletions } from "../goals/service.js";
+import { assertOwnShoe } from "../records/service.js";
 import { audit } from "../../lib/audit.js";
 import { forbidden, notFound } from "../../lib/errors.js";
 import {
@@ -33,13 +34,16 @@ export type ActivityWithJoins = {
   notes: string | null;
   source: string;
   visibility: string;
+  shoeId: string | null;
   user: { displayName: string };
   team: { name: string } | null;
+  shoe: { name: string } | null;
 };
 
 const WITH_JOINS = {
   user: { select: { displayName: true } },
   team: { select: { name: true } },
+  shoe: { select: { name: true } },
 } as const;
 
 export const ACTIVITY_WITH_JOINS = WITH_JOINS;
@@ -63,6 +67,8 @@ export function toActivityDTO(a: ActivityWithJoins): ActivityDTO {
     effortRpe: a.effortRpe,
     calories: a.calories,
     notes: a.notes,
+    shoeId: a.shoeId,
+    shoeName: a.shoe?.name ?? null,
     source: a.source,
     visibility: a.visibility,
   };
@@ -140,6 +146,12 @@ export async function createActivity(
     teamId = input.teamId;
   }
 
+  let shoeId: string | null = null;
+  if (input.shoeId) {
+    await assertOwnShoe(actorId, input.shoeId);
+    shoeId = input.shoeId;
+  }
+
   let assignmentId: string | null = null;
   if (input.assignmentId) {
     const { teamId: aTeam } = await assertAssignmentVisible(
@@ -168,6 +180,7 @@ export async function createActivity(
       calories: input.calories,
       notes: input.notes?.trim() || null,
       visibility: input.visibility ?? (await defaultVisibility(actorId)),
+      shoeId,
       source: provenance?.source ?? "MANUAL",
       externalId: provenance?.externalId ?? null,
     },
@@ -252,6 +265,16 @@ export async function updateActivity(
     }
   }
 
+  let shoeId: string | null | undefined;
+  if (input.shoeId !== undefined) {
+    if (input.shoeId) {
+      await assertOwnShoe(actorId, input.shoeId);
+      shoeId = input.shoeId;
+    } else {
+      shoeId = null;
+    }
+  }
+
   let assignmentId: string | null | undefined;
   if (input.assignmentId !== undefined) {
     if (input.assignmentId) {
@@ -286,6 +309,7 @@ export async function updateActivity(
         input.notes === undefined ? undefined : input.notes?.trim() || null,
       teamId,
       assignmentId,
+      shoeId,
       visibility: input.visibility,
     },
     include: WITH_JOINS,

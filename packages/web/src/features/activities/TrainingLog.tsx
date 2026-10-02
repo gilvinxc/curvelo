@@ -38,6 +38,13 @@ export function TrainingLog() {
   const logFrom = addDaysYMD(todayYMD(), -29);
   const logTo = todayYMD();
 
+  const streakQuery = useQuery({
+    queryKey: ["myStreak"],
+    queryFn: () => api.myProgress(1),
+    staleTime: 5 * 60 * 1000,
+  });
+  const streak = streakQuery.data?.progress.currentStreakDays;
+
   const statsQuery = useQuery({
     queryKey: ["myStats", weekFrom, weekTo],
     queryFn: () => api.myStats(weekFrom, weekTo),
@@ -101,7 +108,14 @@ export function TrainingLog() {
           />
         </div>
       )}
-      <p className="-mt-1 mb-3 text-[12px] text-mist/70">This week</p>
+      <div className="-mt-1 mb-3 flex items-center justify-between">
+        <p className="text-[12px] text-mist/70">This week</p>
+        {streak != null && streak > 0 && (
+          <p className="text-[13px] font-bold text-volt-300" title="Consecutive days with a run">
+            🔥 {streak}-day streak
+          </p>
+        )}
+      </div>
 
       {logQuery.isError ? (
         <ErrorBanner message="Couldn't load your recent activities." />

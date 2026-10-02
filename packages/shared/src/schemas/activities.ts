@@ -42,6 +42,7 @@ export const createActivitySchema = z
     teamId: z.string().uuid().optional(),
     assignmentId: z.string().uuid().optional(),
     visibility: z.enum(ACTIVITY_VISIBILITY).optional(),
+    shoeId: z.string().uuid().optional().nullable(),
   })
   .refine((a) => a.distanceM !== undefined || a.durationS !== undefined, {
     message: "Log at least a distance or a duration",
@@ -68,6 +69,7 @@ export const updateActivitySchema = z
     teamId: z.string().uuid().optional().nullable(),
     assignmentId: z.string().uuid().optional().nullable(),
     visibility: z.enum(ACTIVITY_VISIBILITY).optional(),
+    shoeId: z.string().uuid().optional().nullable(),
   })
   .refine(
     (a) => a.startedAt === undefined || notFuture(a.startedAt),

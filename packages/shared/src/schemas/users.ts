@@ -9,5 +9,8 @@ export const updateProfileSchema = z.object({
     .enum(["FULL", "SUMMARY", "ACHIEVEMENT_ONLY", "NONE"])
     .optional(),
   dateOfBirth: z.string().date().optional().nullable(),
+  phone: z.string().max(30).optional().nullable(),
+  emergencyName: z.string().max(80).optional().nullable(),
+  emergencyPhone: z.string().max(30).optional().nullable(),
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

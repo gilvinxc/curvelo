@@ -21,14 +21,18 @@ import type {
   JoinLinkPreviewDTO,
   JoinRequestDTO,
   LeaderboardDTO,
+  PersonalRecordDTO,
   PostDTO,
   ProgressDTO,
+  RaceResultDTO,
   RegisterInput,
   ReportDTO,
   RosterMemberDTO,
   SessionUser,
+  ShoeDTO,
   TeamDigest,
   TeamDTO,
+  TeamRecordDTO,
   TeamGroupDTO,
   TeamRole,
   UpdateProfileInput,
@@ -131,6 +135,9 @@ export interface FullUser {
     city: string | null;
     units: "metric" | "imperial";
     defaultShareLevel: string | null;
+    phone: string | null;
+    emergencyName: string | null;
+    emergencyPhone: string | null;
   } | null;
 }
 
@@ -184,6 +191,7 @@ export interface CreateActivityPayload {
   teamId?: string;
   assignmentId?: string;
   visibility?: "PRIVATE" | "TEAM";
+  shoeId?: string | null;
 }
 
 export interface UpdateActivityPayload {
@@ -200,6 +208,7 @@ export interface UpdateActivityPayload {
   teamId?: string | null;
   assignmentId?: string | null;
   visibility?: "PRIVATE" | "TEAM";
+  shoeId?: string | null;
 }
 
 /** Public preview of a guardian invite — no email or token included. */
@@ -361,6 +370,26 @@ export const api = {
   myProgress: (weeks = 12) =>
     request<{ progress: ProgressDTO }>(`/users/me/progress?weeks=${weeks}`),
   myInsights: () => request<{ insight: AthleteInsight }>(`/users/me/insights`),
+  // race results + records
+  createRaceResult: (input: {
+    raceName: string;
+    distanceM: number;
+    durationS: number;
+    racedAt: string;
+    activityId?: string;
+  }) => post<{ raceResult: RaceResultDTO }>("/race-results", input),
+  myRaceResults: () => request<{ raceResults: RaceResultDTO[] }>("/race-results"),
+  deleteRaceResult: (id: string) => del<{ ok: boolean }>(`/race-results/${id}`),
+  myRecords: () => request<{ records: PersonalRecordDTO[] }>("/users/me/records"),
+  teamRecords: (teamId: string) =>
+    request<{ records: TeamRecordDTO[] }>(`/teams/${teamId}/records`),
+  // shoes
+  createShoe: (input: { name: string; brand?: string; model?: string }) =>
+    post<{ shoe: ShoeDTO }>("/shoes", input),
+  myShoes: () => request<{ shoes: ShoeDTO[] }>("/shoes"),
+  updateShoe: (id: string, input: { name?: string; brand?: string | null; model?: string | null; retired?: boolean }) =>
+    patch<{ shoe: ShoeDTO }>(`/shoes/${id}`, input),
+  deleteShoe: (id: string) => del<{ ok: boolean }>(`/shoes/${id}`),
   setTeamLogo: (teamId: string, image: string) =>
     put<{ ok: boolean }>(`/teams/${teamId}/logo`, { image }),
   removeTeamLogo: (teamId: string) => del<{ ok: boolean }>(`/teams/${teamId}/logo`),

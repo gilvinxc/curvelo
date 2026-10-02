@@ -39,6 +39,9 @@ export function SettingsPage() {
   const [displayName, setDisplayName] = useState<string | null>(null);
   const [bio, setBio] = useState<string | null>(null);
   const [city, setCity] = useState<string | null>(null);
+  const [phone, setPhone] = useState<string | null>(null);
+  const [emergencyName, setEmergencyName] = useState<string | null>(null);
+  const [emergencyPhone, setEmergencyPhone] = useState<string | null>(null);
   const [units, setUnits] = useState<"metric" | "imperial" | null>(null);
   const [shareLevel, setShareLevel] = useState<ShareLevel | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -50,6 +53,9 @@ export function SettingsPage() {
         displayName: displayName ?? undefined,
         bio: bio ?? undefined,
         city: city ?? undefined,
+        phone: phone ?? undefined,
+        emergencyName: emergencyName ?? undefined,
+        emergencyPhone: emergencyPhone ?? undefined,
         units: units ?? undefined,
         defaultShareLevel: shareLevel ?? undefined,
       }),
@@ -93,6 +99,9 @@ export function SettingsPage() {
   const name = displayName ?? profile.displayName;
   const bioVal = bio ?? profile.profile?.bio ?? "";
   const cityVal = city ?? profile.profile?.city ?? "";
+  const phoneVal = phone ?? profile.profile?.phone ?? "";
+  const emergencyNameVal = emergencyName ?? profile.profile?.emergencyName ?? "";
+  const emergencyPhoneVal = emergencyPhone ?? profile.profile?.emergencyPhone ?? "";
   const unitsVal = units ?? profile.profile?.units ?? "imperial";
   const shareVal = shareLevel ?? ((profile.profile?.defaultShareLevel as ShareLevel | null) ?? "FULL");
 
@@ -138,6 +147,34 @@ export function SettingsPage() {
               placeholder="Winchester, KY"
             />
           </Field>
+          <Field label="Phone" hint="Visible to your coaches only. (optional)">
+            <TextInput
+              maxLength={30}
+              value={phoneVal}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="(555) 123-4567"
+              inputMode="tel"
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Emergency contact" hint="Name">
+              <TextInput
+                maxLength={80}
+                value={emergencyNameVal}
+                onChange={(e) => setEmergencyName(e.target.value)}
+                placeholder="Jane Doe"
+              />
+            </Field>
+            <Field label="Emergency phone" hint="Number">
+              <TextInput
+                maxLength={30}
+                value={emergencyPhoneVal}
+                onChange={(e) => setEmergencyPhone(e.target.value)}
+                placeholder="(555) 987-6543"
+                inputMode="tel"
+              />
+            </Field>
+          </div>
           <Field label="Units">
             <SegmentedControl<"metric" | "imperial">
               ariaLabel="Distance units"

@@ -13,6 +13,7 @@ import {
 } from "../../components/ui";
 import { cn } from "../../components/cx";
 import { ShareToFeedDialog } from "../feed/ShareToFeedDialog";
+import { AddRaceResultDialog } from "../records/RecordsSection";
 import { useUnits } from "../../lib/units";
 import {
   activityKindLabel,
@@ -56,6 +57,7 @@ export function ActivityDetailPage() {
   const activity = detailQuery.data?.activity;
   const isOwner = !!activity && !!user && activity.userId === user.id;
   const [shareOpen, setShareOpen] = useState(false);
+  const [raceOpen, setRaceOpen] = useState(false);
   const canShare = isOwner && activity?.visibility === "TEAM";
 
   // Resolve the linked workout (for the "completed workout" link) by finding
@@ -135,6 +137,13 @@ export function ActivityDetailPage() {
                   Share
                 </Button>
               )}
+              <Button
+                variant="secondary"
+                onClick={() => setRaceOpen(true)}
+                className="min-h-[44px] px-4 text-[14px]"
+              >
+                🏁 Race
+              </Button>
               <Link to={`/activities/${activity.id}/edit`}>
                 <Button variant="secondary" className="min-h-[44px] px-4 text-[14px]">
                   Edit
@@ -144,6 +153,18 @@ export function ActivityDetailPage() {
           ) : undefined
         }
       />
+
+      {activity && isOwner && (
+        <AddRaceResultDialog
+          open={raceOpen}
+          onClose={() => setRaceOpen(false)}
+          defaults={{
+            activityId: activity.id,
+            racedAt: activity.startedAt,
+            durationS: activity.durationS,
+          }}
+        />
+      )}
 
       {activity && canShare && (
         <ShareToFeedDialog

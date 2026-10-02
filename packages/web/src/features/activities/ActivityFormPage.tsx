@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError, type CreateActivityPayload } from "../../lib/api";
+import { ShoePicker } from "../records/ShoesSection";
 import { useAuth } from "../../lib/auth";
 import {
   Button,
@@ -62,6 +63,7 @@ interface FormState {
   notes: string;
   teamId: string;
   visibility: "TEAM" | "PRIVATE";
+  shoeId: string | null;
 }
 
 // Format a number for an input: up to 2 decimals, no trailing zeros.
@@ -83,6 +85,7 @@ function blankForm(): FormState {  return {
     notes: "",
     teamId: "",
     visibility: "TEAM",
+    shoeId: null,
   };
 }
 
@@ -151,6 +154,7 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       notes: a.notes ?? "",
       teamId: a.teamId ?? "",
       visibility: a.visibility === "PRIVATE" ? "PRIVATE" : "TEAM",
+      shoeId: a.shoeId ?? null,
     });
   }, [detailQuery.data]);
 
@@ -214,6 +218,7 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       if (form.title.trim()) payload.title = form.title.trim();
       if (form.notes.trim()) payload.notes = form.notes.trim();
       if (form.teamId) payload.teamId = form.teamId;
+      payload.shoeId = form.shoeId;
       if (mode === "new" && assignmentId) payload.assignmentId = assignmentId;
 
       if (mode === "edit" && id) {
@@ -464,6 +469,8 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
             ]}
           />
         </Field>
+
+        <ShoePicker value={form.shoeId} onChange={(v) => set("shoeId", v)} />
 
         <Field label="Notes" hint="Optional — how it felt, conditions, etc.">
           <TextArea

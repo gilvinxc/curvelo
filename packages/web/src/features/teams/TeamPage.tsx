@@ -118,6 +118,21 @@ function RosterTab({
                         {member.email}
                       </p>
                     )}
+                    {member.phone && (
+                      <a
+                        href={`tel:${member.phone}`}
+                        className="block truncate text-[13px] font-semibold text-volt-300"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        📞 {member.phone}
+                      </a>
+                    )}
+                    {member.emergencyPhone && (
+                      <p className="truncate text-[12px] text-mist">
+                        🆘 {member.emergencyName ? `${member.emergencyName}: ` : ""}
+                        {member.emergencyPhone}
+                      </p>
+                    )}
                     <p className="text-[12px] text-mist/70">
                       Joined {formatDate(member.joinedAt)}
                     </p>

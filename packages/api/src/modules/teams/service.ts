@@ -186,7 +186,16 @@ export async function getRoster(
   const members = await db.teamMembership.findMany({
     where: { teamId, status: "ACTIVE" },
     include: {
-      user: { select: { id: true, displayName: true, email: true } },
+      user: {
+        select: {
+          id: true,
+          displayName: true,
+          email: true,
+          profile: {
+            select: { phone: true, emergencyName: true, emergencyPhone: true },
+          },
+        },
+      },
     },
     orderBy: [{ role: "asc" }, { joinedAt: "asc" }],
   });
@@ -195,6 +204,14 @@ export async function getRoster(
     userId: m.user.id,
     displayName: m.user.displayName,
     ...(showEmails ? { email: m.user.email } : {}),
+    // Contact info is manager-only, like emails.
+    ...(showEmails
+      ? {
+          phone: m.user.profile?.phone ?? null,
+          emergencyName: m.user.profile?.emergencyName ?? null,
+          emergencyPhone: m.user.profile?.emergencyPhone ?? null,
+        }
+      : {}),
     role: m.role,
     status: m.status,
     joinedAt: m.joinedAt.toISOString(),

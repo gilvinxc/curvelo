@@ -11,6 +11,8 @@ import {
 } from "../../components/ui";
 import { MyInsights } from "../insights/AthleteInsights";
 import { MyGoalsSection } from "../goals/MyGoals";
+import { PersonalRecordsSection } from "../records/RecordsSection";
+import { ShoesSection } from "../records/ShoesSection";
 
 function WeeklyChart({ progress }: { progress: ProgressDTO }) {
   const units = useUnits();
@@ -130,6 +132,14 @@ export function ProgressPage() {
 
       <div className="mb-5">
         <MyGoalsSection />
+      </div>
+
+      <div className="mb-5">
+        <PersonalRecordsSection />
+      </div>
+
+      <div className="mb-5">
+        <ShoesSection />
       </div>
 
       <MyInsights />

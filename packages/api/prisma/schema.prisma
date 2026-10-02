@@ -99,6 +99,8 @@ model User {
   createdJoinLinks    TeamJoinLink[]    @relation("JoinLinkCreator")
   personalGoals       Goal[]            @relation("PersonalGoals")
   createdGoals        Goal[]            @relation("GoalCreator")
+  raceResults         RaceResult[]      @relation("UserRaceResults")
+  shoes               Shoe[]            @relation("UserShoes")
   joinRequests        TeamJoinRequest[]
   decidedJoinRequests TeamJoinRequest[] @relation("JoinRequestDecider")
 }
@@ -128,6 +130,9 @@ model Profile {
   city              String?
   units             String  @default("imperial")
   defaultShareLevel String  @default("SUMMARY")
+  phone           String?
+  emergencyName   String?
+  emergencyPhone  String?
   // Persona chosen at signup (COACH | RUNNER). Team permissions always
   // come from TeamMembership.role — persona is just the onboarding lens.
   persona           String?
@@ -471,6 +476,9 @@ model Activity {
   source       ActivitySource @default(MANUAL)
   externalId   String?
   visibility   String         @default("TEAM") // PRIVATE | TEAM
+  shoeId       String?
+  shoe         Shoe?          @relation(fields: [shoeId], references: [id], onDelete: SetNull)
+  raceResult   RaceResult?    @relation("ActivityRaceResult")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -675,4 +683,37 @@ model Goal {
 
   @@index([userId, status])
   @@index([teamId, status])
+}
+
+// Official race result — exact distance, exact time. PRs come from these,
+// never estimated from training runs.
+model RaceResult {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation("UserRaceResults", fields: [userId], references: [id], onDelete: Cascade)
+  activityId String?   @unique
+  activity   Activity? @relation("ActivityRaceResult", fields: [activityId], references: [id], onDelete: SetNull)
+  raceName   String
+  distanceM  Int
+  durationS  Int
+  racedAt    DateTime
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// A runner's shoes; mileage accumulates from linked activities.
+model Shoe {
+  id         String     @id @default(uuid())
+  userId     String
+  user       User       @relation("UserShoes", fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  brand      String?
+  model      String?
+  retired    Boolean    @default(false)
+  retiredAt  DateTime?
+  createdAt  DateTime   @default(now())
+  activities Activity[]
+
+  @@index([userId])
 }

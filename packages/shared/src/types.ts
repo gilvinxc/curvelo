@@ -34,14 +34,54 @@ export interface TeamDTO {
   createdAt: string;
 }
 
-/** Roster entry. Coaches see emails; runners see names only (privacy). */
+/** Roster entry. Coaches see emails + contact info; runners see names only. */
 export interface RosterMemberDTO {
   userId: string;
   displayName: string;
   email?: string;
+  phone?: string | null;
+  emergencyName?: string | null;
+  emergencyPhone?: string | null;
   role: string;
   status: string;
   joinedAt: string;
+}
+
+/** Official race result — exact distance, exact time. */
+export interface RaceResultDTO {
+  id: string;
+  raceName: string;
+  distanceM: number;
+  durationS: number;
+  racedAt: string;
+  activityId: string | null;
+}
+
+/** A personal best at one standard distance. */
+export interface PersonalRecordDTO {
+  distanceM: number;
+  label: string;
+  durationS: number;
+  raceName: string;
+  racedAt: string;
+}
+
+/** The team's best at one standard distance. */
+export interface TeamRecordDTO extends PersonalRecordDTO {
+  userId: string;
+  displayName: string;
+}
+
+/** A shoe with accumulated mileage (canonical meters). */
+export interface ShoeDTO {
+  id: string;
+  name: string;
+  brand: string | null;
+  model: string | null;
+  retired: boolean;
+  retiredAt: string | null;
+  mileageM: number;
+  createdAt: string;
 }
 
 /** Invitation as returned to the inviting coach (includes the token once). */
@@ -220,6 +260,8 @@ export interface ActivityDTO {
   notes: string | null;
   source: string;
   visibility: string;
+  shoeId: string | null;
+  shoeName: string | null;
 }
 
 export interface ActivityStatsDTO {
