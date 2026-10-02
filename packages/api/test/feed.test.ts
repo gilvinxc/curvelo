@@ -101,8 +101,10 @@ describe("team feed", () => {
       .get(`/api/v1/teams/${teamId}/feed`)
       .set(cookieHeader(r2));
     expect(feed.status).toBe(200);
-    expect(feed.body.posts).toHaveLength(2);
-    expect(feed.body.posts[0].body).toBe("Second");
+    // Welcome posts for the two runners also appear; assert on TEXT posts.
+    const texts = feed.body.posts.filter((p: any) => p.kind === "TEXT");
+    expect(texts).toHaveLength(2);
+    expect(texts[0].body).toBe("Second");
     expect(feed.body.posts[0].commentCount).toBe(0);
     expect(feed.body.posts[0].reactions).toEqual([]);
   });

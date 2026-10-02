@@ -167,11 +167,16 @@ export async function createPost(
     activityId = activity.id;
   }
 
+  const kind = activityId
+    ? "ACTIVITY_SHARE"
+    : input.kind === "SHOUTOUT"
+      ? "SHOUTOUT"
+      : "TEXT";
   const post = await db.feedPost.create({
     data: {
       teamId,
       authorId: actorId,
-      kind: activityId ? "ACTIVITY_SHARE" : "TEXT",
+      kind,
       body: input.body?.trim() || null,
       activityId,
     },
@@ -213,6 +218,54 @@ export async function createPost(
 
   const mentions = await mentionRefsFor("POST", [post.id]);
   return toPostDTO(fullPost, actorId, mentions);
+}
+
+/**
+ * System-generated celebration posts (milestones, member welcomes).
+ * Internal only — the public API cannot set these kinds.
+ */
+export async function createSystemPost(opts: {
+  teamId: string;
+  authorId: string;
+  kind: "MILESTONE" | "WELCOME";
+  body: string;
+  activityId?: string;
+}): Promise<PostDTO> {
+  const post = await db.feedPost.create({
+    data: {
+      teamId: opts.teamId,
+      authorId: opts.authorId,
+      kind: opts.kind,
+      body: opts.body,
+      activityId: opts.activityId ?? null,
+    },
+    include: POST_INCLUDE,
+  });
+
+  const author = await db.user.findUnique({
+    where: { id: opts.authorId },
+    select: { displayName: true },
+  });
+  await syncMentions({
+    targetType: "POST",
+    targetId: post.id,
+    teamId: opts.teamId,
+    mentionerId: opts.authorId,
+    mentionerName: author?.displayName ?? "Someone",
+    text: post.body,
+    link: `/teams/${opts.teamId}/feed#post-${post.id}`,
+  });
+
+  await audit({
+    actorId: opts.authorId,
+    action: "POST_CREATED",
+    entityType: "FeedPost",
+    entityId: post.id,
+    metadata: { teamId: opts.teamId, kind: post.kind, system: true },
+  });
+
+  const mentions = await mentionRefsFor("POST", [post.id]);
+  return toPostDTO(post, opts.authorId, mentions);
 }
 
 export async function listFeed(

@@ -8,6 +8,7 @@ import { db } from "../../db.js";
 import { audit } from "../../lib/audit.js";
 import { AppError, conflict, forbidden, notFound } from "../../lib/errors.js";
 import { activeMembership, requireManager } from "../../lib/permissions.js";
+import { createSystemPost } from "../feed/service.js";
 
 type JoinLinkRow = {
   id: string;
@@ -282,6 +283,22 @@ export async function decideJoinRequest(
     metadata: { requestId, userId: joinRequest.userId, role: input.role },
     ipAddress,
   });
+
+  // Welcome the new member on the team feed (best-effort).
+  try {
+    const newcomer = await db.user.findUnique({
+      where: { id: joinRequest.userId },
+      select: { displayName: true },
+    });
+    await createSystemPost({
+      teamId,
+      authorId: joinRequest.userId,
+      kind: "WELCOME",
+      body: `👋 Welcome ${newcomer?.displayName ?? "our newest member"} to the team! Say hi!`,
+    });
+  } catch {
+    // Welcome failed; membership stands.
+  }
 
   return { ok: true as const, role: input.role };
 }

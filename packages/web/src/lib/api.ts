@@ -683,7 +683,7 @@ export const api = {
   // team feed
   createPost: (
     teamId: string,
-    input: { body?: string; activityId?: string; photoIds?: string[] },
+    input: { body?: string; activityId?: string; photoIds?: string[]; kind?: "TEXT" | "SHOUTOUT" },
   ) => post<{ post: PostDTO }>(`/teams/${teamId}/feed`, input),
   listFeed: (teamId: string, before?: string, limit = 20) =>
     request<{ posts: PostDTO[] }>(

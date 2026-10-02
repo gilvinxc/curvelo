@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const POST_KINDS = ["TEXT", "ACTIVITY_SHARE"] as const;
+export const POST_KINDS = ["TEXT", "ACTIVITY_SHARE", "MILESTONE", "SHOUTOUT", "WELCOME"] as const;
 
 /** Small allowlist keeps reactions friendly and renderable everywhere. */
 export const REACTION_EMOJIS = ["👍", "❤️", "🔥", "👏", "💪", "🎉", "🏃"] as const;
@@ -10,6 +10,7 @@ export const createPostSchema = z
     body: z.string().trim().min(1).max(2000).optional(),
     activityId: z.string().uuid().optional(),
     photoIds: z.array(z.string().uuid()).max(5).optional(),
+    kind: z.enum(["TEXT", "SHOUTOUT"]).optional(),
   })
   .refine((p) => p.body !== undefined || p.activityId !== undefined || (p.photoIds?.length ?? 0) > 0, {
     message: "A post needs text, a shared activity, or photos",

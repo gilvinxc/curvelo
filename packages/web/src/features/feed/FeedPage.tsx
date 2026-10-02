@@ -10,6 +10,7 @@ import {
   FullScreenLoader,
 } from "../../components/ui";
 import { Composer } from "./Composer";
+import { ShoutoutDialog } from "./ShoutoutDialog";
 import { PostCard } from "./PostCard";
 
 const PAGE_SIZE = 20;
@@ -25,6 +26,7 @@ export function FeedPage({
 }) {
   const { user } = useAuth();
   const [optimisticPosts, setOptimisticPosts] = useState<PostDTO[]>([]);
+  const [shoutoutOpen, setShoutoutOpen] = useState(false);
   const canModerate = myRole !== null && CAN_MODERATE.has(myRole);
 
   const feedQuery = useInfiniteQuery({
@@ -50,6 +52,19 @@ export function FeedPage({
     <div className="flex flex-col gap-4">
       <Composer
         teamId={teamId}
+        onPosted={(post) => setOptimisticPosts((prev) => [post, ...prev])}
+      />
+      <button
+        type="button"
+        onClick={() => setShoutoutOpen(true)}
+        className="rounded-2xl border border-dashed border-amber-300/30 bg-amber-300/5 px-4 py-3 text-left text-[14px] font-semibold text-amber-200 transition hover:border-amber-300/60 hover:bg-amber-300/10"
+      >
+        💛 Give a teammate a shoutout
+      </button>
+      <ShoutoutDialog
+        teamId={teamId}
+        open={shoutoutOpen}
+        onClose={() => setShoutoutOpen(false)}
         onPosted={(post) => setOptimisticPosts((prev) => [post, ...prev])}
       />
 

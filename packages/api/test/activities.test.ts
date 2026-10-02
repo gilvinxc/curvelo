@@ -319,10 +319,12 @@ describe("share to feed on log", () => {
     const feed = await request(app.server)
       .get(`/api/v1/teams/${teamId}/feed`)
       .set(cookieHeader(runner));
-    expect(feed.body.posts).toHaveLength(1);
-    expect(feed.body.posts[0].activity.id).toBe(shared.body.activity.id);
+    // Milestone celebrations may also appear; assert on the share post itself.
+    const shares = feed.body.posts.filter((p: any) => p.kind === "ACTIVITY_SHARE");
+    expect(shares).toHaveLength(1);
+    expect(shares[0].activity.id).toBe(shared.body.activity.id);
 
-    // Without shareToFeed: no new post.
+    // Without shareToFeed: no new share post.
     const unshared = await request(app.server)
       .post("/api/v1/activities")
       .set(cookieHeader(runner))
@@ -332,6 +334,7 @@ describe("share to feed on log", () => {
     const feed2 = await request(app.server)
       .get(`/api/v1/teams/${teamId}/feed`)
       .set(cookieHeader(runner));
-    expect(feed2.body.posts).toHaveLength(1);
+    const shares2 = feed2.body.posts.filter((p: any) => p.kind === "ACTIVITY_SHARE");
+    expect(shares2).toHaveLength(1);
   });
 });

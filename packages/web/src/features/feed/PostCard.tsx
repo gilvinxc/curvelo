@@ -283,8 +283,16 @@ export function PostCard({
     },
   });
 
+  const celebrationRing =
+    post.kind === "MILESTONE"
+      ? "border-volt-400/40"
+      : post.kind === "SHOUTOUT"
+        ? "border-amber-300/40"
+        : post.kind === "WELCOME"
+          ? "border-sky-300/40"
+          : "border-white/10";
   return (
-    <article className="rounded-2xl border border-white/10 bg-ink-900 p-4 shadow-card">
+    <article className={`rounded-2xl border bg-ink-900 p-4 shadow-card ${celebrationRing}`}>
       {/* header */}
       <div className="flex items-start gap-3">
         <Avatar name={post.authorName} size="sm" className="mt-0.5" />
@@ -293,6 +301,9 @@ export function PostCard({
           <p className="text-[12px] text-mist/70">
             {formatRelativeTime(post.createdAt)}
             {post.kind === "ACTIVITY_SHARE" ? " · shared a run" : ""}
+            {post.kind === "MILESTONE" ? " · 🏆 milestone" : ""}
+            {post.kind === "SHOUTOUT" ? " · 💛 shoutout" : ""}
+            {post.kind === "WELCOME" ? " · 👋 welcome" : ""}
           </p>
         </div>
         <div className="relative shrink-0">

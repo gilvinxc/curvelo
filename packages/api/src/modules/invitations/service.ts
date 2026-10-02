@@ -10,6 +10,7 @@ import { config } from "../../config.js";
 import { audit } from "../../lib/audit.js";
 import { AppError, conflict, forbidden, notFound } from "../../lib/errors.js";
 import { activeMembership, requireManager } from "../../lib/permissions.js";
+import { createSystemPost } from "../feed/service.js";
 
 function toDTO(
   inv: {
@@ -199,6 +200,22 @@ export async function acceptInvitation(
     metadata: { teamId: invitation.teamId, role: invitation.role },
     ipAddress,
   });
+
+  // Welcome the new member on the team feed (best-effort).
+  try {
+    const newcomer = await db.user.findUnique({
+      where: { id: userId },
+      select: { displayName: true },
+    });
+    await createSystemPost({
+      teamId: result.teamId,
+      authorId: userId,
+      kind: "WELCOME",
+      body: `👋 Welcome ${newcomer?.displayName ?? "our newest member"} to the team! Say hi!`,
+    });
+  } catch {
+    // Welcome failed; membership stands.
+  }
 
   return result;
 }

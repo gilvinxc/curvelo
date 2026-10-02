@@ -548,6 +548,9 @@ model Activity {
 enum PostKind {
   TEXT
   ACTIVITY_SHARE
+  MILESTONE
+  SHOUTOUT
+  WELCOME
 }
 
 model FeedPost {

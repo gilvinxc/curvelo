@@ -18,7 +18,8 @@ import {
   myStats,
   updateActivity,
 } from "./service.js";
-import { createPost } from "../feed/service.js";
+import { createPost, createSystemPost } from "../feed/service.js";
+import { detectMilestones } from "../../lib/milestones.js";
 
 export async function activityRoutes(app: FastifyInstance): Promise<void> {
   app.post(
@@ -47,6 +48,32 @@ export async function activityRoutes(app: FastifyInstance): Promise<void> {
           );
         } catch {
           // Share validation failed (e.g. visibility changed); activity stands.
+        }
+      }
+      // Milestone celebrations: personal progress, posted to the team feed.
+      // Best-effort; never blocks the save. Skipped for bulk file imports.
+      if (
+        activity.teamId &&
+        activity.visibility === "TEAM" &&
+        activity.source !== "FILE_IMPORT"
+      ) {
+        try {
+          const milestones = await detectMilestones({
+            userId: request.user!.id,
+            activityId: activity.id,
+            distanceM: activity.distanceM,
+          });
+          for (const m of milestones) {
+            await createSystemPost({
+              teamId: activity.teamId,
+              authorId: request.user!.id,
+              kind: "MILESTONE",
+              body: `🎉 ${activity.userName ?? "Someone"} — ${m.title}!`,
+              activityId: activity.id,
+            });
+          }
+        } catch {
+          // Celebration failed; activity stands.
         }
       }
       return reply.status(201).send({ activity });
