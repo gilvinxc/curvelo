@@ -1,0 +1,26 @@
+# One-click Render deploy for Curvelo (API + web client in one service).
+# Usage: push this repo to GitHub, then in Render: New → Blueprint → pick the repo.
+# Fill in DATABASE_URL from your Neon project (free tier). Secrets are generated.
+
+services:
+  - type: web
+    name: curvelo
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # ← paste your Neon connection string in the Render dashboard
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      # Optional: richer AI coaching narratives (works without these via local analysis)
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_MODEL
+        sync: false

@@ -26,6 +26,7 @@ import {
   NewActivityPage,
 } from "./features/activities/ActivityFormPage";
 import { ActivityDetailPage } from "./features/activities/ActivityDetailPage";
+import { ImportWorkoutPage } from "./features/imports/ImportWorkout";
 import { AthletePage } from "./features/athletes/AthletePage";
 import { GuardianInviteAcceptPage } from "./features/guardians/GuardianInviteAcceptPage";
 import { FamilyPage } from "./features/guardians/FamilyPage";
@@ -230,6 +231,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <NewActivityPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/activities/import"
+            element={
+              <ProtectedRoute>
+                <ImportWorkoutPage />
               </ProtectedRoute>
             }
           />

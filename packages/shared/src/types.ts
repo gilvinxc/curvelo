@@ -257,6 +257,21 @@ export interface TeamDigestAthlete {
   status: "on-track" | "quiet" | "needs-attention";
 }
 
+export interface ImportedActivitySummary {
+  fileName: string;
+  fileHash: string;
+  format: "FIT" | "GPX" | "TCX";
+  kind: string;
+  title: string;
+  startedAt: string;
+  distanceM: number | null;
+  durationS: number | null;
+  avgHrBpm: number | null;
+  maxHrBpm: number | null;
+  calories: number | null;
+  alreadyImported: boolean;
+}
+
 export interface TeamDigest {
   teamId: string;
   teamName: string;

@@ -131,6 +131,7 @@ export async function createActivity(
   actorId: string,
   input: CreateActivityInput,
   ipAddress?: string,
+  provenance?: { source: "FILE_IMPORT"; externalId: string },
 ): Promise<ActivityDTO> {
   let teamId: string | null = null;
   if (input.teamId) {
@@ -166,6 +167,8 @@ export async function createActivity(
       calories: input.calories,
       notes: input.notes?.trim() || null,
       visibility: input.visibility ?? (await defaultVisibility(actorId)),
+      source: provenance?.source ?? "MANUAL",
+      externalId: provenance?.externalId ?? null,
     },
     include: WITH_JOINS,
   });

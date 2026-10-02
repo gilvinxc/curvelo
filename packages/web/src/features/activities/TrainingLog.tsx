@@ -56,11 +56,18 @@ export function TrainingLog() {
         <h2 className="text-[13px] font-bold uppercase tracking-[0.18em] text-mist">
           Training log
         </h2>
-        <Link to="/activities/new">
-          <Button variant="secondary" className="min-h-[40px] px-4 text-[14px]">
-            + Log activity
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link to="/activities/import">
+            <Button variant="secondary" className="min-h-[40px] px-4 text-[14px]">
+              ⭳ Import file
+            </Button>
+          </Link>
+          <Link to="/activities/new">
+            <Button variant="secondary" className="min-h-[40px] px-4 text-[14px]">
+              + Log activity
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {statsQuery.isError && (
@@ -96,6 +103,10 @@ export function TrainingLog() {
           Nothing logged yet. Tap{" "}
           <Link to="/activities/new" className="font-bold text-volt-300">
             Log activity
+          </Link>{" "}
+          or{" "}
+          <Link to="/activities/import" className="font-bold text-volt-300">
+            import a file
           </Link>{" "}
           to record your first run.
         </p>

@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { db } from "../db.js";
 
 export interface AuditEntry {
@@ -21,7 +22,7 @@ export async function audit(entry: AuditEntry): Promise<void> {
         action: entry.action,
         entityType: entry.entityType,
         entityId: entry.entityId,
-        metadata: entry.metadata ?? undefined,
+        metadata: (entry.metadata ?? undefined) as Prisma.InputJsonValue | undefined,
         ipAddress: entry.ipAddress,
       },
     });
