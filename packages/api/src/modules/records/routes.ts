@@ -16,6 +16,7 @@ import {
   getTeamRecords,
   listMyRaceResults,
   listShoes,
+  setDefaultShoe,
   updateShoe,
 } from "./service.js";
 
@@ -85,6 +86,16 @@ export async function recordRoutes(app: FastifyInstance) {
       const { shoeId } = shoeParamsSchema.parse(request.params);
       const input = updateShoeSchema.parse(request.body);
       const shoe = await updateShoe(request.user!.id, shoeId, input, request.ip);
+      return reply.send({ shoe });
+    },
+  );
+
+  app.post(
+    "/shoes/:shoeId/default",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { shoeId } = shoeParamsSchema.parse(request.params);
+      const shoe = await setDefaultShoe(request.user!.id, shoeId, request.ip);
       return reply.send({ shoe });
     },
   );

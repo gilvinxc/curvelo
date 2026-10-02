@@ -390,6 +390,8 @@ export const api = {
   updateShoe: (id: string, input: { name?: string; brand?: string | null; model?: string | null; retired?: boolean }) =>
     patch<{ shoe: ShoeDTO }>(`/shoes/${id}`, input),
   deleteShoe: (id: string) => del<{ ok: boolean }>(`/shoes/${id}`),
+  setDefaultShoe: (id: string) =>
+    post<{ shoe: ShoeDTO }>(`/shoes/${id}/default`, {}),
   setTeamLogo: (teamId: string, image: string) =>
     put<{ ok: boolean }>(`/teams/${teamId}/logo`, { image }),
   removeTeamLogo: (teamId: string) => del<{ ok: boolean }>(`/teams/${teamId}/logo`),

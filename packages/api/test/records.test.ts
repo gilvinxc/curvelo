@@ -166,6 +166,77 @@ describe("records + shoes", () => {
     expect(retired.status).toBe(400);
   });
 
+  it("default shoe applies to new runs until changed; retiring clears it", async () => {
+    const { app, runner } = await setup();
+    const mk = async (name: string) => {
+      const r = await request(app.server)
+        .post("/api/v1/shoes")
+        .set(cookieHeader(runner))
+        .send({ name });
+      expect(r.status).toBe(201);
+      return r.body.shoe.id as string;
+    };
+    const a = await mk("Shoe A");
+    const b = await mk("Shoe B");
+
+    // Set A as default; a run with no shoeId picks it up.
+    const def = await request(app.server)
+      .post(`/api/v1/shoes/${a}/default`)
+      .set(cookieHeader(runner));
+    expect(def.status).toBe(200);
+    expect(def.body.shoe.isDefault).toBe(true);
+
+    const run1 = await request(app.server)
+      .post("/api/v1/activities")
+      .set(cookieHeader(runner))
+      .send({
+        kind: "RUN",
+        startedAt: new Date().toISOString(),
+        distanceM: 5000,
+        durationS: 1500,
+        visibility: "PRIVATE",
+      });
+    expect(run1.status).toBe(201);
+    expect(run1.body.activity.shoeId).toBe(a);
+
+    // Setting B as default replaces A.
+    await request(app.server)
+      .post(`/api/v1/shoes/${b}/default`)
+      .set(cookieHeader(runner))
+      .expect(200);
+    const list = await request(app.server)
+      .get("/api/v1/shoes")
+      .set(cookieHeader(runner));
+    const byId = Object.fromEntries(list.body.shoes.map((s: any) => [s.id, s]));
+    expect(byId[a].isDefault).toBe(false);
+    expect(byId[b].isDefault).toBe(true);
+
+    // Retiring the default clears it; new runs get no shoe.
+    await request(app.server)
+      .patch(`/api/v1/shoes/${b}`)
+      .set(cookieHeader(runner))
+      .send({ retired: true })
+      .expect(200);
+    const run2 = await request(app.server)
+      .post("/api/v1/activities")
+      .set(cookieHeader(runner))
+      .send({
+        kind: "RUN",
+        startedAt: new Date().toISOString(),
+        distanceM: 3000,
+        durationS: 900,
+        visibility: "PRIVATE",
+      });
+    expect(run2.status).toBe(201);
+    expect(run2.body.activity.shoeId).toBeNull();
+
+    // A retired shoe can't become the default.
+    const bad = await request(app.server)
+      .post(`/api/v1/shoes/${b}/default`)
+      .set(cookieHeader(runner));
+    expect(bad.status).toBe(400);
+  });
+
   it("contact info is manager-only on the roster", async () => {
     const { app, coach, runner, teamId } = await setup();
     const other = await registerUser("RUNNER", "reccontact");

@@ -712,6 +712,7 @@ model Shoe {
   model      String?
   retired    Boolean    @default(false)
   retiredAt  DateTime?
+  isDefault  Boolean    @default(false)
   createdAt  DateTime   @default(now())
   activities Activity[]
 

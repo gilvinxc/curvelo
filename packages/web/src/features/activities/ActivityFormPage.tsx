@@ -470,7 +470,7 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
           />
         </Field>
 
-        <ShoePicker value={form.shoeId} onChange={(v) => set("shoeId", v)} />
+        <ShoePicker value={form.shoeId} onChange={(v) => set("shoeId", v)} applyDefault={mode === "new"} />
 
         <Field label="Notes" hint="Optional — how it felt, conditions, etc.">
           <TextArea

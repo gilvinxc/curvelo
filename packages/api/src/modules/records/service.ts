@@ -179,6 +179,7 @@ function toShoeDTO(
     model: string | null;
     retired: boolean;
     retiredAt: Date | null;
+    isDefault: boolean;
     createdAt: Date;
   },
   mileageM: number,
@@ -190,6 +191,7 @@ function toShoeDTO(
     model: s.model,
     retired: s.retired,
     retiredAt: s.retiredAt?.toISOString() ?? null,
+    isDefault: s.isDefault,
     mileageM,
     createdAt: s.createdAt.toISOString(),
   };
@@ -245,7 +247,12 @@ export async function updateShoe(
       ...(input.brand !== undefined ? { brand: input.brand?.trim() || null } : {}),
       ...(input.model !== undefined ? { model: input.model?.trim() || null } : {}),
       ...(input.retired !== undefined
-        ? { retired: input.retired, retiredAt: input.retired ? new Date() : null }
+        ? {
+            retired: input.retired,
+            retiredAt: input.retired ? new Date() : null,
+            // Retiring the default shoe clears the default.
+            ...(input.retired && shoe.isDefault ? { isDefault: false } : {}),
+          }
         : {}),
     },
   });
@@ -284,6 +291,42 @@ export async function deleteShoe(
     ipAddress,
   });
   return { ok: true as const };
+}
+
+/** Set one shoe as the default; it stays default until changed or retired. */
+export async function setDefaultShoe(
+  userId: string,
+  shoeId: string,
+  ipAddress?: string,
+): Promise<ShoeDTO> {
+  const shoe = await db.shoe.findFirst({ where: { id: shoeId, userId } });
+  if (!shoe) throw notFound("Shoe not found");
+  if (shoe.retired) {
+    throw new AppError(400, "SHOE_RETIRED", "Retired shoes can't be the default.");
+  }
+  const [updated] = await db.$transaction([
+    db.shoe.updateMany({ where: { userId }, data: { isDefault: false } }),
+    db.shoe.update({ where: { id: shoe.id }, data: { isDefault: true } }),
+  ]);
+  void updated;
+  const fresh = await db.shoe.findUniqueOrThrow({ where: { id: shoe.id } });
+  await audit({
+    actorId: userId,
+    action: "SHOE_DEFAULT_SET",
+    entityType: "Shoe",
+    entityId: shoe.id,
+    ipAddress,
+  });
+  return toShoeDTO(fresh, await shoeMileageM(shoe.id));
+}
+
+/** The user's default shoe id, or null when none / retired. */
+export async function getDefaultShoeId(userId: string): Promise<string | null> {
+  const shoe = await db.shoe.findFirst({
+    where: { userId, isDefault: true, retired: false },
+    select: { id: true },
+  });
+  return shoe?.id ?? null;
 }
 
 /** Validate that a shoe belongs to the user (for activity logging). */

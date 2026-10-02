@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ShoeDTO } from "@curvelo/shared";
 import { api, ApiError } from "../../lib/api";
@@ -83,6 +83,10 @@ function ShoeCard({ shoe }: { shoe: ShoeDTO }) {
     mutationFn: () => api.updateShoe(shoe.id, { retired: !shoe.retired }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["myShoes"] }),
   });
+  const defaultMutation = useMutation({
+    mutationFn: () => api.setDefaultShoe(shoe.id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["myShoes"] }),
+  });
   const miles = shoe.mileageM / (units === "metric" ? 1000 : 1609.344);
   const warn = !shoe.retired && miles >= RETIRE_MILES;
 
@@ -93,6 +97,11 @@ function ShoeCard({ shoe }: { shoe: ShoeDTO }) {
           <p className="truncate font-bold text-ink-50">
             {shoe.retired ? "🪦 " : "👟 "}
             {shoe.name}
+            {shoe.isDefault && !shoe.retired && (
+              <span className="ml-1 rounded-full bg-volt-400/20 px-2 py-0.5 text-[11px] font-bold text-volt-300">
+                DEFAULT
+              </span>
+            )}
           </p>
           {(shoe.brand || shoe.model) && (
             <p className="text-[13px] text-mist">
@@ -100,13 +109,25 @@ function ShoeCard({ shoe }: { shoe: ShoeDTO }) {
             </p>
           )}
         </div>
-        <button
-          onClick={() => retireMutation.mutate()}
-          disabled={retireMutation.isPending}
-          className="shrink-0 rounded-lg px-2 py-1 text-[13px] font-semibold text-mist hover:text-ink-50"
-        >
-          {shoe.retired ? "Un-retire" : "Retire"}
-        </button>
+        <div className="flex shrink-0 gap-1">
+          {!shoe.retired && !shoe.isDefault && (
+            <button
+              onClick={() => defaultMutation.mutate()}
+              disabled={defaultMutation.isPending}
+              className="rounded-lg px-2 py-1 text-[13px] font-semibold text-volt-300 hover:text-volt-200"
+              title="Use this shoe for new runs until you change it"
+            >
+              Set default
+            </button>
+          )}
+          <button
+            onClick={() => retireMutation.mutate()}
+            disabled={retireMutation.isPending}
+            className="rounded-lg px-2 py-1 text-[13px] font-semibold text-mist hover:text-ink-50"
+          >
+            {shoe.retired ? "Un-retire" : "Retire"}
+          </button>
+        </div>
       </div>
       <div
         className="mt-2 h-2 overflow-hidden rounded-full bg-white/10"
@@ -168,15 +189,26 @@ export function ShoesSection() {
 export function ShoePicker({
   value,
   onChange,
+  applyDefault = false,
 }: {
   value: string | null;
   onChange: (shoeId: string | null) => void;
+  /** When true (new activities), pre-select the runner's default shoe. */
+  applyDefault?: boolean;
 }) {
   const shoesQuery = useQuery({
     queryKey: ["myShoes"],
     queryFn: () => api.myShoes(),
   });
   const active = (shoesQuery.data?.shoes ?? []).filter((s) => !s.retired);
+  const defaultShoe = active.find((s) => s.isDefault) ?? null;
+  useEffect(() => {
+    if (applyDefault && value === null && defaultShoe) {
+      onChange(defaultShoe.id);
+    }
+    // Only auto-apply once when the shoe list first loads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applyDefault, defaultShoe?.id]);
   if (active.length === 0) return null;
   return (
     <div>
@@ -190,6 +222,7 @@ export function ShoePicker({
         {active.map((s) => (
           <option key={s.id} value={s.id}>
             {s.name}
+            {s.isDefault ? " (default)" : ""}
           </option>
         ))}
       </select>

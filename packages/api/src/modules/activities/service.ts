@@ -8,7 +8,7 @@ import type {
 } from "@curvelo/shared";
 import { db } from "../../db.js";
 import { checkGoalCompletions } from "../goals/service.js";
-import { assertOwnShoe } from "../records/service.js";
+import { assertOwnShoe, getDefaultShoeId } from "../records/service.js";
 import { audit } from "../../lib/audit.js";
 import { forbidden, notFound } from "../../lib/errors.js";
 import {
@@ -150,6 +150,9 @@ export async function createActivity(
   if (input.shoeId) {
     await assertOwnShoe(actorId, input.shoeId);
     shoeId = input.shoeId;
+  } else {
+    // Fall back to the runner's default shoe, if they set one.
+    shoeId = await getDefaultShoeId(actorId);
   }
 
   let assignmentId: string | null = null;

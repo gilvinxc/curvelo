@@ -80,6 +80,7 @@ export interface ShoeDTO {
   model: string | null;
   retired: boolean;
   retiredAt: string | null;
+  isDefault: boolean;
   mileageM: number;
   createdAt: string;
 }
