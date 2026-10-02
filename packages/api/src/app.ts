@@ -9,6 +9,9 @@ import { authRoutes } from "./modules/auth/routes.js";
 import { invitationRoutes } from "./modules/invitations/routes.js";
 import { teamRoutes } from "./modules/teams/routes.js";
 import { userRoutes } from "./modules/users/routes.js";
+import { workoutRoutes } from "./modules/workouts/routes.js";
+import { groupRoutes } from "./modules/groups/routes.js";
+import { assignmentRoutes } from "./modules/assignments/routes.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -33,6 +36,10 @@ export async function buildApp() {
   await app.register(teamRoutes, { prefix: "/api/v1/teams" });
   // Invitation routes include /teams/:id/invitations + /invitations/:token/*
   await app.register(invitationRoutes, { prefix: "/api/v1" });
+  // Workout, group, and assignment routes (team-scoped + individual resources)
+  await app.register(workoutRoutes, { prefix: "/api/v1" });
+  await app.register(groupRoutes, { prefix: "/api/v1" });
+  await app.register(assignmentRoutes, { prefix: "/api/v1" });
 
   return app;
 }

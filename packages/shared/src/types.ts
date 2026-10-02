@@ -61,3 +61,53 @@ export interface InvitationPreviewDTO {
   invitedEmail: string;
   status: string;
 }
+
+export interface WorkoutStepDTO {
+  id: string;
+  order: number;
+  kind: string;
+  distanceM: number | null;
+  durationS: number | null;
+  targetPaceS: number | null;
+  targetHrBpm: number | null;
+  targetRpe: number | null;
+  repetitions: number;
+  notes: string | null;
+}
+
+export interface WorkoutDTO {
+  id: string;
+  teamId: string;
+  title: string;
+  description: string | null;
+  kind: string;
+  isTemplate: boolean;
+  createdByName: string;
+  steps: WorkoutStepDTO[];
+  createdAt: string;
+}
+
+export interface TeamGroupDTO {
+  id: string;
+  teamId: string;
+  name: string;
+  memberCount: number;
+  members?: Array<{ userId: string; displayName: string }>;
+}
+
+export interface AssignmentDTO {
+  id: string;
+  workoutId: string;
+  workoutTitle: string;
+  workoutKind: string;
+  teamId: string;
+  teamName: string;
+  groupId: string | null;
+  groupName: string | null;
+  assignedToUserId: string | null;
+  assignedToName: string | null;
+  scheduledDate: string;
+  notes: string | null;
+  needsApproval: boolean;
+  createdByName: string;
+}

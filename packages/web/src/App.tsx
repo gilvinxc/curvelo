@@ -13,6 +13,12 @@ import { RegisterPage } from "./features/auth/RegisterPage";
 import { DashboardPage } from "./features/dashboard/DashboardPage";
 import { NewTeamPage } from "./features/teams/NewTeamPage";
 import { TeamPage } from "./features/teams/TeamPage";
+import {
+  EditWorkoutPage,
+  NewWorkoutPage,
+} from "./features/workouts/WorkoutBuilderPage";
+import { WorkoutDetailPage } from "./features/workouts/WorkoutDetailPage";
+import { PersonalCalendarPage } from "./features/calendar/PersonalCalendar";
 import { InviteAcceptPage } from "./features/invitations/InviteAcceptPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
 
@@ -113,7 +119,63 @@ export function App() {
             path="/teams/:id"
             element={
               <ProtectedRoute>
-                <TeamPage />
+                <TeamPage initialTab="roster" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teams/:id/workouts"
+            element={
+              <ProtectedRoute>
+                <TeamPage initialTab="workouts" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teams/:id/workouts/new"
+            element={
+              <ProtectedRoute>
+                <NewWorkoutPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teams/:id/groups"
+            element={
+              <ProtectedRoute>
+                <TeamPage initialTab="groups" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teams/:id/calendar"
+            element={
+              <ProtectedRoute>
+                <TeamPage initialTab="calendar" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/workouts/:workoutId"
+            element={
+              <ProtectedRoute>
+                <WorkoutDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/workouts/:workoutId/edit"
+            element={
+              <ProtectedRoute>
+                <EditWorkoutPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/calendar"
+            element={
+              <ProtectedRoute>
+                <PersonalCalendarPage />
               </ProtectedRoute>
             }
           />

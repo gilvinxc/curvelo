@@ -80,6 +80,11 @@ model User {
   guardianLinksAsAthlete  GuardianLink[]  @relation("Athlete")
   auditLogs           AuditLog[]
   refreshTokens       RefreshToken[]
+  authoredWorkouts    Workout[]           @relation("WorkoutAuthor")
+  authoredGroups      TeamGroup[]         @relation("GroupAuthor")
+  authoredAssignments WorkoutAssignment[] @relation("AssignmentAuthor")
+  receivedAssignments WorkoutAssignment[] @relation("AssignmentRecipient")
+  groupMemberships    TeamGroupMember[]
 }
 
 model RefreshToken {
@@ -142,6 +147,9 @@ model Team {
   invitations     Invitation[]
   seasons         Season[]
   complianceRules ComplianceRule[]
+  workouts        Workout[]
+  groups          TeamGroup[]
+  assignments     WorkoutAssignment[]
 }
 
 model TeamMembership {
@@ -244,4 +252,115 @@ model AuditLog {
   @@index([actorId])
   @@index([entityType, entityId])
   @@index([createdAt])
+}
+
+// ─── Slice 2: workouts, groups, assignments ──────────────────────────────
+
+enum WorkoutKind {
+  INTERVAL
+  TEMPO
+  PROGRESSION
+  LONG_RUN
+  RECOVERY
+  RACE
+  CROSS_TRAINING
+  STRENGTH
+  CUSTOM
+}
+
+enum WorkoutStepKind {
+  WARMUP
+  COOLDOWN
+  INTERVAL
+  RECOVERY
+  STEADY
+  REST
+}
+
+model Workout {
+  id          String      @id @default(uuid())
+  teamId      String
+  team        Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  kind        WorkoutKind @default(CUSTOM)
+  isTemplate  Boolean     @default(false)
+  createdById String
+  createdBy   User        @relation("WorkoutAuthor", fields: [createdById], references: [id])
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  steps       WorkoutStep[]
+  assignments WorkoutAssignment[]
+
+  @@index([teamId, isTemplate])
+}
+
+model WorkoutStep {
+  id          String          @id @default(uuid())
+  workoutId   String
+  workout     Workout         @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  order       Int
+  kind        WorkoutStepKind
+  distanceM   Float?
+  durationS   Int?
+  targetPaceS Float?
+  targetHrBpm Int?
+  targetRpe   Int?
+  repetitions Int             @default(1)
+  notes       String?
+
+  @@index([workoutId, order])
+}
+
+model TeamGroup {
+  id          String   @id @default(uuid())
+  teamId      String
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  name        String
+  createdById String
+  createdBy   User     @relation("GroupAuthor", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members     TeamGroupMember[]
+  assignments WorkoutAssignment[]
+
+  @@unique([teamId, name])
+}
+
+model TeamGroupMember {
+  id        String    @id @default(uuid())
+  groupId   String
+  group     TeamGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@unique([groupId, userId])
+  @@index([userId])
+}
+
+model WorkoutAssignment {
+  id               String     @id @default(uuid())
+  workoutId        String
+  workout          Workout    @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  teamId           String
+  team             Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  // Target: whole team (both null), one group, or one athlete.
+  assignedToUserId String?
+  assignedToUser   User?      @relation("AssignmentRecipient", fields: [assignedToUserId], references: [id], onDelete: Cascade)
+  groupId          String?
+  group            TeamGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  scheduledDate    DateTime   @db.Date
+  notes            String?
+  needsApproval    Boolean    @default(false)
+  createdById      String
+  createdBy        User       @relation("AssignmentAuthor", fields: [createdById], references: [id])
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([teamId, scheduledDate])
+  @@index([assignedToUserId, scheduledDate])
+  @@index([groupId, scheduledDate])
 }

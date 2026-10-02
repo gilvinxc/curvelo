@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { api } from "../../lib/api";
 import {
   Avatar,
@@ -13,41 +13,48 @@ import {
   RoleBadge,
   formatDate,
 } from "../../components/ui";
+import { cn } from "../../components/cx";
 import { InviteDialog } from "./InviteDialog";
+import { WorkoutList } from "../workouts/WorkoutList";
+import { TeamCalendar } from "../calendar/TeamCalendar";
+import { GroupsSection } from "./GroupsSection";
 
 const CAN_INVITE = new Set(["COACH", "TEAM_ADMIN"]);
 
-export function TeamPage() {
-  const { id } = useParams<{ id: string }>();
-  const [inviteOpen, setInviteOpen] = useState(false);
+export type TeamTab = "roster" | "workouts" | "groups" | "calendar";
 
-  const teamQuery = useQuery({
-    queryKey: ["team", id],
-    queryFn: () => api.getTeam(id!),
-    enabled: !!id,
-  });
+const TABS: { id: TeamTab; label: string; href: (id: string) => string }[] = [
+  { id: "roster", label: "Roster", href: (id) => `/teams/${id}` },
+  { id: "workouts", label: "Workouts", href: (id) => `/teams/${id}/workouts` },
+  { id: "groups", label: "Groups", href: (id) => `/teams/${id}/groups` },
+  { id: "calendar", label: "Calendar", href: (id) => `/teams/${id}/calendar` },
+];
+
+function RosterTab({
+  teamId,
+  canInvite,
+  onInvite,
+}: {
+  teamId: string;
+  canInvite: boolean;
+  onInvite: () => void;
+}) {
   const rosterQuery = useQuery({
-    queryKey: ["roster", id],
-    queryFn: () => api.getRoster(id!),
-    enabled: !!id,
+    queryKey: ["roster", teamId],
+    queryFn: () => api.getRoster(teamId),
+    enabled: !!teamId,
   });
 
-  if (teamQuery.isLoading) return <FullScreenLoader />;
-
-  if (teamQuery.isError || !teamQuery.data) {
+  if (rosterQuery.isLoading) {
     return (
-      <div className="flex flex-col gap-4">
-        <PageHeader title="Team" backTo="/dashboard" />
-        <ErrorBanner message="Couldn't load this team. You may not be a member." />
+      <div className="flex justify-center py-8">
+        <FullScreenLoader />
       </div>
     );
   }
+  if (rosterQuery.isError) return <ErrorBanner message="Couldn't load the roster." />;
 
-  const { team } = teamQuery.data;
   const roster = rosterQuery.data?.roster ?? [];
-  const canInvite = team.myRole !== null && CAN_INVITE.has(team.myRole);
-
-  // Coaches first, then admins, then everyone else — alphabetical within.
   const roleRank: Record<string, number> = {
     COACH: 0,
     TEAM_ADMIN: 1,
@@ -63,52 +70,13 @@ export function TeamPage() {
 
   return (
     <div>
-      <PageHeader title={team.name} backTo="/dashboard" />
-
-      <Card className="mb-6">
-        {team.description && (
-          <p className="text-[15px] leading-relaxed text-ink-50/90">
-            {team.description}
-          </p>
-        )}
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          {team.myRole && <RoleBadge role={team.myRole} />}
-          <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-mist">
-            {team.visibility === "PUBLIC" ? "Public" : "Private"}
-          </span>
-          <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-mist">
-            {team.memberCount} {team.memberCount === 1 ? "member" : "members"}
-          </span>
-        </div>
-        {canInvite && (
-          <Button
-            onClick={() => setInviteOpen(true)}
-            className="mt-5 w-full sm:w-auto"
-          >
-            + Invite athlete
-          </Button>
-        )}
-      </Card>
-
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-[13px] font-bold uppercase tracking-[0.18em] text-mist">
-          Roster
-        </h2>
-      </div>
-
-      {rosterQuery.isLoading ? (
-        <div className="flex justify-center py-8">
-          <FullScreenLoader />
-        </div>
-      ) : rosterQuery.isError ? (
-        <ErrorBanner message="Couldn't load the roster." />
-      ) : sorted.length === 0 ? (
+      {sorted.length === 0 ? (
         <EmptyState
           title="Nobody here yet"
           body="Invite your first athlete to get the team rolling."
           action={
             canInvite ? (
-              <Button onClick={() => setInviteOpen(true)}>Invite athlete</Button>
+              <Button onClick={onInvite}>Invite athlete</Button>
             ) : undefined
           }
         />
@@ -136,6 +104,100 @@ export function TeamPage() {
             </Card>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
+  const { id } = useParams<{ id: string }>();
+  const [inviteOpen, setInviteOpen] = useState(false);
+
+  const teamQuery = useQuery({
+    queryKey: ["team", id],
+    queryFn: () => api.getTeam(id!),
+    enabled: !!id,
+  });
+
+  if (teamQuery.isLoading) return <FullScreenLoader />;
+
+  if (teamQuery.isError || !teamQuery.data) {
+    return (
+      <div className="flex flex-col gap-4">
+        <PageHeader title="Team" backTo="/dashboard" />
+        <ErrorBanner message="Couldn't load this team. You may not be a member." />
+      </div>
+    );
+  }
+
+  const { team } = teamQuery.data;
+  const canInvite = team.myRole !== null && CAN_INVITE.has(team.myRole);
+
+  return (
+    <div>
+      <PageHeader title={team.name} backTo="/dashboard" />
+
+      <Card className="mb-5">
+        {team.description && (
+          <p className="text-[15px] leading-relaxed text-ink-50/90">
+            {team.description}
+          </p>
+        )}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {team.myRole && <RoleBadge role={team.myRole} />}
+          <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-mist">
+            {team.visibility === "PUBLIC" ? "Public" : "Private"}
+          </span>
+          <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-mist">
+            {team.memberCount} {team.memberCount === 1 ? "member" : "members"}
+          </span>
+        </div>
+        {canInvite && (
+          <Button
+            onClick={() => setInviteOpen(true)}
+            className="mt-5 w-full sm:w-auto"
+          >
+            + Invite athlete
+          </Button>
+        )}
+      </Card>
+
+      <nav
+        aria-label="Team sections"
+        className="mb-5 grid auto-cols-fr grid-flow-col gap-1 overflow-x-auto rounded-xl border border-white/10 bg-ink-900 p-1"
+      >
+        {TABS.map((tab) => (
+          <Link
+            key={tab.id}
+            to={tab.href(team.id)}
+            aria-current={initialTab === tab.id ? "page" : undefined}
+            className={cn(
+              "min-h-[44px] whitespace-nowrap rounded-lg px-3 text-center text-[14px] font-semibold leading-[44px] transition",
+              initialTab === tab.id
+                ? "bg-volt-400 text-ink-950"
+                : "text-mist hover:text-ink-50",
+            )}
+          >
+            {tab.label}
+          </Link>
+        ))}
+      </nav>
+
+      {initialTab === "roster" && (
+        <RosterTab
+          teamId={team.id}
+          canInvite={canInvite}
+          onInvite={() => setInviteOpen(true)}
+        />
+      )}
+      {initialTab === "workouts" && (
+        <WorkoutList teamId={team.id} myRole={team.myRole} />
+      )}
+      {initialTab === "groups" && (
+        <GroupsSection teamId={team.id} myRole={team.myRole} />
+      )}
+      {initialTab === "calendar" && (
+        <TeamCalendar teamId={team.id} myRole={team.myRole} />
       )}
 
       <InviteDialog

@@ -3,4 +3,5 @@ export * from "./schemas/auth.js";
 export * from "./schemas/teams.js";
 export * from "./schemas/invitations.js";
 export * from "./schemas/users.js";
+export * from "./schemas/workouts.js";
 export * from "./types.js";

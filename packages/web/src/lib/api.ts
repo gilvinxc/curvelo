@@ -1,4 +1,5 @@
 import type {
+  AssignmentDTO,
   CreateTeamInput,
   InvitationDTO,
   InvitationPreviewDTO,
@@ -6,8 +7,10 @@ import type {
   RosterMemberDTO,
   SessionUser,
   TeamDTO,
+  TeamGroupDTO,
   TeamRole,
   UpdateProfileInput,
+  WorkoutDTO,
 } from "@curvelo/shared";
 
 const BASE_URL =
@@ -36,11 +39,18 @@ interface ErrorBody {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const hasBody = init.body !== undefined && init.body !== null;
+  const headers: Record<string, string> = {
+    ...(init.headers as Record<string, string> | undefined),
+  };
+  if (hasBody && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
   let res: Response;
   try {
     res = await fetch(`${BASE_URL}${path}`, {
       credentials: "include",
-      headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
+      headers,
       ...init,
     });
   } catch {
@@ -79,6 +89,9 @@ const post = <T>(path: string, payload?: unknown): Promise<T> =>
 const patch = <T>(path: string, payload: unknown): Promise<T> =>
   request<T>(path, { method: "PATCH", body: JSON.stringify(payload) });
 
+const del = <T>(path: string): Promise<T> =>
+  request<T>(path, { method: "DELETE" });
+
 /** Full user + profile shape returned by GET/PATCH /users/me. */
 export interface FullUser {
   id: string;
@@ -94,6 +107,42 @@ export interface FullUser {
     units: "metric" | "imperial";
     defaultShareLevel: string | null;
   } | null;
+}
+
+/** Payload for creating/updating a workout. Units are canonical (meters, seconds). */
+export interface WorkoutStepPayload {
+  kind: string;
+  distanceM?: number;
+  durationS?: number;
+  targetPaceS?: number;
+  targetHrBpm?: number;
+  targetRpe?: number;
+  repetitions?: number;
+  notes?: string;
+}
+
+export interface CreateWorkoutPayload {
+  title: string;
+  description?: string;
+  kind?: string;
+  isTemplate?: boolean;
+  steps: WorkoutStepPayload[];
+}
+
+export interface UpdateWorkoutPayload {
+  title?: string;
+  description?: string | null;
+  kind?: string;
+  isTemplate?: boolean;
+  steps?: WorkoutStepPayload[];
+}
+
+export interface CreateAssignmentPayload {
+  workoutId: string;
+  groupId?: string;
+  assignedToUserId?: string;
+  scheduledDate: string; // YYYY-MM-DD
+  notes?: string;
 }
 
 export const api = {
@@ -125,4 +174,43 @@ export const api = {
     request<{ invitation: InvitationPreviewDTO }>(`/invitations/${token}`),
   acceptInvitation: (token: string) =>
     post<{ teamId: string; role: string }>(`/invitations/${token}/accept`),
+
+  // workouts
+  listWorkouts: (teamId: string, templatesOnly = false) =>
+    request<{ workouts: WorkoutDTO[] }>(
+      `/teams/${teamId}/workouts${templatesOnly ? "?templatesOnly=true" : ""}`,
+    ),
+  createWorkout: (teamId: string, input: CreateWorkoutPayload) =>
+    post<{ workout: WorkoutDTO }>(`/teams/${teamId}/workouts`, input),
+  getWorkout: (id: string) => request<{ workout: WorkoutDTO }>(`/workouts/${id}`),
+  updateWorkout: (id: string, input: UpdateWorkoutPayload) =>
+    patch<{ workout: WorkoutDTO }>(`/workouts/${id}`, input),
+  deleteWorkout: (id: string) => del<{ ok: boolean }>(`/workouts/${id}`),
+
+  // groups
+  listGroups: (teamId: string) =>
+    request<{ groups: TeamGroupDTO[] }>(`/teams/${teamId}/groups`),
+  createGroup: (teamId: string, input: { name: string; memberIds: string[] }) =>
+    post<{ group: TeamGroupDTO }>(`/teams/${teamId}/groups`, input),
+  getGroup: (groupId: string) =>
+    request<{ group: TeamGroupDTO }>(`/groups/${groupId}`),
+  addGroupMembers: (groupId: string, memberIds: string[]) =>
+    post<{ group: TeamGroupDTO }>(`/groups/${groupId}/members`, { memberIds }),
+  removeGroupMember: (groupId: string, userId: string) =>
+    del<{ group: TeamGroupDTO }>(`/groups/${groupId}/members/${userId}`),
+  deleteGroup: (groupId: string) => del<{ ok: boolean }>(`/groups/${groupId}`),
+
+  // assignments + calendars
+  createAssignment: (teamId: string, input: CreateAssignmentPayload) =>
+    post<{ assignment: AssignmentDTO }>(`/teams/${teamId}/assignments`, input),
+  deleteAssignment: (assignmentId: string) =>
+    del<{ ok: boolean }>(`/assignments/${assignmentId}`),
+  teamCalendar: (teamId: string, from: string, to: string) =>
+    request<{ assignments: AssignmentDTO[] }>(
+      `/teams/${teamId}/calendar?from=${from}&to=${to}`,
+    ),
+  myCalendar: (from: string, to: string) =>
+    request<{ assignments: AssignmentDTO[] }>(
+      `/users/me/calendar?from=${from}&to=${to}`,
+    ),
 };

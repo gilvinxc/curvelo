@@ -11,6 +11,7 @@ import {
   FullScreenLoader,
   RoleBadge,
 } from "../../components/ui";
+import { UpcomingWorkouts } from "../calendar/PersonalCalendar";
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -43,6 +44,8 @@ export function DashboardPage() {
       {teamsQuery.isError && (
         <ErrorBanner message="Couldn't load your teams. Pull to retry." />
       )}
+
+      {teams.length > 0 && <UpcomingWorkouts />}
 
       {teams.length === 0 && !teamsQuery.isError ? (
         <EmptyState
