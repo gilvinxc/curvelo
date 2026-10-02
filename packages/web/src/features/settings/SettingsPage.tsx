@@ -246,7 +246,7 @@ export function SettingsPage() {
                 value={heightVal}
                 onChange={(e) => setHeightInput(e.target.value)}
                 placeholder={unitsVal === "metric" ? "178" : "5'10\""}
-                inputMode="decimal"
+                inputMode={unitsVal === "metric" ? "decimal" : "text"}
               />
             </Field>
             <Field label={`Weight (${weightUnitLabel(unitsVal)})`}>

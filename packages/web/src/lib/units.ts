@@ -136,7 +136,8 @@ export function formatHeight(cm: number, units: Units): string {
 
 /** Parse imperial height input: accepts 70, 5'10", 5'10, 5 ft 10 in. */
 export function parseHeightInput(raw: string, units: Units): number | undefined {
-  const t = raw.trim();
+  // Normalize curly quotes (iOS smart punctuation) to straight quotes.
+  const t = raw.trim().replace(/[‘’]/g, "'").replace(/[“”]/g, '"');
   if (!t) return undefined;
   if (units === "metric") {
     const v = Number(t);
