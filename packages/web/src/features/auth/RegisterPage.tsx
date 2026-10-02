@@ -22,7 +22,17 @@ const roleCopy: Record<SelfSignupRole, { title: string; body: string }> = {
     title: "Coach",
     body: "Build teams, assign workouts, and track athletes.",
   },
+  PARENT: {
+    title: "Parent",
+    body: "Follow your child's training and manage consents.",
+  },
 };
+
+function initialRole(param: string | null): SelfSignupRole {
+  return (
+    SELF_SIGNUP_ROLES.find((r) => r === param) ?? "RUNNER"
+  );
+}
 
 export function RegisterPage() {
   const { register } = useAuth();
@@ -30,7 +40,9 @@ export function RegisterPage() {
   const [params] = useSearchParams();
   const next = params.get("next") ?? "/dashboard";
 
-  const [role, setRole] = useState<SelfSignupRole>("RUNNER");
+  const [role, setRole] = useState<SelfSignupRole>(() =>
+    initialRole(params.get("role")),
+  );
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

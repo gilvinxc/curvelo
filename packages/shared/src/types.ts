@@ -188,3 +188,47 @@ export interface ReportDTO {
   status: string;
   createdAt: string;
 }
+
+export interface GuardianInviteDTO {
+  id: string;
+  teamId: string;
+  teamName: string;
+  athleteId: string;
+  athleteName: string;
+  email: string;
+  relationship: string;
+  status: string;
+  expiresAt: string;
+  token?: string;
+}
+
+export interface GuardianLinkDTO {
+  id: string;
+  guardianId: string;
+  guardianName: string;
+  guardianEmail: string;
+  athleteId: string;
+  athleteName: string;
+  relationship: string;
+  status: string;
+  verifiedAt: string | null;
+}
+
+export interface ConsentDTO {
+  type: string;
+  status: string;
+  grantedAt: string;
+  guardianName: string;
+}
+
+export interface ChildSummaryDTO {
+  athleteId: string;
+  athleteName: string;
+  teamId: string;
+  teamName: string;
+  role: string;
+  consentRequired: boolean;
+  consents: ConsentDTO[];
+  upcomingAssignments: AssignmentDTO[];
+  recentActivities: ActivityDTO[];
+}

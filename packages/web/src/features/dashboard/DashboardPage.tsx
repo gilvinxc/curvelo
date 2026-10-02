@@ -20,10 +20,15 @@ export function DashboardPage() {
     queryKey: ["teams"],
     queryFn: () => api.listTeams(),
   });
+  const childrenQuery = useQuery({
+    queryKey: ["children"],
+    queryFn: () => api.myChildren(),
+  });
 
   if (teamsQuery.isLoading) return <FullScreenLoader />;
 
   const teams = teamsQuery.data?.teams ?? [];
+  const children = childrenQuery.data?.children ?? [];
   const firstName = user?.displayName.split(" ")[0] ?? "Runner";
 
   return (
@@ -51,6 +56,43 @@ export function DashboardPage() {
           <UpcomingWorkouts />
           <TrainingLog />
         </>
+      )}
+
+      {children.length > 0 && (
+        <div className="mb-6">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-[13px] font-bold uppercase tracking-[0.18em] text-mist">
+              My athletes
+            </h2>
+            <Link to="/family">
+              <Button variant="secondary" className="min-h-[44px] px-4 text-[14px]">
+                View all
+              </Button>
+            </Link>
+          </div>
+          <div className="flex flex-col gap-3">
+            {children.slice(0, 3).map((child) => (
+              <Link key={child.athleteId} to="/family" className="block">
+                <Card className="transition hover:border-volt-400/40">
+                  <div className="flex items-center gap-3">
+                    <Avatar name={child.athleteName} />
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-[17px] font-extrabold tracking-tight">
+                        {child.athleteName}
+                      </h3>
+                      <p className="mt-0.5 truncate text-[13px] text-mist">
+                        {child.teamName}
+                      </p>
+                    </div>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a7ae97" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
+                  </div>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
       )}
 
       {teams.length === 0 && !teamsQuery.isError ? (

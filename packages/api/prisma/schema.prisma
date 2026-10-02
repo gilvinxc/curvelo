@@ -90,6 +90,10 @@ model User {
   authoredComments    PostComment[] @relation("CommentAuthor")
   authoredReactions   PostReaction[] @relation("ReactionAuthor")
   authoredReports     PostReport[]  @relation("ReportAuthor")
+  guardianInvitesForAthlete GuardianInvite[] @relation("GuardianInviteAthlete")
+  guardianInvitesAuthored   GuardianInvite[] @relation("GuardianInviteAuthor")
+  consentsForAthlete  Consent[]     @relation("ConsentAthlete")
+  consentsAsGuardian  Consent[]     @relation("ConsentGuardian")
 }
 
 model RefreshToken {
@@ -157,6 +161,8 @@ model Team {
   assignments     WorkoutAssignment[]
   activities      Activity[]
   feedPosts       FeedPost[]
+  guardianInvites GuardianInvite[]
+  consents        Consent[]
 }
 
 model TeamMembership {
@@ -493,4 +499,42 @@ model PostReport {
 
   @@index([postId])
   @@index([status])
+}
+
+// ─── Slice 5: guardians & parental consent ───────────────────────────────
+
+model GuardianInvite {
+  id           String   @id @default(uuid())
+  teamId       String
+  team         Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  athleteId    String
+  athlete      User     @relation("GuardianInviteAthlete", fields: [athleteId], references: [id], onDelete: Cascade)
+  email        String
+  relationship String   @default("parent")
+  token        String   @unique
+  status       String   @default("PENDING") // PENDING | ACCEPTED | EXPIRED | REVOKED
+  expiresAt    DateTime
+  createdById  String
+  createdBy    User     @relation("GuardianInviteAuthor", fields: [createdById], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([athleteId])
+  @@index([email])
+}
+
+model Consent {
+  id         String   @id @default(uuid())
+  athleteId  String
+  athlete    User     @relation("ConsentAthlete", fields: [athleteId], references: [id], onDelete: Cascade)
+  guardianId String
+  guardian   User     @relation("ConsentGuardian", fields: [guardianId], references: [id], onDelete: Cascade)
+  teamId     String?
+  team       Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  type       String   // PARTICIPATION | DATA_SHARING
+  status     String   @default("GRANTED") // GRANTED | REVOKED
+  grantedAt  DateTime @default(now())
+  revokedAt  DateTime?
+
+  @@unique([athleteId, guardianId, type])
+  @@index([athleteId])
 }

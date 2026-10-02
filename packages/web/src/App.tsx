@@ -27,6 +27,8 @@ import {
 } from "./features/activities/ActivityFormPage";
 import { ActivityDetailPage } from "./features/activities/ActivityDetailPage";
 import { AthletePage } from "./features/athletes/AthletePage";
+import { GuardianInviteAcceptPage } from "./features/guardians/GuardianInviteAcceptPage";
+import { FamilyPage } from "./features/guardians/FamilyPage";
 import { ReportsRoute } from "./features/feed/ReportsPage";
 
 function ScrollToTop() {
@@ -81,6 +83,10 @@ export function App() {
       <Routes>
         {/* Public invitation flow — no shell, no auth required to view */}
         <Route path="/invite/:token" element={<InviteAcceptPage />} />
+        <Route
+          path="/guardian-invite/:token"
+          element={<GuardianInviteAcceptPage />}
+        />
 
         {/* Guest-only auth screens */}
         <Route
@@ -239,6 +245,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <SettingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/family"
+            element={
+              <ProtectedRoute>
+                <FamilyPage />
               </ProtectedRoute>
             }
           />

@@ -30,7 +30,7 @@ export interface TestUser {
 let counter = 0;
 
 export async function registerUser(
-  role: "COACH" | "RUNNER" = "RUNNER",
+  role: "COACH" | "RUNNER" | "PARENT" = "RUNNER",
   emailPrefix = "user",
 ): Promise<TestUser> {
   const a = await getApp();

@@ -1,12 +1,18 @@
 import type {
+  AcceptGuardianInviteInput,
   ActivityDTO,
   ActivityStatsDTO,
   AssignmentDTO,
   AthleteViewDTO,
+  ChildSummaryDTO,
   CommentDTO,
+  ConsentDTO,
   CreateTeamInput,
+  GuardianInviteDTO,
+  GuardianLinkDTO,
   InvitationDTO,
   InvitationPreviewDTO,
+  InviteGuardianInput,
   PostDTO,
   RegisterInput,
   ReportDTO,
@@ -183,6 +189,15 @@ export interface UpdateActivityPayload {
   visibility?: "PRIVATE" | "TEAM";
 }
 
+/** Public preview of a guardian invite — no email or token included. */
+export interface GuardianInvitePreviewDTO {
+  teamName: string;
+  athleteName: string;
+  relationship: string;
+  status: string;
+  expiresAt: string;
+}
+
 export const api = {
   // auth
   register: (input: RegisterInput) =>
@@ -308,4 +323,27 @@ export const api = {
     ),
   resolveReport: (reportId: string, status: "RESOLVED" | "DISMISSED") =>
     post<{ report: ReportDTO }>(`/reports/${reportId}/resolve`, { status }),
+
+  // guardians
+  inviteGuardian: (
+    teamId: string,
+    athleteId: string,
+    input: InviteGuardianInput,
+  ) =>
+    post<{ invite: GuardianInviteDTO }>(
+      `/teams/${teamId}/athletes/${athleteId}/guardians/invite`,
+      input,
+    ),
+  getAthleteGuardians: (teamId: string, athleteId: string) =>
+    request<{ guardians: GuardianLinkDTO[]; consents: ConsentDTO[] }>(
+      `/teams/${teamId}/athletes/${athleteId}/guardians`,
+    ),
+  previewGuardianInvite: (token: string) =>
+    request<{ invite: GuardianInvitePreviewDTO }>(
+      `/guardian-invites/${token}/preview`,
+    ),
+  acceptGuardianInvite: (token: string, input: AcceptGuardianInviteInput) =>
+    post<{ link: GuardianLinkDTO }>(`/guardian-invites/${token}/accept`, input),
+  revokeGuardianLink: (id: string) => del<{ ok: boolean }>(`/guardian-links/${id}`),
+  myChildren: () => request<{ children: ChildSummaryDTO[] }>("/users/me/children"),
 };

@@ -11,6 +11,7 @@ import {
 } from "../../components/ui";
 import { AssignmentRow } from "../calendar/CalendarBits";
 import { ActivityRow } from "../activities/ActivityRow";
+import { AthleteGuardians } from "../guardians/AthleteGuardians";
 import {
   formatDistanceM,
   formatDurationS,
@@ -132,6 +133,14 @@ export function AthletePage() {
           ← Back to team
         </Link>
       </div>
+
+      {teamId && userId && (
+        <AthleteGuardians
+          teamId={teamId}
+          athleteId={userId}
+          athleteName={athlete.displayName}
+        />
+      )}
     </div>
   );
 }

@@ -13,7 +13,7 @@ export const TEAM_VISIBILITIES = ["PRIVATE", "PUBLIC"] as const;
 export type TeamVisibility = (typeof TEAM_VISIBILITIES)[number];
 
 /** Roles a new account can self-select at registration (MVP). */
-export const SELF_SIGNUP_ROLES = ["COACH", "RUNNER"] as const;
+export const SELF_SIGNUP_ROLES = ["COACH", "RUNNER", "PARENT"] as const;
 export type SelfSignupRole = (typeof SELF_SIGNUP_ROLES)[number];
 
 /** Roles a coach/team admin may grant via invitation. */
