@@ -17,7 +17,7 @@ export function Logo({ compact = false }: { compact?: boolean }) {
     <img
       src="/logo.png"
       alt="Curvelo"
-      className={compact ? "h-8 w-auto" : "h-10 w-auto"}
+      className={compact ? "h-9 w-auto" : "h-12 w-auto"}
     />
   );
 }
