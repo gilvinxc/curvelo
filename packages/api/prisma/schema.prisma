@@ -86,6 +86,10 @@ model User {
   receivedAssignments WorkoutAssignment[] @relation("AssignmentRecipient")
   groupMemberships    TeamGroupMember[]
   activities          Activity[]
+  authoredPosts       FeedPost[]    @relation("PostAuthor")
+  authoredComments    PostComment[] @relation("CommentAuthor")
+  authoredReactions   PostReaction[] @relation("ReactionAuthor")
+  authoredReports     PostReport[]  @relation("ReportAuthor")
 }
 
 model RefreshToken {
@@ -152,6 +156,7 @@ model Team {
   groups          TeamGroup[]
   assignments     WorkoutAssignment[]
   activities      Activity[]
+  feedPosts       FeedPost[]
 }
 
 model TeamMembership {
@@ -415,7 +420,77 @@ model Activity {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  sharedInPosts FeedPost[] @relation("SharedInPosts")
+
   @@index([userId, startedAt])
   @@index([teamId, startedAt])
   @@unique([source, externalId])
+}
+
+// ─── Slice 4: private team social feed ───────────────────────────────────
+
+enum PostKind {
+  TEXT
+  ACTIVITY_SHARE
+}
+
+model FeedPost {
+  id         String   @id @default(uuid())
+  teamId     String
+  team       Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  authorId   String
+  author     User     @relation("PostAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  kind       PostKind @default(TEXT)
+  body       String?
+  activityId String?
+  activity   Activity? @relation("SharedInPosts", fields: [activityId], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  comments  PostComment[]
+  reactions PostReaction[]
+  reports   PostReport[]
+
+  @@index([teamId, createdAt])
+}
+
+model PostComment {
+  id        String   @id @default(uuid())
+  postId    String
+  post      FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([postId, createdAt])
+}
+
+model PostReaction {
+  id        String   @id @default(uuid())
+  postId    String
+  post      FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation("ReactionAuthor", fields: [userId], references: [id], onDelete: Cascade)
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId, emoji])
+  @@index([postId])
+}
+
+model PostReport {
+  id         String   @id @default(uuid())
+  postId     String
+  post       FeedPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  reporterId String
+  reporter   User     @relation("ReportAuthor", fields: [reporterId], references: [id], onDelete: Cascade)
+  reason     String
+  status     String   @default("OPEN") // OPEN | RESOLVED | DISMISSED
+  createdAt  DateTime @default(now())
+  resolvedAt DateTime?
+
+  @@index([postId])
+  @@index([status])
 }

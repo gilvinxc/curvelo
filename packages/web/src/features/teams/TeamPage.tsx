@@ -18,13 +18,15 @@ import { InviteDialog } from "./InviteDialog";
 import { WorkoutList } from "../workouts/WorkoutList";
 import { TeamCalendar } from "../calendar/TeamCalendar";
 import { GroupsSection } from "./GroupsSection";
+import { FeedPage } from "../feed/FeedPage";
 
 const CAN_INVITE = new Set(["COACH", "TEAM_ADMIN"]);
 
-export type TeamTab = "roster" | "workouts" | "groups" | "calendar";
+export type TeamTab = "roster" | "feed" | "workouts" | "groups" | "calendar";
 
 const TABS: { id: TeamTab; label: string; href: (id: string) => string }[] = [
   { id: "roster", label: "Roster", href: (id) => `/teams/${id}` },
+  { id: "feed", label: "Feed", href: (id) => `/teams/${id}/feed` },
   { id: "workouts", label: "Workouts", href: (id) => `/teams/${id}/workouts` },
   { id: "groups", label: "Groups", href: (id) => `/teams/${id}/groups` },
   { id: "calendar", label: "Calendar", href: (id) => `/teams/${id}/calendar` },
@@ -173,12 +175,19 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
           </span>
         </div>
         {canInvite && (
-          <Button
-            onClick={() => setInviteOpen(true)}
-            className="mt-5 w-full sm:w-auto"
-          >
-            + Invite athlete
-          </Button>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <Button
+              onClick={() => setInviteOpen(true)}
+              className="flex-1 sm:flex-none"
+            >
+              + Invite athlete
+            </Button>
+            <Link to={`/teams/${team.id}/reports`}>
+              <Button variant="secondary" className="min-h-[48px]">
+                Reported posts
+              </Button>
+            </Link>
+          </div>
         )}
       </Card>
 
@@ -210,6 +219,9 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
           canViewAthlete={canInvite}
           onInvite={() => setInviteOpen(true)}
         />
+      )}
+      {initialTab === "feed" && (
+        <FeedPage teamId={team.id} myRole={team.myRole} />
       )}
       {initialTab === "workouts" && (
         <WorkoutList teamId={team.id} myRole={team.myRole} />

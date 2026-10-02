@@ -13,6 +13,7 @@ import { workoutRoutes } from "./modules/workouts/routes.js";
 import { groupRoutes } from "./modules/groups/routes.js";
 import { assignmentRoutes } from "./modules/assignments/routes.js";
 import { activityRoutes } from "./modules/activities/routes.js";
+import { feedRoutes } from "./modules/feed/routes.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -42,6 +43,7 @@ export async function buildApp() {
   await app.register(groupRoutes, { prefix: "/api/v1" });
   await app.register(assignmentRoutes, { prefix: "/api/v1" });
   await app.register(activityRoutes, { prefix: "/api/v1" });
+  await app.register(feedRoutes, { prefix: "/api/v1" });
 
   return app;
 }

@@ -3,10 +3,13 @@ import type {
   ActivityStatsDTO,
   AssignmentDTO,
   AthleteViewDTO,
+  CommentDTO,
   CreateTeamInput,
   InvitationDTO,
   InvitationPreviewDTO,
+  PostDTO,
   RegisterInput,
+  ReportDTO,
   RosterMemberDTO,
   SessionUser,
   TeamDTO,
@@ -271,4 +274,38 @@ export const api = {
     request<{ athlete: AthleteViewDTO }>(
       `/teams/${teamId}/athletes/${userId}`,
     ),
+
+  // team feed
+  createPost: (teamId: string, input: { body?: string; activityId?: string }) =>
+    post<{ post: PostDTO }>(`/teams/${teamId}/feed`, input),
+  listFeed: (teamId: string, before?: string, limit = 20) =>
+    request<{ posts: PostDTO[] }>(
+      `/teams/${teamId}/feed?limit=${limit}${before ? `&before=${encodeURIComponent(before)}` : ""}`,
+    ),
+  deletePost: (postId: string) => del<{ ok: boolean }>(`/posts/${postId}`),
+
+  // comments
+  createComment: (postId: string, body: string) =>
+    post<{ comment: CommentDTO }>(`/posts/${postId}/comments`, { body }),
+  listComments: (postId: string) =>
+    request<{ comments: CommentDTO[] }>(`/posts/${postId}/comments`),
+  deleteComment: (commentId: string) =>
+    del<{ ok: boolean }>(`/comments/${commentId}`),
+
+  // reactions (toggle)
+  toggleReaction: (postId: string, emoji: string) =>
+    post<{ reactions: { emoji: string; count: number }[]; myReactions: string[] }>(
+      `/posts/${postId}/reactions`,
+      { emoji },
+    ),
+
+  // reports / moderation
+  reportPost: (postId: string, reason: string) =>
+    post<{ report: ReportDTO }>(`/posts/${postId}/report`, { reason }),
+  listReports: (teamId: string, status?: string) =>
+    request<{ reports: ReportDTO[] }>(
+      `/teams/${teamId}/reports${status ? `?status=${status}` : ""}`,
+    ),
+  resolveReport: (reportId: string, status: "RESOLVED" | "DISMISSED") =>
+    post<{ report: ReportDTO }>(`/reports/${reportId}/resolve`, { status }),
 };

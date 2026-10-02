@@ -12,6 +12,7 @@ import {
   PageHeader,
 } from "../../components/ui";
 import { cn } from "../../components/cx";
+import { ShareToFeedDialog } from "../feed/ShareToFeedDialog";
 import {
   activityKindLabel,
   activityTitle,
@@ -52,6 +53,8 @@ export function ActivityDetailPage() {
 
   const activity = detailQuery.data?.activity;
   const isOwner = !!activity && !!user && activity.userId === user.id;
+  const [shareOpen, setShareOpen] = useState(false);
+  const canShare = isOwner && activity?.visibility === "TEAM";
 
   // Resolve the linked workout (for the "completed workout" link) by finding
   // the assignment on the team calendar around the activity date.
@@ -120,14 +123,33 @@ export function ActivityDetailPage() {
         backTo="/dashboard"
         action={
           isOwner ? (
-            <Link to={`/activities/${activity.id}/edit`}>
-              <Button variant="secondary" className="min-h-[44px] px-4 text-[14px]">
-                Edit
-              </Button>
-            </Link>
+            <div className="flex shrink-0 gap-2">
+              {canShare && (
+                <Button
+                  variant="secondary"
+                  onClick={() => setShareOpen(true)}
+                  className="min-h-[44px] px-4 text-[14px]"
+                >
+                  Share
+                </Button>
+              )}
+              <Link to={`/activities/${activity.id}/edit`}>
+                <Button variant="secondary" className="min-h-[44px] px-4 text-[14px]">
+                  Edit
+                </Button>
+              </Link>
+            </div>
           ) : undefined
         }
       />
+
+      {activity && canShare && (
+        <ShareToFeedDialog
+          activity={activity}
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
 
       {error && (
         <div className="mb-4">

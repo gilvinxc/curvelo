@@ -14,7 +14,7 @@ import {
   requireManager,
 } from "../../lib/permissions.js";
 
-type ActivityWithJoins = {
+export type ActivityWithJoins = {
   id: string;
   userId: string;
   teamId: string | null;
@@ -41,7 +41,9 @@ const WITH_JOINS = {
   team: { select: { name: true } },
 } as const;
 
-function toDTO(a: ActivityWithJoins): ActivityDTO {
+export const ACTIVITY_WITH_JOINS = WITH_JOINS;
+
+export function toActivityDTO(a: ActivityWithJoins): ActivityDTO {
   return {
     id: a.id,
     userId: a.userId,
@@ -181,7 +183,7 @@ export async function createActivity(
     ipAddress,
   });
 
-  return toDTO(activity);
+  return toActivityDTO(activity);
 }
 
 export async function listMyActivities(
@@ -202,7 +204,7 @@ export async function listMyActivities(
     include: WITH_JOINS,
     orderBy: { startedAt: "desc" },
   });
-  return activities.map(toDTO);
+  return activities.map(toActivityDTO);
 }
 
 export async function getActivity(
@@ -216,7 +218,7 @@ export async function getActivity(
   if (!activity || !(await canView(actorId, activity))) {
     throw notFound("Activity not found");
   }
-  return toDTO(activity);
+  return toActivityDTO(activity);
 }
 
 export async function updateActivity(
@@ -290,7 +292,7 @@ export async function updateActivity(
     ipAddress,
   });
 
-  return toDTO(activity);
+  return toActivityDTO(activity);
 }
 
 export async function deleteActivity(
@@ -420,7 +422,7 @@ export async function athleteView(
           ? Math.round((totalDurationS / totalDistanceM) * 1000 * 10) / 10
           : null,
     },
-    recentActivities: recent.map(toDTO),
+    recentActivities: recent.map(toActivityDTO),
     upcomingAssignments: upcoming.map((a) => ({
       id: a.id,
       workoutId: a.workoutId,
@@ -470,5 +472,5 @@ export async function calendarActivities(
     include: WITH_JOINS,
     orderBy: { startedAt: "asc" },
   });
-  return activities.map(toDTO);
+  return activities.map(toActivityDTO);
 }

@@ -27,6 +27,7 @@ import {
 } from "./features/activities/ActivityFormPage";
 import { ActivityDetailPage } from "./features/activities/ActivityDetailPage";
 import { AthletePage } from "./features/athletes/AthletePage";
+import { ReportsRoute } from "./features/feed/ReportsPage";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -126,6 +127,22 @@ export function App() {
             element={
               <ProtectedRoute>
                 <TeamPage initialTab="roster" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teams/:id/feed"
+            element={
+              <ProtectedRoute>
+                <TeamPage initialTab="feed" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teams/:id/reports"
+            element={
+              <ProtectedRoute>
+                <ReportsRoute />
               </ProtectedRoute>
             }
           />

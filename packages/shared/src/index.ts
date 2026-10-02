@@ -5,4 +5,5 @@ export * from "./schemas/invitations.js";
 export * from "./schemas/users.js";
 export * from "./schemas/workouts.js";
 export * from "./schemas/activities.js";
+export * from "./schemas/feed.js";
 export * from "./types.js";

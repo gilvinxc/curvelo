@@ -149,3 +149,42 @@ export interface AthleteViewDTO {
   recentActivities: ActivityDTO[];
   upcomingAssignments: AssignmentDTO[];
 }
+
+export interface ReactionSummaryDTO {
+  emoji: string;
+  count: number;
+}
+
+export interface PostDTO {
+  id: string;
+  teamId: string;
+  kind: string;
+  body: string | null;
+  authorId: string;
+  authorName: string;
+  activity: ActivityDTO | null;
+  commentCount: number;
+  reactions: ReactionSummaryDTO[];
+  myReactions: string[];
+  createdAt: string;
+}
+
+export interface CommentDTO {
+  id: string;
+  postId: string;
+  authorId: string;
+  authorName: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface ReportDTO {
+  id: string;
+  postId: string;
+  postExcerpt: string;
+  reporterId: string;
+  reporterName: string;
+  reason: string;
+  status: string;
+  createdAt: string;
+}
