@@ -221,6 +221,52 @@ export interface ConsentDTO {
   guardianName: string;
 }
 
+export interface TrainingStats {
+  sessions: number;
+  activeDays: number;
+  totalDistanceM: number;
+  totalDurationS: number;
+  avgPaceSecPerKm: number | null;
+  streakDays: number;
+  longestRunM: number;
+  avgRpe: number | null;
+  assignmentsTotal: number;
+  assignmentsCompleted: number;
+  completionRate: number | null; // 0..1
+  paceTrend: "improving" | "stable" | "declining" | "insufficient";
+}
+
+export interface AthleteInsight {
+  athleteId: string;
+  athleteName: string;
+  periodDays: number;
+  stats: TrainingStats;
+  highlights: string[];
+  watchOuts: string[];
+  narrative: string;
+  provider: "local" | "llm";
+  generatedAt: string;
+}
+
+export interface TeamDigestAthlete {
+  athleteId: string;
+  athleteName: string;
+  sessions: number;
+  activeDays: number;
+  completionRate: number | null;
+  status: "on-track" | "quiet" | "needs-attention";
+}
+
+export interface TeamDigest {
+  teamId: string;
+  teamName: string;
+  periodDays: number;
+  athletes: TeamDigestAthlete[];
+  summary: string;
+  provider: "local" | "llm";
+  generatedAt: string;
+}
+
 export interface ConversationDTO {
   id: string;
   kind: string;

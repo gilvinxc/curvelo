@@ -20,4 +20,8 @@ export const config = {
   cookieSecure: process.env.NODE_ENV === "production",
   corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
   isProd: process.env.NODE_ENV === "production",
+  // AI coaching assistance. When both are set, the LLM provider is used;
+  // otherwise the built-in local analyst generates insights (no key needed).
+  aiApiKey: process.env.AI_API_KEY || null,
+  aiModel: process.env.AI_MODEL || null,
 } as const;

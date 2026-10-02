@@ -12,6 +12,7 @@ import {
 import { AssignmentRow } from "../calendar/CalendarBits";
 import { ActivityRow } from "../activities/ActivityRow";
 import { AthleteGuardians } from "../guardians/AthleteGuardians";
+import { AthleteInsights } from "../insights/AthleteInsights";
 import {
   formatDistanceM,
   formatDurationS,
@@ -124,6 +125,14 @@ export function AthletePage() {
           </div>
         )}
       </section>
+
+      {teamId && userId && (
+        <AthleteInsights
+          teamId={teamId}
+          athleteId={userId}
+          athleteName={athlete.displayName}
+        />
+      )}
 
       <div className="mt-8">
         <Link

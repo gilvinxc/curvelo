@@ -194,6 +194,14 @@ export function App() {
             }
           />
           <Route
+            path="/teams/:id/coaching"
+            element={
+              <ProtectedRoute>
+                <TeamPage initialTab="coaching" />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/workouts/:workoutId"
             element={
               <ProtectedRoute>

@@ -16,6 +16,7 @@ import { activityRoutes } from "./modules/activities/routes.js";
 import { feedRoutes } from "./modules/feed/routes.js";
 import { guardianRoutes } from "./modules/guardians/routes.js";
 import { messageRoutes } from "./modules/messages/routes.js";
+import { aiRoutes } from "./modules/ai/routes.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -48,6 +49,7 @@ export async function buildApp() {
   await app.register(feedRoutes, { prefix: "/api/v1" });
   await app.register(guardianRoutes, { prefix: "/api/v1" });
   await app.register(messageRoutes, { prefix: "/api/v1" });
+  await app.register(aiRoutes, { prefix: "/api/v1" });
 
   return app;
 }

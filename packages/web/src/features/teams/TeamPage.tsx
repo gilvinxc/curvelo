@@ -20,18 +20,20 @@ import { TeamCalendar } from "../calendar/TeamCalendar";
 import { GroupsSection } from "./GroupsSection";
 import { FeedPage } from "../feed/FeedPage";
 import { MessagesSection } from "../messages/MessagesSection";
+import { TeamDigestSection } from "../insights/TeamDigestSection";
 
 const CAN_INVITE = new Set(["COACH", "TEAM_ADMIN"]);
 
-export type TeamTab = "roster" | "feed" | "messages" | "workouts" | "groups" | "calendar";
+export type TeamTab = "roster" | "feed" | "messages" | "workouts" | "groups" | "calendar" | "coaching";
 
-const TABS: { id: TeamTab; label: string; href: (id: string) => string }[] = [
+const TABS: { id: TeamTab; label: string; href: (id: string) => string; coachOnly?: boolean }[] = [
   { id: "roster", label: "Roster", href: (id) => `/teams/${id}` },
   { id: "feed", label: "Feed", href: (id) => `/teams/${id}/feed` },
   { id: "messages", label: "Messages", href: (id) => `/teams/${id}/messages` },
   { id: "workouts", label: "Workouts", href: (id) => `/teams/${id}/workouts` },
   { id: "groups", label: "Groups", href: (id) => `/teams/${id}/groups` },
   { id: "calendar", label: "Calendar", href: (id) => `/teams/${id}/calendar` },
+  { id: "coaching", label: "Coaching", href: (id) => `/teams/${id}/coaching`, coachOnly: true },
 ];
 
 function RosterTab({
@@ -156,6 +158,7 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
 
   const { team } = teamQuery.data;
   const canInvite = team.myRole !== null && CAN_INVITE.has(team.myRole);
+  const tabs = TABS.filter((t) => !t.coachOnly || canInvite);
 
   return (
     <div>
@@ -197,7 +200,7 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
         aria-label="Team sections"
         className="mb-5 grid auto-cols-fr grid-flow-col gap-1 overflow-x-auto rounded-xl border border-white/10 bg-ink-900 p-1"
       >
-        {TABS.map((tab) => (
+        {tabs.map((tab) => (
           <Link
             key={tab.id}
             to={tab.href(team.id)}
@@ -236,6 +239,9 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
       )}
       {initialTab === "calendar" && (
         <TeamCalendar teamId={team.id} myRole={team.myRole} />
+      )}
+      {initialTab === "coaching" && canInvite && (
+        <TeamDigestSection teamId={team.id} />
       )}
 
       <InviteDialog

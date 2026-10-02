@@ -3,6 +3,7 @@ import type {
   ActivityDTO,
   ActivityStatsDTO,
   AssignmentDTO,
+  AthleteInsight,
   AthleteViewDTO,
   ChatMessageDTO,
   ChildSummaryDTO,
@@ -20,6 +21,7 @@ import type {
   ReportDTO,
   RosterMemberDTO,
   SessionUser,
+  TeamDigest,
   TeamDTO,
   TeamGroupDTO,
   TeamRole,
@@ -376,4 +378,12 @@ export const api = {
     patch<{ message: ChatMessageDTO }>(`/messages/${messageId}`, { body }),
   deleteMessage: (messageId: string) =>
     del<{ ok: boolean }>(`/messages/${messageId}`),
+
+  // AI coaching assistance (coach/admin only)
+  getAthleteInsight: (teamId: string, athleteId: string) =>
+    request<{ insight: AthleteInsight }>(
+      `/teams/${teamId}/athletes/${athleteId}/insights`,
+    ),
+  getTeamDigest: (teamId: string, days = 28) =>
+    request<{ digest: TeamDigest }>(`/teams/${teamId}/digest?days=${days}`),
 };
