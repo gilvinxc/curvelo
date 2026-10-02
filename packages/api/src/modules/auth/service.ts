@@ -105,6 +105,9 @@ export async function register(
         passwordHash,
         displayName: input.displayName.trim(),
         dateOfBirth: input.dateOfBirth ? new Date(input.dateOfBirth) : null,
+        systemRole: config.systemAdminEmails.includes(email)
+          ? "SYSTEM_ADMIN"
+          : null,
       },
     });
     await tx.profile.create({
@@ -141,6 +144,14 @@ export async function login(
   }
   if (user.status !== "ACTIVE") {
     throw new AppError(403, "ACCOUNT_DISABLED", "This account is disabled");
+  }
+  // Bootstrap: env-listed admin emails get the role even if the account
+  // predates the env var.
+  if (!user.systemRole && config.systemAdminEmails.includes(email)) {
+    await db.user.update({
+      where: { id: user.id },
+      data: { systemRole: "SYSTEM_ADMIN" },
+    });
   }
 
   await audit({

@@ -11,6 +11,10 @@ import type {
   CommentDTO,
   DocumentDTO,
   DocumentRequirementDTO,
+  AdminAuditDTO,
+  AdminStatsDTO,
+  AdminTeamDTO,
+  AdminUserDTO,
   ConsentDTO,
   ConversationDTO,
   CreateTeamInput,
@@ -230,6 +234,21 @@ export const api = {
     post<{ ok: boolean }>("/auth/forgot-password", { email }),
   resetPassword: (token: string, password: string) =>
     post<{ ok: boolean }>("/auth/reset-password", { token, password }),
+  // admin
+  adminStats: () => request<{ stats: AdminStatsDTO }>("/admin/stats"),  adminUsers: (search?: string) =>
+    request<{ users: AdminUserDTO[]; total: number }>(
+      `/admin/users${search ? `?search=${encodeURIComponent(search)}` : ""}`,
+    ),
+  adminUpdateUser: (
+    userId: string,
+    input: { status?: "ACTIVE" | "SUSPENDED"; systemRole?: "SYSTEM_ADMIN" | null },
+  ) => patch<{ user: AdminUserDTO }>(`/admin/users/${userId}`, input),
+  adminTeams: () => request<{ teams: AdminTeamDTO[] }>("/admin/teams"),
+  adminAudit: (action?: string) =>
+    request<{ events: AdminAuditDTO[]; total: number }>(
+      `/admin/audit${action ? `?action=${encodeURIComponent(action)}` : ""}`,
+    ),
+
   // documents
   documentRequirements: (teamId: string) =>
     request<{ requirements: DocumentRequirementDTO[] }>(

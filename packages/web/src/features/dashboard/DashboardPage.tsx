@@ -51,6 +51,27 @@ export function DashboardPage() {
         <ErrorBanner message="Couldn't load your teams. Pull to retry." />
       )}
 
+      {user?.systemRole === "SYSTEM_ADMIN" && (
+        <div className="mb-6">
+          <Link to="/admin" className="block">
+            <Card className="border-volt-400/30 transition hover:border-volt-400/60">
+              <div className="flex items-center gap-3">
+                <span className="text-[22px]">🛡️</span>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-[16px] font-extrabold text-ink-50">
+                    Site admin
+                  </h3>
+                  <p className="text-[13px] text-mist">
+                    Users, teams, and the audit log.
+                  </p>
+                </div>
+                <span className="text-mist">›</span>
+              </div>
+            </Card>
+          </Link>
+        </div>
+      )}
+
       {teams.length > 0 && (
         <>
           <UpcomingWorkouts />

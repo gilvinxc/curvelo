@@ -28,7 +28,13 @@ export const config = {
   // mail goes through Resend; otherwise reset links are logged server-side
   // (dev fallback — never used as the production path).
   resendApiKey: process.env.RESEND_API_KEY || null,
-  mailFrom: process.env.MAIL_FROM ?? "Curvelo <noreply@curvelo.app>",
+  // Bootstrap site admins: comma-separated emails. Matching accounts get
+  // SYSTEM_ADMIN on register/login. The admin board itself can then grant
+  // or revoke the role without env changes.
+  systemAdminEmails: (process.env.SYSTEM_ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),  mailFrom: process.env.MAIL_FROM ?? "Curvelo <noreply@curvelo.app>",
   // Public web URL used to build links in emails.
   webUrl: process.env.WEB_URL ?? "http://localhost:5173",
   passwordResetTtlMinutes: parseInt(process.env.PASSWORD_RESET_TTL_MINUTES ?? "60", 10),

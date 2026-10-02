@@ -526,3 +526,44 @@ export interface AthleteDocumentStatus {
   }>;
   cleared: boolean;
 }
+
+export interface AdminUserDTO {
+  id: string;
+  email: string;
+  displayName: string;
+  status: string;
+  systemRole: string | null;
+  teamCount: number;
+  createdAt: string;
+}
+
+export interface AdminTeamDTO {
+  id: string;
+  name: string;
+  slug: string;
+  visibility: string;
+  memberCount: number;
+  ownerName: string;
+  createdAt: string;
+}
+
+export interface AdminAuditDTO {
+  id: string;
+  actorId: string | null;
+  actorName: string | null;
+  action: string;
+  entityType: string | null;
+  entityId: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+}
+
+export interface AdminStatsDTO {
+  users: number;
+  teams: number;
+  activities: number;
+  raceResults: number;
+  documents: number;
+  posts: number;
+  auditEvents24h: number;
+}

@@ -13,6 +13,7 @@ import { RegisterPage } from "./features/auth/RegisterPage";
 import { ForgotPasswordPage } from "./features/auth/ForgotPasswordPage";
 import { ResetPasswordPage } from "./features/auth/ResetPasswordPage";
 import { DashboardPage } from "./features/dashboard/DashboardPage";
+import { AdminPage } from "./features/admin/AdminPage";
 import { ProgressPage } from "./features/progress/ProgressPage";
 import { NewTeamPage } from "./features/teams/NewTeamPage";
 import { TeamPage } from "./features/teams/TeamPage";
@@ -144,6 +145,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminPage />
               </ProtectedRoute>
             }
           />

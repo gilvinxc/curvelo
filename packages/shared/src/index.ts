@@ -13,4 +13,5 @@ export * from "./schemas/imports.js";
 export * from "./schemas/goals.js";
 export * from "./schemas/records.js";
 export * from "./schemas/documents.js";
+export * from "./schemas/admin.js";
 export * from "./types.js";
