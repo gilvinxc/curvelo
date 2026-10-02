@@ -12,6 +12,7 @@ import {
   RoleBadge,
 } from "../../components/ui";
 import { UpcomingWorkouts } from "../calendar/PersonalCalendar";
+import { TrainingLog } from "../activities/TrainingLog";
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -45,7 +46,12 @@ export function DashboardPage() {
         <ErrorBanner message="Couldn't load your teams. Pull to retry." />
       )}
 
-      {teams.length > 0 && <UpcomingWorkouts />}
+      {teams.length > 0 && (
+        <>
+          <UpcomingWorkouts />
+          <TrainingLog />
+        </>
+      )}
 
       {teams.length === 0 && !teamsQuery.isError ? (
         <EmptyState

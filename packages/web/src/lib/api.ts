@@ -1,5 +1,8 @@
 import type {
+  ActivityDTO,
+  ActivityStatsDTO,
   AssignmentDTO,
+  AthleteViewDTO,
   CreateTeamInput,
   InvitationDTO,
   InvitationPreviewDTO,
@@ -145,6 +148,38 @@ export interface CreateAssignmentPayload {
   notes?: string;
 }
 
+export interface CreateActivityPayload {
+  kind?: string;
+  title?: string;
+  startedAt: string; // ISO datetime
+  distanceM?: number;
+  durationS?: number;
+  avgHrBpm?: number;
+  maxHrBpm?: number;
+  effortRpe?: number;
+  calories?: number;
+  notes?: string;
+  teamId?: string;
+  assignmentId?: string;
+  visibility?: "PRIVATE" | "TEAM";
+}
+
+export interface UpdateActivityPayload {
+  kind?: string;
+  title?: string | null;
+  startedAt?: string;
+  distanceM?: number;
+  durationS?: number;
+  avgHrBpm?: number;
+  maxHrBpm?: number;
+  effortRpe?: number;
+  calories?: number;
+  notes?: string | null;
+  teamId?: string | null;
+  assignmentId?: string | null;
+  visibility?: "PRIVATE" | "TEAM";
+}
+
 export const api = {
   // auth
   register: (input: RegisterInput) =>
@@ -206,11 +241,34 @@ export const api = {
   deleteAssignment: (assignmentId: string) =>
     del<{ ok: boolean }>(`/assignments/${assignmentId}`),
   teamCalendar: (teamId: string, from: string, to: string) =>
-    request<{ assignments: AssignmentDTO[] }>(
+    request<{ assignments: AssignmentDTO[]; activities: ActivityDTO[] }>(
       `/teams/${teamId}/calendar?from=${from}&to=${to}`,
     ),
   myCalendar: (from: string, to: string) =>
-    request<{ assignments: AssignmentDTO[] }>(
+    request<{ assignments: AssignmentDTO[]; activities: ActivityDTO[] }>(
       `/users/me/calendar?from=${from}&to=${to}`,
+    ),
+
+  // activities
+  createActivity: (input: CreateActivityPayload) =>
+    post<{ activity: ActivityDTO }>("/activities", input),
+  listActivities: (from: string, to: string, teamId?: string) =>
+    request<{ activities: ActivityDTO[] }>(
+      `/activities?from=${from}&to=${to}${teamId ? `&teamId=${teamId}` : ""}`,
+    ),
+  getActivity: (id: string) =>
+    request<{ activity: ActivityDTO }>(`/activities/${id}`),
+  updateActivity: (id: string, input: UpdateActivityPayload) =>
+    patch<{ activity: ActivityDTO }>(`/activities/${id}`, input),
+  deleteActivity: (id: string) => del<{ ok: boolean }>(`/activities/${id}`),
+  myStats: (from: string, to: string) =>
+    request<{ stats: ActivityStatsDTO }>(
+      `/users/me/stats?from=${from}&to=${to}`,
+    ),
+
+  // coach athlete view
+  getAthlete: (teamId: string, userId: string) =>
+    request<{ athlete: AthleteViewDTO }>(
+      `/teams/${teamId}/athletes/${userId}`,
     ),
 };

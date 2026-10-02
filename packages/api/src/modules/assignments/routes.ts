@@ -11,6 +11,8 @@ import {
   myCalendar,
   teamCalendar,
 } from "./service.js";
+import { calendarActivities } from "../activities/service.js";
+import { activeMembership } from "../../lib/permissions.js";
 
 const assignmentParams = z.object({ assignmentId: z.string().uuid() });
 
@@ -42,15 +44,22 @@ export async function assignmentRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  // Team training calendar.
+  // Team training calendar: planned assignments + completed activities.
   app.get(
     "/teams/:id/calendar",
     { preHandler: [app.authenticate] },
     async (request, reply) => {
       const { id } = teamParamsSchema.parse(request.params);
       const { from, to } = calendarQuerySchema.parse(request.query);
-      const assignments = await teamCalendar(request.user!.id, id, from, to);
-      return reply.send({ assignments });
+      const actorId = request.user!.id;
+      const membership = await activeMembership(actorId, id);
+      const isManager =
+        membership.role === "COACH" || membership.role === "TEAM_ADMIN";
+      const [assignments, activities] = await Promise.all([
+        teamCalendar(actorId, id, from, to),
+        calendarActivities(actorId, id, from, to, isManager),
+      ]);
+      return reply.send({ assignments, activities });
     },
   );
 
@@ -60,8 +69,12 @@ export async function assignmentRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [app.authenticate] },
     async (request, reply) => {
       const { from, to } = calendarQuerySchema.parse(request.query);
-      const assignments = await myCalendar(request.user!.id, from, to);
-      return reply.send({ assignments });
+      const actorId = request.user!.id;
+      const [assignments, activities] = await Promise.all([
+        myCalendar(actorId, from, to),
+        calendarActivities(actorId, null, from, to, false),
+      ]);
+      return reply.send({ assignments, activities });
     },
   );
 }

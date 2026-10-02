@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AssignmentDTO } from "@curvelo/shared";
+import type { ActivityDTO, AssignmentDTO } from "@curvelo/shared";
 import { api, ApiError } from "../../lib/api";
 import {
   EmptyState,
@@ -8,9 +8,21 @@ import {
   FullScreenLoader,
 } from "../../components/ui";
 import { AssignmentRow, CalendarMonth, monthRange } from "./CalendarBits";
+import { ActivityRow } from "../activities/ActivityRow";
+import { activityYMD } from "../../lib/activityFormat";
 import { formatYMDLong, toYMD } from "../../lib/workoutFormat";
 
 const CAN_MANAGE = new Set(["COACH", "TEAM_ADMIN"]);
+
+function logCompletionHref(a: AssignmentDTO): string {
+  const params = new URLSearchParams({
+    assignmentId: a.id,
+    workoutTitle: a.workoutTitle,
+    scheduledDate: a.scheduledDate,
+    teamId: a.teamId,
+  });
+  return `/activities/new?${params.toString()}`;
+}
 
 export function TeamCalendar({
   teamId,
@@ -49,10 +61,15 @@ export function TeamCalendar({
   });
 
   const assignments = calQuery.data?.assignments ?? [];
+  const activities = calQuery.data?.activities ?? [];
   const dayAssignments = (selectedDate
     ? assignments.filter((a) => a.scheduledDate === selectedDate)
     : []
   ).sort((a, b) => a.workoutTitle.localeCompare(b.workoutTitle));
+  const dayActivities = (selectedDate
+    ? activities.filter((a) => activityYMD(a.startedAt) === selectedDate)
+    : []
+  ).sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1));
 
   return (
     <div>
@@ -92,6 +109,7 @@ export function TeamCalendar({
         <>
           <CalendarMonth
             assignments={assignments}
+            activities={activities}
             monthOffset={monthOffset}
             selectedDate={selectedDate}
             onSelectDate={(d) => setSelectedDate((prev) => (prev === d ? null : d))}
@@ -105,10 +123,10 @@ export function TeamCalendar({
               <p className="text-[14px] text-mist">
                 Tap a day to see what's scheduled.
               </p>
-            ) : dayAssignments.length === 0 ? (
+            ) : dayAssignments.length === 0 && dayActivities.length === 0 ? (
               <EmptyState
                 title="Nothing scheduled"
-                body="No workouts assigned for this day yet."
+                body="No workouts assigned or logged for this day yet."
               />
             ) : (
               <div className="flex flex-col gap-2">
@@ -118,7 +136,11 @@ export function TeamCalendar({
                     assignment={a}
                     onDelete={canManage ? () => deleteMutation.mutate(a.id) : undefined}
                     deleting={deletingId === a.id}
+                    logHref={logCompletionHref(a)}
                   />
+                ))}
+                {dayActivities.map((a: ActivityDTO) => (
+                  <ActivityRow key={a.id} activity={a} showAthlete />
                 ))}
               </div>
             )}

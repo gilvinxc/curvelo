@@ -1,40 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
-import { getApp, registerUser, truncate, cookieHeader, TestUser } from "./helpers.js";
-
-export async function createTeamAs(coach: TestUser, name: string) {
-  const app = await getApp();
-  const res = await request(app.server)
-    .post("/api/v1/teams")
-    .set(cookieHeader(coach))
-    .send({ name });
-  if (res.status !== 201) throw new Error(`createTeam failed: ${res.status}`);
-  return res.body.team.id as string;
-}
-
-export const INTERVAL_WORKOUT = {
-  title: "6x800m Intervals",
-  description: "Classic VO2max session",
-  kind: "INTERVAL",
-  steps: [
-    { kind: "WARMUP", distanceM: 1600, targetRpe: 4 },
-    { kind: "INTERVAL", distanceM: 800, repetitions: 6, targetPaceS: 200, notes: "2:00 rest between" },
-    { kind: "RECOVERY", durationS: 120, repetitions: 6 },
-    { kind: "COOLDOWN", distanceM: 1600, targetRpe: 3 },
-  ],
-};
-
-export async function createWorkoutAs(coach: TestUser, teamId: string, body: object = INTERVAL_WORKOUT) {
-  const app = await getApp();
-  const res = await request(app.server)
-    .post(`/api/v1/teams/${teamId}/workouts`)
-    .set(cookieHeader(coach))
-    .send(body);
-  if (res.status !== 201) {
-    throw new Error(`createWorkout failed: ${res.status} ${JSON.stringify(res.body)}`);
-  }
-  return res.body.workout;
-}
+import { getApp, registerUser, truncate, cookieHeader, createTeamAs, createWorkoutAs, INTERVAL_WORKOUT } from "./helpers.js";
 
 describe("workouts", () => {
   beforeEach(truncate);

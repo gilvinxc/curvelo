@@ -1,20 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
-import { getApp, registerUser, truncate, cookieHeader, TestUser } from "./helpers.js";
+import { getApp, registerUser, truncate, cookieHeader, TestUser, createTeamAs, createWorkoutAs, addRunnerToTeam } from "./helpers.js";
 import { db } from "../src/db.js";
-import { createTeamAs, createWorkoutAs } from "./workouts.test.js";
-
-async function addRunnerToTeam(coach: TestUser, teamId: string, runner: TestUser) {
-  const app = await getApp();
-  const invite = await request(app.server)
-    .post(`/api/v1/teams/${teamId}/invitations`)
-    .set(cookieHeader(coach))
-    .send({ email: runner.email, role: "RUNNER" });
-  const accept = await request(app.server)
-    .post(`/api/v1/invitations/${invite.body.invitation.token}/accept`)
-    .set(cookieHeader(runner));
-  if (accept.status !== 200) throw new Error("accept failed");
-}
 
 async function setup() {
   const app = await getApp();

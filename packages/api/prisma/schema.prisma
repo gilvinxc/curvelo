@@ -85,6 +85,7 @@ model User {
   authoredAssignments WorkoutAssignment[] @relation("AssignmentAuthor")
   receivedAssignments WorkoutAssignment[] @relation("AssignmentRecipient")
   groupMemberships    TeamGroupMember[]
+  activities          Activity[]
 }
 
 model RefreshToken {
@@ -150,6 +151,7 @@ model Team {
   workouts        Workout[]
   groups          TeamGroup[]
   assignments     WorkoutAssignment[]
+  activities      Activity[]
 }
 
 model TeamMembership {
@@ -360,7 +362,60 @@ model WorkoutAssignment {
   createdAt        DateTime   @default(now())
   updatedAt        DateTime   @updatedAt
 
+  completions Activity[] @relation("AssignmentCompletions")
+
   @@index([teamId, scheduledDate])
   @@index([assignedToUserId, scheduledDate])
   @@index([groupId, scheduledDate])
+}
+
+// ─── Slice 3: manual activity logging ────────────────────────────────────
+
+enum ActivityKind {
+  RUN
+  WALK
+  CROSS_TRAINING
+  STRENGTH
+  REST_DAY
+  OTHER
+}
+
+enum ActivitySource {
+  MANUAL
+  GARMIN
+  STRAVA
+  APPLE_HEALTH
+  GOOGLE_HEALTH
+  FILE_IMPORT
+}
+
+model Activity {
+  id           String         @id @default(uuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teamId       String?
+  team         Team?          @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  assignmentId String?
+  assignment   WorkoutAssignment? @relation("AssignmentCompletions", fields: [assignmentId], references: [id], onDelete: SetNull)
+  kind         ActivityKind   @default(RUN)
+  title        String?
+  startedAt    DateTime
+  distanceM    Float?
+  durationS    Int?
+  avgPaceS     Float?
+  avgHrBpm     Int?
+  maxHrBpm     Int?
+  effortRpe    Int?
+  calories     Int?
+  notes        String?
+  source       ActivitySource @default(MANUAL)
+  externalId   String?
+  visibility   String         @default("TEAM") // PRIVATE | TEAM
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, startedAt])
+  @@index([teamId, startedAt])
+  @@unique([source, externalId])
 }

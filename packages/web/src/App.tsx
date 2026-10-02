@@ -21,6 +21,12 @@ import { WorkoutDetailPage } from "./features/workouts/WorkoutDetailPage";
 import { PersonalCalendarPage } from "./features/calendar/PersonalCalendar";
 import { InviteAcceptPage } from "./features/invitations/InviteAcceptPage";
 import { SettingsPage } from "./features/settings/SettingsPage";
+import {
+  EditActivityPage,
+  NewActivityPage,
+} from "./features/activities/ActivityFormPage";
+import { ActivityDetailPage } from "./features/activities/ActivityDetailPage";
+import { AthletePage } from "./features/athletes/AthletePage";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -176,6 +182,38 @@ export function App() {
             element={
               <ProtectedRoute>
                 <PersonalCalendarPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/activities/new"
+            element={
+              <ProtectedRoute>
+                <NewActivityPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/activities/:id"
+            element={
+              <ProtectedRoute>
+                <ActivityDetailPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/activities/:id/edit"
+            element={
+              <ProtectedRoute>
+                <EditActivityPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teams/:id/athletes/:userId"
+            element={
+              <ProtectedRoute>
+                <AthletePage />
               </ProtectedRoute>
             }
           />

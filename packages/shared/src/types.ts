@@ -111,3 +111,41 @@ export interface AssignmentDTO {
   needsApproval: boolean;
   createdByName: string;
 }
+
+export interface ActivityDTO {
+  id: string;
+  userId: string;
+  userName: string;
+  teamId: string | null;
+  teamName: string | null;
+  assignmentId: string | null;
+  kind: string;
+  title: string | null;
+  startedAt: string;
+  distanceM: number | null;
+  durationS: number | null;
+  avgPaceS: number | null;
+  avgHrBpm: number | null;
+  maxHrBpm: number | null;
+  effortRpe: number | null;
+  calories: number | null;
+  notes: string | null;
+  source: string;
+  visibility: string;
+}
+
+export interface ActivityStatsDTO {
+  count: number;
+  totalDistanceM: number;
+  totalDurationS: number;
+  avgPaceS: number | null;
+}
+
+export interface AthleteViewDTO {
+  userId: string;
+  displayName: string;
+  role: string;
+  stats: ActivityStatsDTO;
+  recentActivities: ActivityDTO[];
+  upcomingAssignments: AssignmentDTO[];
+}

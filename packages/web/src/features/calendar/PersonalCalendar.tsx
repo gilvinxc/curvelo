@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import type { ActivityDTO, AssignmentDTO } from "@curvelo/shared";
 import { api } from "../../lib/api";
 import {
   ErrorBanner,
@@ -7,7 +8,19 @@ import {
   PageHeader,
 } from "../../components/ui";
 import { AssignmentRow, CalendarMonth, monthRange } from "./CalendarBits";
+import { ActivityRow } from "../activities/ActivityRow";
+import { activityYMD } from "../../lib/activityFormat";
 import { addDaysYMD, formatYMDLong, todayYMD } from "../../lib/workoutFormat";
+
+function logCompletionHref(a: AssignmentDTO): string {
+  const params = new URLSearchParams({
+    assignmentId: a.id,
+    workoutTitle: a.workoutTitle,
+    scheduledDate: a.scheduledDate,
+    teamId: a.teamId,
+  });
+  return `/activities/new?${params.toString()}`;
+}
 
 export function PersonalCalendarPage() {
   const [monthOffset, setMonthOffset] = useState(0);
@@ -20,10 +33,15 @@ export function PersonalCalendarPage() {
   });
 
   const assignments = calQuery.data?.assignments ?? [];
+  const activities = calQuery.data?.activities ?? [];
   const dayAssignments = (selectedDate
     ? assignments.filter((a) => a.scheduledDate === selectedDate)
     : []
   ).sort((a, b) => a.workoutTitle.localeCompare(b.workoutTitle));
+  const dayActivities = (selectedDate
+    ? activities.filter((a) => activityYMD(a.startedAt) === selectedDate)
+    : []
+  ).sort((a, b) => (a.startedAt < b.startedAt ? 1 : -1));
 
   return (
     <div>
@@ -63,6 +81,7 @@ export function PersonalCalendarPage() {
         <>
           <CalendarMonth
             assignments={assignments}
+            activities={activities}
             monthOffset={monthOffset}
             selectedDate={selectedDate}
             onSelectDate={(d) => setSelectedDate((prev) => (prev === d ? null : d))}
@@ -71,12 +90,20 @@ export function PersonalCalendarPage() {
             <h3 className="mb-3 text-[13px] font-bold uppercase tracking-[0.18em] text-mist">
               {selectedDate ? formatYMDLong(selectedDate) : "Pick a day"}
             </h3>
-            {selectedDate && dayAssignments.length === 0 ? (
+            {selectedDate && dayAssignments.length === 0 && dayActivities.length === 0 ? (
               <p className="text-[14px] text-mist">Nothing scheduled that day.</p>
             ) : (
               <div className="flex flex-col gap-2">
                 {dayAssignments.map((a) => (
-                  <AssignmentRow key={a.id} assignment={a} showTeam />
+                  <AssignmentRow
+                    key={a.id}
+                    assignment={a}
+                    showTeam
+                    logHref={logCompletionHref(a)}
+                  />
+                ))}
+                {dayActivities.map((a: ActivityDTO) => (
+                  <ActivityRow key={a.id} activity={a} />
                 ))}
               </div>
             )}
@@ -134,7 +161,12 @@ export function UpcomingWorkouts() {
       </div>
       <div className="flex flex-col gap-2">
         {assignments.slice(0, 8).map((a) => (
-          <AssignmentRow key={a.id} assignment={a} showTeam />
+          <AssignmentRow
+            key={a.id}
+            assignment={a}
+            showTeam
+            logHref={logCompletionHref(a)}
+          />
         ))}
       </div>
     </section>

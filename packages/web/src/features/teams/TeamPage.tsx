@@ -33,10 +33,12 @@ const TABS: { id: TeamTab; label: string; href: (id: string) => string }[] = [
 function RosterTab({
   teamId,
   canInvite,
+  canViewAthlete,
   onInvite,
 }: {
   teamId: string;
   canInvite: boolean;
+  canViewAthlete: boolean;
   onInvite: () => void;
 }) {
   const rosterQuery = useQuery({
@@ -82,27 +84,45 @@ function RosterTab({
         />
       ) : (
         <div className="flex flex-col gap-2">
-          {sorted.map((member) => (
-            <Card key={member.userId} className="p-4">
-              <div className="flex items-center gap-3">
-                <Avatar name={member.displayName} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-[15px] font-bold">
-                    {member.displayName}
-                  </p>
-                  {member.email && (
-                    <p className="truncate text-[13px] text-mist">
-                      {member.email}
+          {sorted.map((member) => {
+            const card = (
+              <Card key={member.userId} className="p-4 transition hover:border-volt-400/40">
+                <div className="flex items-center gap-3">
+                  <Avatar name={member.displayName} />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[15px] font-bold">
+                      {member.displayName}
                     </p>
+                    {member.email && (
+                      <p className="truncate text-[13px] text-mist">
+                        {member.email}
+                      </p>
+                    )}
+                    <p className="text-[12px] text-mist/70">
+                      Joined {formatDate(member.joinedAt)}
+                    </p>
+                  </div>
+                  <RoleBadge role={member.role} />
+                  {canViewAthlete && (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a7ae97" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="shrink-0">
+                      <path d="m9 18 6-6-6-6" />
+                    </svg>
                   )}
-                  <p className="text-[12px] text-mist/70">
-                    Joined {formatDate(member.joinedAt)}
-                  </p>
                 </div>
-                <RoleBadge role={member.role} />
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+            return canViewAthlete ? (
+              <Link
+                key={member.userId}
+                to={`/teams/${teamId}/athletes/${member.userId}`}
+                aria-label={`View ${member.displayName}'s training`}
+              >
+                {card}
+              </Link>
+            ) : (
+              card
+            );
+          })}
         </div>
       )}
     </div>
@@ -187,6 +207,7 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
         <RosterTab
           teamId={team.id}
           canInvite={canInvite}
+          canViewAthlete={canInvite}
           onInvite={() => setInviteOpen(true)}
         />
       )}

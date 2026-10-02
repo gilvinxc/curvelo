@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
-import type { AssignmentDTO } from "@curvelo/shared";
+import { Link } from "react-router-dom";
+import type { ActivityDTO, AssignmentDTO } from "@curvelo/shared";
 import { addDaysYMD, formatYMDCompact, toYMD } from "../../lib/workoutFormat";
+import { activityYMD } from "../../lib/activityFormat";
 import { cn } from "../../components/cx";
 
 function startOfMonth(d: Date): Date {
@@ -24,11 +26,13 @@ const WEEKDAYS = ["S", "M", "T", "W", "T", "F", "S"];
 
 export function CalendarMonth({
   assignments,
+  activities = [],
   monthOffset,
   selectedDate,
   onSelectDate,
 }: {
   assignments: AssignmentDTO[];
+  activities?: ActivityDTO[];
   monthOffset: number;
   selectedDate: string | null;
   onSelectDate: (ymd: string) => void;
@@ -49,14 +53,20 @@ export function CalendarMonth({
   }, [monthOffset]);
 
   const byDate = useMemo(() => {
-    const map = new Map<string, AssignmentDTO[]>();
+    const map = new Map<string, { kind: "planned" | "done"; id: string; needsApproval?: boolean }[]>();
     for (const a of assignments) {
       const arr = map.get(a.scheduledDate) ?? [];
-      arr.push(a);
+      arr.push({ kind: "planned", id: a.id, needsApproval: a.needsApproval });
       map.set(a.scheduledDate, arr);
     }
+    for (const act of activities) {
+      const ymd = activityYMD(act.startedAt);
+      const arr = map.get(ymd) ?? [];
+      arr.push({ kind: "done", id: act.id });
+      map.set(ymd, arr);
+    }
     return map;
-  }, [assignments]);
+  }, [assignments, activities]);
 
   const today = toYMD(new Date());
 
@@ -96,12 +106,17 @@ export function CalendarMonth({
                 {Number(ymd.slice(8))}
               </span>
               <span className="mt-1 flex h-1.5 items-center gap-[3px]">
-                {(byDate.get(ymd) ?? []).slice(0, 3).map((a) => (
+                {(byDate.get(ymd) ?? []).slice(0, 3).map((e) => (
                   <span
-                    key={a.id}
+                    key={`${e.kind}-${e.id}`}
+                    title={e.kind === "done" ? "Completed" : "Planned"}
                     className={cn(
                       "h-1.5 w-1.5 rounded-full",
-                      a.needsApproval ? "bg-amber-400" : "bg-volt-400",
+                      e.needsApproval
+                        ? "bg-amber-400"
+                        : e.kind === "done"
+                          ? "bg-volt-400"
+                          : "border border-volt-400/70",
                     )}
                   />
                 ))}
@@ -126,11 +141,14 @@ export function AssignmentRow({
   showTeam,
   onDelete,
   deleting,
+  logHref,
 }: {
   assignment: AssignmentDTO;
   showTeam?: boolean;
   onDelete?: () => void;
   deleting?: boolean;
+  /** When set, renders a "log completion" action linking to the activity form. */
+  logHref?: string;
 }) {
   const [confirming, setConfirming] = useState(false);
   return (
@@ -157,7 +175,18 @@ export function AssignmentRow({
           </span>
         </div>
       </div>
-      {onDelete &&
+      <div className="flex shrink-0 items-center gap-1">
+        {logHref && (
+          <Link
+            to={logHref}
+            aria-label={`Log completion for ${assignment.workoutTitle}`}
+            title="Log completion"
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-volt-300 hover:bg-volt-400/10"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /><path d="m22 10-7.5 7.5L13 19" opacity="0.4" /></svg>
+          </Link>
+        )}
+        {onDelete &&
         (confirming ? (
           <div className="flex shrink-0 gap-1.5">
             <button
@@ -186,6 +215,7 @@ export function AssignmentRow({
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /></svg>
           </button>
         ))}
+      </div>
     </div>
   );
 }
