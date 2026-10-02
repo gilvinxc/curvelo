@@ -84,9 +84,9 @@ export function CityInput({ value, onChange, placeholder, verified }: CityInputP
         )}
       </div>
       {open && (
-        <ul className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-xl border border-line bg-white shadow-lg">
+        <ul className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-xl border border-line bg-white text-ink-900 shadow-lg">
           {loading && (
-            <li className="px-3 py-2 text-[13px] text-mist">Searching places…</li>
+            <li className="px-3 py-2 text-[13px] text-ink-600">Searching places…</li>
           )}
           {results.map((p) => (
             <li key={`${p.lat},${p.lon}`}>
