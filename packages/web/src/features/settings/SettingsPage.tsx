@@ -4,6 +4,15 @@ import { useNavigate } from "react-router-dom";
 import { ApiError, api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import {
+  formatHeight,
+  formatWeight,
+  fromKg,
+  parseHeightInput,
+  toCm,
+  toKg,
+  weightUnitLabel,
+} from "../../lib/units";
+import {
   Avatar,
   Button,
   Card,
@@ -44,12 +53,29 @@ export function SettingsPage() {
   const [emergencyPhone, setEmergencyPhone] = useState<string | null>(null);
   const [units, setUnits] = useState<"metric" | "imperial" | null>(null);
   const [shareLevel, setShareLevel] = useState<ShareLevel | null>(null);
+  const [heightInput, setHeightInput] = useState<string | null>(null);
+  const [weightInput, setWeightInput] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   const save = useMutation({
-    mutationFn: () =>
-      api.updateProfile({
+    mutationFn: () => {
+      const u = units ?? profileQuery.data?.user.profile?.units ?? "imperial";
+      const parsedHeight =
+        heightInput === null
+          ? undefined
+          : (() => {
+              const v = parseHeightInput(heightInput, u);
+              return v === undefined ? undefined : toCm(v, u);
+            })();
+      const parsedWeight =
+        weightInput === null || weightInput.trim() === ""
+          ? undefined
+          : (() => {
+              const v = Number(weightInput);
+              return Number.isFinite(v) && v > 0 ? toKg(v, u) : undefined;
+            })();
+      return api.updateProfile({
         displayName: displayName ?? undefined,
         bio: bio ?? undefined,
         city: city ?? undefined,
@@ -58,7 +84,10 @@ export function SettingsPage() {
         emergencyPhone: emergencyPhone ?? undefined,
         units: units ?? undefined,
         defaultShareLevel: shareLevel ?? undefined,
-      }),
+        heightCm: parsedHeight,
+        weightKg: parsedWeight,
+      });
+    },
     onSuccess: () => {
       setSaved(true);
       window.setTimeout(() => setSaved(false), 2500);
@@ -74,6 +103,27 @@ export function SettingsPage() {
   const submit = (e: FormEvent) => {
     e.preventDefault();
     setError(null);
+    const u = units ?? profileQuery.data?.user.profile?.units ?? "imperial";
+    if (heightInput !== null && heightInput.trim() !== "") {
+      const v = parseHeightInput(heightInput, u);
+      if (v === undefined || toCm(v, u) < 100 || toCm(v, u) > 250) {
+        setError(
+          u === "metric"
+            ? "Enter a height between 100 and 250 cm."
+            : "Enter a height like 5'10\".",
+        );
+        return;
+      }
+    }
+    if (weightInput !== null && weightInput.trim() !== "") {
+      const v = Number(weightInput);
+      if (!Number.isFinite(v) || toKg(v, u) < 25 || toKg(v, u) > 350) {
+        setError(
+          `Enter a weight between ${Math.round(fromKg(25, u))} and ${Math.round(fromKg(350, u))} ${weightUnitLabel(u)}.`,
+        );
+        return;
+      }
+    }
     save.mutate();
   };
 
@@ -104,6 +154,18 @@ export function SettingsPage() {
   const emergencyPhoneVal = emergencyPhone ?? profile.profile?.emergencyPhone ?? "";
   const unitsVal = units ?? profile.profile?.units ?? "imperial";
   const shareVal = shareLevel ?? ((profile.profile?.defaultShareLevel as ShareLevel | null) ?? "FULL");
+  const heightVal =
+    heightInput ??
+    (profile.profile?.heightCm != null
+      ? unitsVal === "metric"
+        ? String(Math.round(profile.profile.heightCm))
+        : formatHeight(profile.profile.heightCm, "imperial")
+      : "");
+  const weightVal =
+    weightInput ??
+    (profile.profile?.weightKg != null
+      ? String(Math.round(fromKg(profile.profile.weightKg, unitsVal)))
+      : "");
 
   return (
     <div className="mx-auto w-full max-w-xl">
@@ -175,6 +237,40 @@ export function SettingsPage() {
               />
             </Field>
           </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label={`Height (${unitsVal === "metric" ? "cm" : "ft/in"})`}
+              hint={unitsVal === "imperial" ? "e.g. 5'10\"" : undefined}
+            >
+              <TextInput
+                value={heightVal}
+                onChange={(e) => setHeightInput(e.target.value)}
+                placeholder={unitsVal === "metric" ? "178" : "5'10\""}
+                inputMode="decimal"
+              />
+            </Field>
+            <Field label={`Weight (${weightUnitLabel(unitsVal)})`}>
+              <TextInput
+                value={weightVal}
+                onChange={(e) => setWeightInput(e.target.value)}
+                placeholder={unitsVal === "metric" ? "70" : "154"}
+                inputMode="decimal"
+              />
+            </Field>
+          </div>
+          {(profile.profile?.heightCm != null ||
+            profile.profile?.weightKg != null) && (
+            <p className="-mt-2 text-[13px] text-mist">
+              {[
+                profile.profile?.heightCm != null &&
+                  formatHeight(profile.profile.heightCm, unitsVal),
+                profile.profile?.weightKg != null &&
+                  formatWeight(profile.profile.weightKg, unitsVal),
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          )}
           <Field label="Units">
             <SegmentedControl<"metric" | "imperial">
               ariaLabel="Distance units"

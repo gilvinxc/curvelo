@@ -206,6 +206,15 @@ export async function createActivity(
   // Fire-and-forget: celebrations must never break activity logging.
   checkGoalCompletions(ownerId).catch(() => {});
 
+  // A weight entered at log time becomes the profile weight.
+  if (input.weightKg !== undefined) {
+    await db.profile.upsert({
+      where: { userId: ownerId },
+      create: { userId: ownerId, weightKg: input.weightKg },
+      update: { weightKg: input.weightKg },
+    });
+  }
+
   await audit({
     actorId,
     action: "ACTIVITY_CREATED",
@@ -335,6 +344,14 @@ export async function updateActivity(
     },
     include: WITH_JOINS,
   });
+
+  if (input.weightKg !== undefined) {
+    await db.profile.upsert({
+      where: { userId: ownerId },
+      create: { userId: ownerId, weightKg: input.weightKg },
+      update: { weightKg: input.weightKg },
+    });
+  }
 
   await audit({
     actorId,

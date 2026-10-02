@@ -154,6 +154,8 @@ export interface FullUser {
     phone: string | null;
     emergencyName: string | null;
     emergencyPhone: string | null;
+    heightCm: number | null;
+    weightKg: number | null;
   } | null;
 }
 
@@ -208,6 +210,7 @@ export interface CreateActivityPayload {
   assignmentId?: string;
   visibility?: "PRIVATE" | "TEAM";
   shoeId?: string | null;
+  weightKg?: number;
 }
 
 export interface UpdateActivityPayload {
@@ -225,6 +228,7 @@ export interface UpdateActivityPayload {
   assignmentId?: string | null;
   visibility?: "PRIVATE" | "TEAM";
   shoeId?: string | null;
+  weightKg?: number;
 }
 
 /** Public preview of a guardian invite — no email or token included. */

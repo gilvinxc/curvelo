@@ -113,3 +113,59 @@ export function parseDurationInput(raw: string): number | undefined {
 function trimDec(n: number, decimals: number): string {
   return String(parseFloat(n.toFixed(decimals)));
 }
+
+export const CM_PER_IN = 2.54;
+export const KG_PER_LB = 0.45359237;
+
+/** cm → the user's unit value (cm, or total inches for imperial). */
+export function fromCm(cm: number, units: Units): number {
+  return units === "metric" ? cm : cm / CM_PER_IN;
+}
+
+/** User's unit value → cm. Imperial input is total inches. */
+export function toCm(value: number, units: Units): number {
+  return units === "metric" ? value : value * CM_PER_IN;
+}
+
+/** Pretty height: 5'10" imperial, 178 cm metric. */
+export function formatHeight(cm: number, units: Units): string {
+  if (units === "metric") return `${Math.round(cm)} cm`;
+  const totalIn = Math.round(cm / CM_PER_IN);
+  return `${Math.floor(totalIn / 12)}'${totalIn % 12}"`;
+}
+
+/** Parse imperial height input: accepts 70, 5'10", 5'10, 5 ft 10 in. */
+export function parseHeightInput(raw: string, units: Units): number | undefined {
+  const t = raw.trim();
+  if (!t) return undefined;
+  if (units === "metric") {
+    const v = Number(t);
+    return Number.isFinite(v) && v > 0 ? v : undefined;
+  }
+  const m = t.match(/^(?:(\d+)\s*(?:'|ft))?\s*(?:(\d+(?:\.\d+)?)\s*(?:"|in)?)?$/);
+  if (!m || (m[1] === undefined && m[2] === undefined)) return undefined;
+  const feet = m[1] ? Number(m[1]) : 0;
+  const inches = m[2] ? Number(m[2]) : 0;
+  const total = feet * 12 + inches;
+  return total > 0 ? total : undefined;
+}
+
+/** kg → the user's unit value (kg or lb), for input fields. */
+export function fromKg(kg: number, units: Units): number {
+  return units === "metric" ? kg : kg / KG_PER_LB;
+}
+
+/** User's unit value → kg. */
+export function toKg(value: number, units: Units): number {
+  return units === "metric" ? value : value * KG_PER_LB;
+}
+
+export function weightUnitLabel(units: Units): "kg" | "lb" {
+  return units === "metric" ? "kg" : "lb";
+}
+
+/** Pretty weight: 154 lb imperial, 70 kg metric. */
+export function formatWeight(kg: number, units: Units): string {
+  const v = fromKg(kg, units);
+  return `${Math.round(v)} ${weightUnitLabel(units)}`;
+}

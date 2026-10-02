@@ -141,6 +141,8 @@ model Profile {
   phone           String?
   emergencyName   String?
   emergencyPhone  String?
+  heightCm        Float?
+  weightKg        Float?
   // Persona chosen at signup (COACH | RUNNER). Team permissions always
   // come from TeamMembership.role — persona is just the onboarding lens.
   persona           String?

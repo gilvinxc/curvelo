@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Profile" ADD COLUMN     "heightCm" DOUBLE PRECISION,
+ADD COLUMN     "weightKg" DOUBLE PRECISION;

@@ -25,10 +25,15 @@ import {
 import { formatDurationS, formatYMDCompact } from "../../lib/workoutFormat";
 import {
   distanceUnitLabel,
+  formatHeight,
+  formatWeight,
+  fromKg,
   fromMeters,
   parseDurationInput,
+  toKg,
   toMeters,
   useUnits,
+  weightUnitLabel,
 } from "../../lib/units";
 
 const ACTIVITY_KINDS = [
@@ -64,6 +69,7 @@ interface FormState {
   teamId: string;
   visibility: "TEAM" | "PRIVATE";
   shoeId: string | null;
+  weight: string;
 }
 
 // Format a number for an input: up to 2 decimals, no trailing zeros.
@@ -86,6 +92,7 @@ function blankForm(): FormState {  return {
     teamId: "",
     visibility: "TEAM",
     shoeId: null,
+    weight: "",
   };
 }
 
@@ -105,6 +112,24 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
   const queryClient = useQueryClient();
   const units = useUnits();
   const distUnit = distanceUnitLabel(units);
+
+  const profileQuery = useQuery({
+    queryKey: ["profile"],
+    queryFn: () => api.getProfile(),
+  });
+  const profileHeightCm = profileQuery.data?.user.profile?.heightCm ?? null;
+  const profileWeightKg = profileQuery.data?.user.profile?.weightKg ?? null;
+
+  // Prefill the weight from the profile; editing it here updates the profile.
+  useEffect(() => {
+    if (mode === "new" && profileWeightKg != null) {
+      setForm((f) =>
+        f.weight === ""
+          ? { ...f, weight: trimNum(fromKg(profileWeightKg, units)) }
+          : f,
+      );
+    }
+  }, [mode, profileWeightKg, units]);
 
   const assignmentId = mode === "new" ? searchParams.get("assignmentId") : null;
   const preWorkoutTitle = searchParams.get("workoutTitle") ?? "";
@@ -155,6 +180,7 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       teamId: a.teamId ?? "",
       visibility: a.visibility === "PRIVATE" ? "PRIVATE" : "TEAM",
       shoeId: a.shoeId ?? null,
+      weight: "",
     });
   }, [detailQuery.data]);
 
@@ -194,6 +220,13 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
     if (!Number.isNaN(avg) && !Number.isNaN(max) && max < avg) {
       errs.hr = "Max HR must be at least average HR";
     }
+    if (form.weight.trim() !== "") {
+      const w = parseFloat(form.weight);
+      const wKg = Number.isNaN(w) ? NaN : toKg(w, units);
+      if (Number.isNaN(wKg) || wKg < 25 || wKg > 350) {
+        errs.weight = `Enter a sane weight (${Math.round(fromKg(25, units))}–${Math.round(fromKg(350, units))} ${weightUnitLabel(units)})`;
+      }
+    }
     setErrors(errs);
     return Object.keys(errs).length === 0;
   }
@@ -222,6 +255,9 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       if (form.notes.trim()) payload.notes = form.notes.trim();
       if (form.teamId) payload.teamId = form.teamId;
       payload.shoeId = form.shoeId;
+      const wVal = parseFloat(form.weight);
+      if (form.weight.trim() !== "" && !Number.isNaN(wVal) && wVal > 0)
+        payload.weightKg = toKg(wVal, units);
       if (mode === "new" && assignmentId) payload.assignmentId = assignmentId;
 
       if (mode === "edit" && id) {
@@ -237,6 +273,7 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       queryClient.invalidateQueries({ queryKey: ["teamCalendar"] });
       queryClient.invalidateQueries({ queryKey: ["myCalendar"] });
       queryClient.invalidateQueries({ queryKey: ["activity", id] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
       navigate(`/activities/${activityId}`);
     },
     onError: (err) => {
@@ -476,6 +513,29 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
         {(mode === "new" || isOwner) && (
           <ShoePicker value={form.shoeId} onChange={(v) => set("shoeId", v)} applyDefault={mode === "new"} />
         )}
+
+        <Field
+          label={`Weight (${weightUnitLabel(units)})`}
+          error={errors.weight}
+          hint={
+            profileHeightCm != null
+              ? `Height ${formatHeight(profileHeightCm, units)} · updating weight here updates your profile`
+              : "Updating weight here updates your profile"
+          }
+        >
+          <TextInput
+            value={form.weight}
+            onChange={(e) => set("weight", e.target.value)}
+            placeholder={
+              profileWeightKg != null
+                ? formatWeight(profileWeightKg, units)
+                : units === "metric"
+                  ? "70"
+                  : "154"
+            }
+            inputMode="decimal"
+          />
+        </Field>
 
         <Field label="Notes" hint="Optional — how it felt, conditions, etc.">
           <TextArea

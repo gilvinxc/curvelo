@@ -12,5 +12,8 @@ export const updateProfileSchema = z.object({
   phone: z.string().max(30).optional().nullable(),
   emergencyName: z.string().max(80).optional().nullable(),
   emergencyPhone: z.string().max(30).optional().nullable(),
+  // Sane human ranges: height 100-250 cm, weight 25-350 kg.
+  heightCm: z.number().min(100).max(250).optional().nullable(),
+  weightKg: z.number().min(25).max(350).optional().nullable(),
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
