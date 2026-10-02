@@ -39,6 +39,7 @@ export type ActivityWithJoins = {
   city: string | null;
   cityLat: number | null;
   cityLon: number | null;
+  terrain: string | null;
   weatherTempC: number | null;
   weatherCondition: string | null;
   notes: string | null;
@@ -84,6 +85,7 @@ export async function toActivityDTO(a: ActivityWithJoins): Promise<ActivityDTO> 
     city: a.city,
     cityLat: a.cityLat,
     cityLon: a.cityLon,
+    terrain: a.terrain,
     weatherTempC: a.weatherTempC,
     weatherCondition: a.weatherCondition,
     notes: a.notes,
@@ -220,6 +222,7 @@ export async function createActivity(
       city: activityCity,
       cityLat: input.cityLat ?? undefined,
       cityLon: input.cityLon ?? undefined,
+      terrain: input.terrain ?? undefined,
       weatherTempC: input.weatherTempC ?? undefined,
       weatherCondition: input.weatherCondition?.trim() || null,
       notes: input.notes?.trim() || null,
@@ -442,6 +445,7 @@ export async function updateActivity(
       city: input.city === undefined ? undefined : input.city?.trim() || null,
       cityLat: input.cityLat,
       cityLon: input.cityLon,
+      terrain: input.terrain ?? undefined,
       weatherTempC: input.weatherTempC,
       weatherCondition:
         input.weatherCondition === undefined

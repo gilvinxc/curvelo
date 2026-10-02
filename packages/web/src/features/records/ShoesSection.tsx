@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ShoeDTO } from "@curvelo/shared";
+import { shoeWearStatus } from "@curvelo/shared";
 import { api, ApiError } from "../../lib/api";
-import { formatDistance, useUnits } from "../../lib/units";
+import { formatDistance, fromMeters, toMeters, useUnits } from "../../lib/units";
 import {
   Button,
   Card,
@@ -14,32 +15,63 @@ import {
   TextInput,
 } from "../../components/ui";
 
-const RETIRE_MILES = 400;
-
-function AddShoeDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+function ShoeDialog({
+  open,
+  onClose,
+  shoe,
+}: {
+  open: boolean;
+  onClose: () => void;
+  shoe?: ShoeDTO | null;
+}) {
   const queryClient = useQueryClient();
+  const units = useUnits();
+  const editing = shoe != null;
   const [name, setName] = useState("");
   const [brand, setBrand] = useState("");
   const [model, setModel] = useState("");
+  const [lifespan, setLifespan] = useState("");
+
+  useEffect(() => {
+    if (open) {
+      setName(shoe?.name ?? "");
+      setBrand(shoe?.brand ?? "");
+      setModel(shoe?.model ?? "");
+      setLifespan(
+        shoe ? String(Math.round(fromMeters(shoe.lifespanM, units) * 10) / 10) : "",
+      );
+    }
+  }, [open, shoe, units]);
 
   const mutation = useMutation({
-    mutationFn: () =>
-      api.createShoe({
-        name,
-        brand: brand || undefined,
-        model: model || undefined,
-      }),
+    mutationFn: () => {
+      const v = parseFloat(lifespan);
+      const lifespanM =
+        lifespan.trim() !== "" && Number.isFinite(v) && v > 0
+          ? Math.round(toMeters(v, units))
+          : undefined;
+      return editing
+        ? api.updateShoe(shoe!.id, {
+            name,
+            brand: brand || null,
+            model: model || null,
+            lifespanM,
+          })
+        : api.createShoe({
+            name,
+            brand: brand || undefined,
+            model: model || undefined,
+            lifespanM,
+          });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["myShoes"] });
       onClose();
-      setName("");
-      setBrand("");
-      setModel("");
     },
   });
 
   return (
-    <Modal open={open} onClose={onClose} title="Add shoes">
+    <Modal open={open} onClose={onClose} title={editing ? "Edit shoes" : "Add shoes"}>
       <div className="space-y-4">
         {mutation.isError && (
           <ErrorBanner
@@ -64,15 +96,43 @@ function AddShoeDialog({ open, onClose }: { open: boolean; onClose: () => void }
             <TextInput value={model} onChange={(e) => setModel(e.target.value)} maxLength={60} />
           </Field>
         </div>
+        <Field
+          label={`Replace after (${units === "metric" ? "km" : "mi"})`}
+          hint="Standard guidance is 500 km / 300 mi"
+        >
+          <TextInput
+            type="number"
+            inputMode="decimal"
+            min="0"
+            value={lifespan}
+            onChange={(e) => setLifespan(e.target.value)}
+            placeholder={units === "metric" ? "500" : "311"}
+          />
+        </Field>
         <Button
           className="w-full"
           disabled={mutation.isPending || !name.trim()}
           onClick={() => mutation.mutate()}
         >
-          {mutation.isPending ? "Adding…" : "Add shoes"}
+          {mutation.isPending ? "Saving…" : editing ? "Save changes" : "Add shoes"}
         </Button>
       </div>
     </Modal>
+  );
+}
+
+function EditShoeButton({ shoe }: { shoe: ShoeDTO }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        onClick={() => setOpen(true)}
+        className="rounded-lg px-2 py-1 text-[13px] font-semibold text-mist hover:text-ink-50"
+      >
+        Edit
+      </button>
+      <ShoeDialog open={open} onClose={() => setOpen(false)} shoe={shoe} />
+    </>
   );
 }
 
@@ -87,8 +147,8 @@ function ShoeCard({ shoe }: { shoe: ShoeDTO }) {
     mutationFn: () => api.setDefaultShoe(shoe.id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["myShoes"] }),
   });
-  const miles = shoe.mileageM / (units === "metric" ? 1000 : 1609.344);
-  const warn = !shoe.retired && miles >= RETIRE_MILES;
+  const wear = shoe.retired ? null : shoeWearStatus(shoe.mileageM, shoe.lifespanM);
+  const pct = Math.min(100, (shoe.mileageM / Math.max(1, shoe.lifespanM)) * 100);
 
   return (
     <div className="rounded-xl border border-white/10 bg-white/5 p-3">
@@ -110,6 +170,7 @@ function ShoeCard({ shoe }: { shoe: ShoeDTO }) {
           )}
         </div>
         <div className="flex shrink-0 gap-1">
+          <EditShoeButton shoe={shoe} />
           {!shoe.retired && !shoe.isDefault && (
             <button
               onClick={() => defaultMutation.mutate()}
@@ -132,18 +193,19 @@ function ShoeCard({ shoe }: { shoe: ShoeDTO }) {
       <div
         className="mt-2 h-2 overflow-hidden rounded-full bg-white/10"
         role="progressbar"
-        aria-valuenow={Math.min(100, Math.round((miles / 500) * 100))}
+        aria-valuenow={Math.round(pct)}
         aria-valuemin={0}
         aria-valuemax={100}
       >
         <div
-          className={`h-full rounded-full ${warn ? "bg-amber-400" : "bg-volt-400/70"}`}
-          style={{ width: `${Math.min(100, (miles / 500) * 100)}%` }}
+          className={`h-full rounded-full ${wear === "replace" ? "bg-red-400" : wear === "soon" ? "bg-amber-400" : "bg-volt-400/70"}`}
+          style={{ width: `${pct}%` }}
         />
       </div>
       <p className="mt-1 text-[13px] font-semibold text-mist">
-        {formatDistance(shoe.mileageM, units)}
-        {warn && <span className="text-amber-300"> · time to replace soon</span>}
+        {formatDistance(shoe.mileageM, units)} of {formatDistance(shoe.lifespanM, units)}
+        {wear === "replace" && <span className="text-red-300"> · time to replace</span>}
+        {wear === "soon" && <span className="text-amber-300"> · replace soon</span>}
         {shoe.retired && <span> · retired</span>}
       </p>
     </div>
@@ -180,7 +242,7 @@ export function ShoesSection() {
           ))}
         </div>
       )}
-      <AddShoeDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
+      <ShoeDialog open={dialogOpen} onClose={() => setDialogOpen(false)} />
     </Card>
   );
 }

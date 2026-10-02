@@ -110,6 +110,7 @@ export interface ShoeDTO {
   retiredAt: string | null;
   isDefault: boolean;
   mileageM: number;
+  lifespanM: number;
   createdAt: string;
 }
 
@@ -370,6 +371,7 @@ export interface ActivityDTO {  id: string;
   city: string | null;
   cityLat: number | null;
   cityLon: number | null;
+  terrain: string | null;
   weatherTempC: number | null;
   weatherCondition: string | null;
   notes: string | null;

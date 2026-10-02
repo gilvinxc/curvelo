@@ -32,6 +32,7 @@ const metrics = {
   city: z.string().trim().max(120).optional(),
   cityLat: z.number().min(-90).max(90).optional(),
   cityLon: z.number().min(-180).max(180).optional(),
+  terrain: z.enum(["ROAD", "TRAIL", "TRACK", "TREADMILL", "GRASS", "OTHER"]).optional(),
   weatherTempC: z.number().min(-60).max(60).optional(),
   weatherCondition: z.string().trim().max(40).optional(),
 };

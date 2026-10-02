@@ -45,9 +45,12 @@ function clearSessionCookies(reply: import("fastify").FastifyReply): void {
   reply.clearCookie(REFRESH_COOKIE, { path: "/" });
 }
 
-const authRateLimit = {
-  config: { rateLimit: { max: 30, timeWindow: "1 minute" } },
-};
+// Stricter per-route limit for auth endpoints; skipped in tests so the
+// suite isn't throttled by its own user setup.
+const authRateLimit =
+  process.env.NODE_ENV === "test"
+    ? {}
+    : { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } };
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
   app.post("/register", authRateLimit, async (request, reply) => {

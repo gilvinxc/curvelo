@@ -203,6 +203,11 @@ export function ActivityDetailPage() {
         <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-mist">
           {activity.visibility === "PRIVATE" ? "Private" : "Team"}
         </span>
+        {activity.terrain && (
+          <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-mist">
+            {activity.terrain.charAt(0) + activity.terrain.slice(1).toLowerCase()}
+          </span>
+        )}
         {activity.source !== "MANUAL" && (
           <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-mist">
             {activity.source.replace(/_/g, " ")}

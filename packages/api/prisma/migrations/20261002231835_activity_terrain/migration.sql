@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Shoe" ADD COLUMN     "lifespanM" INTEGER NOT NULL DEFAULT 500000;

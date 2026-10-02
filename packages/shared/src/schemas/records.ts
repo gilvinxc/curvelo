@@ -53,6 +53,7 @@ export const createShoeSchema = z.object({
   name: z.string().trim().min(1).max(80),
   brand: z.string().trim().max(60).optional(),
   model: z.string().trim().max(60).optional(),
+  lifespanM: z.number().int().min(10000).max(5000000).optional(),
 });
 export type CreateShoeInput = z.infer<typeof createShoeSchema>;
 
@@ -61,6 +62,7 @@ export const updateShoeSchema = z.object({
   brand: z.string().trim().max(60).optional().nullable(),
   model: z.string().trim().max(60).optional().nullable(),
   retired: z.boolean().optional(),
+  lifespanM: z.number().int().min(10000).max(5000000).optional(),
 });
 export type UpdateShoeInput = z.infer<typeof updateShoeSchema>;
 

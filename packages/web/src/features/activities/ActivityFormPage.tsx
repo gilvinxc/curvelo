@@ -75,6 +75,7 @@ interface FormState {
   cityLat: number | null;
   cityLon: number | null;
   cityVerified: boolean;
+  terrain: string;
   weatherTemp: string;
   weatherCondition: string;
   notes: string;
@@ -106,6 +107,7 @@ function blankForm(): FormState {  return {
     cityLat: null,
     cityLon: null,
     cityVerified: false,
+    terrain: "",
     weatherTemp: "",
     weatherCondition: "",
     notes: "",
@@ -210,6 +212,7 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       cityLat: a.cityLat ?? null,
       cityLon: a.cityLon ?? null,
       cityVerified: a.cityLat != null && a.cityLon != null,
+      terrain: a.terrain ?? "",
       weatherTemp: a.weatherTempC != null ? String(Math.round(fromTemp(a.weatherTempC, units) * 10) / 10) : "",
       weatherCondition: a.weatherCondition ?? "",
       notes: a.notes ?? "",
@@ -320,6 +323,7 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       if (!Number.isNaN(cal) && cal > 0) payload.calories = cal;
       const stp = parseInt(form.steps, 10);
       if (!Number.isNaN(stp) && stp > 0) payload.steps = stp;
+      if (form.terrain) payload.terrain = form.terrain;
       if (form.city.trim()) {
         payload.city = form.city.trim();
         if (form.cityLat != null && form.cityLon != null) {
@@ -436,6 +440,18 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
                 {KIND_LABELS[k]}
               </option>
             ))}
+          </Select>
+        </Field>
+
+        <Field label="Terrain" hint="Optional">
+          <Select value={form.terrain} onChange={(e) => set("terrain", e.target.value)}>
+            <option value="">Not specified</option>
+            <option value="ROAD">Road</option>
+            <option value="TRAIL">Trail</option>
+            <option value="TRACK">Track</option>
+            <option value="TREADMILL">Treadmill</option>
+            <option value="GRASS">Grass</option>
+            <option value="OTHER">Other</option>
           </Select>
         </Field>
 

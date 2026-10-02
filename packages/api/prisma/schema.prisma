@@ -515,6 +515,7 @@ model Activity {
   city             String?
   cityLat          Float?
   cityLon          Float?
+  terrain          String?
   weatherTempC     Float?
   weatherCondition String?
   notes            String?
@@ -770,6 +771,7 @@ model Shoe {
   retired    Boolean    @default(false)
   retiredAt  DateTime?
   isDefault  Boolean    @default(false)
+  lifespanM  Int          @default(500000)
   createdAt  DateTime   @default(now())
   activities Activity[]
 

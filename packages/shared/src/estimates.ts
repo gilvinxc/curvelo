@@ -49,3 +49,20 @@ export function estimateCalories(input: {
   }
   return null;
 }
+
+/**
+ * Shoe replacement suggestion from mileage vs the shoe's lifespan.
+ * Returns "replace" at/over 100%, "soon" at/over 80%, else null.
+ */
+export function shoeWearStatus(
+  mileageM: number | null,
+  lifespanM: number | null,
+): "replace" | "soon" | null {
+  if (mileageM == null || lifespanM == null || lifespanM <= 0 || mileageM < 0) {
+    return null;
+  }
+  const ratio = mileageM / lifespanM;
+  if (ratio >= 1) return "replace";
+  if (ratio >= 0.8) return "soon";
+  return null;
+}

@@ -24,3 +24,21 @@ describe("toPlace", () => {
     expect(toPlace({ name: "Nowhere" })).toBeNull();
   });
 });
+
+import { shoeWearStatus } from "@curvelo/shared";
+
+describe("shoeWearStatus", () => {
+  it("flags replace at 100% and soon at 80%", () => {
+    expect(shoeWearStatus(500000, 500000)).toBe("replace");
+    expect(shoeWearStatus(600000, 500000)).toBe("replace");
+    expect(shoeWearStatus(400000, 500000)).toBe("soon");
+    expect(shoeWearStatus(399999, 500000)).toBeNull();
+    expect(shoeWearStatus(100000, 500000)).toBeNull();
+  });
+
+  it("returns null for missing/invalid inputs", () => {
+    expect(shoeWearStatus(null, 500000)).toBeNull();
+    expect(shoeWearStatus(100000, null)).toBeNull();
+    expect(shoeWearStatus(100000, 0)).toBeNull();
+  });
+});

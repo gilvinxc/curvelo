@@ -257,6 +257,7 @@ export interface CreateActivityPayload {
   city?: string;
   cityLat?: number;
   cityLon?: number;
+  terrain?: string;
   weatherTempC?: number;
   weatherCondition?: string;
 }
@@ -282,6 +283,7 @@ export interface UpdateActivityPayload {
   city?: string;
   cityLat?: number | null;
   cityLon?: number | null;
+  terrain?: string;
   weatherTempC?: number;
   weatherCondition?: string;
 }
@@ -631,10 +633,10 @@ export const api = {
   teamRecords: (teamId: string) =>
     request<{ records: TeamRecordDTO[] }>(`/teams/${teamId}/records`),
   // shoes
-  createShoe: (input: { name: string; brand?: string; model?: string }) =>
+  createShoe: (input: { name: string; brand?: string; model?: string; lifespanM?: number }) =>
     post<{ shoe: ShoeDTO }>("/shoes", input),
   myShoes: () => request<{ shoes: ShoeDTO[] }>("/shoes"),
-  updateShoe: (id: string, input: { name?: string; brand?: string | null; model?: string | null; retired?: boolean }) =>
+  updateShoe: (id: string, input: { name?: string; brand?: string | null; model?: string | null; retired?: boolean; lifespanM?: number }) =>
     patch<{ shoe: ShoeDTO }>(`/shoes/${id}`, input),
   deleteShoe: (id: string) => del<{ ok: boolean }>(`/shoes/${id}`),
   setDefaultShoe: (id: string) =>

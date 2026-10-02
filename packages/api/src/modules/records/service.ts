@@ -315,6 +315,7 @@ function toShoeDTO(
     retired: boolean;
     retiredAt: Date | null;
     isDefault: boolean;
+    lifespanM: number;
     createdAt: Date;
   },
   mileageM: number,
@@ -328,6 +329,7 @@ function toShoeDTO(
     retiredAt: s.retiredAt?.toISOString() ?? null,
     isDefault: s.isDefault,
     mileageM,
+    lifespanM: s.lifespanM,
     createdAt: s.createdAt.toISOString(),
   };
 }
@@ -389,6 +391,7 @@ export async function updateShoe(
             ...(input.retired && shoe.isDefault ? { isDefault: false } : {}),
           }
         : {}),
+      ...(input.lifespanM !== undefined ? { lifespanM: input.lifespanM } : {}),
     },
   });
   await audit({

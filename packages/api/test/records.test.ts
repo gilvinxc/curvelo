@@ -100,6 +100,23 @@ describe("records + shoes", () => {
     expect(res.body.records[0].displayName).toContain("recother");
   });
 
+  it("shoe lifespan defaults to 500km and is customizable", async () => {
+    const { app, runner } = await setup();
+    const created = await request(app.server)
+      .post("/api/v1/shoes")
+      .set(cookieHeader(runner))
+      .send({ name: "Trainers" });
+    expect(created.status).toBe(201);
+    expect(created.body.shoe.lifespanM).toBe(500000);
+
+    const updated = await request(app.server)
+      .patch(`/api/v1/shoes/${created.body.shoe.id}`)
+      .set(cookieHeader(runner))
+      .send({ lifespanM: 643737 });
+    expect(updated.status).toBe(200);
+    expect(updated.body.shoe.lifespanM).toBe(643737);
+  });
+
   it("shoe mileage accumulates from logged runs; retired shoes are rejected", async () => {
     const { app, runner, teamId } = await setup();
     const created = await request(app.server)

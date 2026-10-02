@@ -257,6 +257,39 @@ describe("verified city coordinates", () => {
   });
 });
 
+describe("terrain", () => {
+  beforeEach(truncate);
+
+  it("stores and returns an optional terrain tag", async () => {
+    const app = await getApp();
+    const runner = await registerUser("RUNNER", "terrainRunner");
+    const res = await request(app.server)
+      .post("/api/v1/activities")
+      .set(cookieHeader(runner))
+      .send({
+        kind: "RUN",
+        startedAt: new Date(Date.now() - 3600000).toISOString(),
+        distanceM: 5000,
+        durationS: 1500,
+        terrain: "TRAIL",
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.activity.terrain).toBe("TRAIL");
+
+    const bad = await request(app.server)
+      .post("/api/v1/activities")
+      .set(cookieHeader(runner))
+      .send({
+        kind: "RUN",
+        startedAt: new Date(Date.now() - 3600000).toISOString(),
+        distanceM: 5000,
+        durationS: 1500,
+        terrain: "MUD",
+      });
+    expect(bad.status).toBe(400);
+  });
+});
+
 describe("share to feed on log", () => {
   beforeEach(truncate);
 

@@ -40,7 +40,10 @@ export async function buildApp() {
     credentials: true,
   });
   // Gentle global limit; auth routes set stricter per-route limits.
-  await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
+  // Disabled in tests so the suite isn't throttled by its own setup.
+  if (process.env.NODE_ENV !== "test") {
+    await app.register(rateLimit, { max: 300, timeWindow: "1 minute" });
+  }
 
   await app.register(errorPlugin);
   await app.register(authPlugin);
