@@ -22,6 +22,12 @@ import {
   nowLocalInput,
 } from "../../lib/activityFormat";
 import { formatYMDCompact } from "../../lib/workoutFormat";
+import {
+  distanceUnitLabel,
+  fromMeters,
+  toMeters,
+  useUnits,
+} from "../../lib/units";
 
 const ACTIVITY_KINDS = [
   "RUN",
@@ -45,7 +51,7 @@ interface FormState {
   kind: string;
   title: string;
   startedAt: string; // datetime-local
-  distanceKm: string;
+  distance: string;
   durationMin: string;
   avgHr: string;
   maxHr: string;
@@ -66,7 +72,7 @@ function blankForm(): FormState {  return {
     kind: "RUN",
     title: "",
     startedAt: nowLocalInput(),
-    distanceKm: "",
+    distance: "",
     durationMin: "",
     avgHr: "",
     maxHr: "",
@@ -93,6 +99,8 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const units = useUnits();
+  const distUnit = distanceUnitLabel(units);
 
   const assignmentId = mode === "new" ? searchParams.get("assignmentId") : null;
   const preWorkoutTitle = searchParams.get("workoutTitle") ?? "";
@@ -132,7 +140,7 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       kind: a.kind,
       title: a.title ?? "",
       startedAt: isoToLocalInput(a.startedAt),
-      distanceKm: a.distanceM != null ? String(a.distanceM / 1000) : "",
+      distance: a.distanceM != null ? trimNum(fromMeters(a.distanceM, units)) : "",
       durationMin: a.durationS != null ? trimNum(a.durationS / 60) : "",
       avgHr: a.avgHrBpm != null ? String(a.avgHrBpm) : "",
       maxHr: a.maxHrBpm != null ? String(a.maxHrBpm) : "",
@@ -156,10 +164,10 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
 
   function validate(): boolean {
     const errs: Record<string, string> = {};
-    const km = parseFloat(form.distanceKm);
+    const dist = parseFloat(form.distance);
     const min = parseFloat(form.durationMin);
     if (
-      (form.distanceKm.trim() === "" || Number.isNaN(km) || km <= 0) &&
+      (form.distance.trim() === "" || Number.isNaN(dist) || dist <= 0) &&
       (form.durationMin.trim() === "" || Number.isNaN(min) || min <= 0)
     ) {
       errs.metrics = "Log at least a distance or a duration";
@@ -186,9 +194,9 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
         startedAt: localInputToISO(form.startedAt),
         visibility: form.visibility,
       };
-      const km = parseFloat(form.distanceKm);
-      if (form.distanceKm.trim() !== "" && !Number.isNaN(km) && km > 0)
-        payload.distanceM = Math.round(km * 1000);
+      const dist = parseFloat(form.distance);
+      if (form.distance.trim() !== "" && !Number.isNaN(dist) && dist > 0)
+        payload.distanceM = Math.round(toMeters(dist, units));
       const min = parseFloat(form.durationMin);
       if (form.durationMin.trim() !== "" && !Number.isNaN(min) && min > 0)
         payload.durationS = Math.round(min * 60);
@@ -322,14 +330,14 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
         </Field>
 
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Distance (km)">
+          <Field label={`Distance (${distUnit})`}>
             <TextInput
               type="number"
               inputMode="decimal"
               min="0"
               step="0.1"
-              value={form.distanceKm}
-              onChange={(e) => set("distanceKm", e.target.value)}
+              value={form.distance}
+              onChange={(e) => set("distance", e.target.value)}
               placeholder="8.0"
             />
           </Field>

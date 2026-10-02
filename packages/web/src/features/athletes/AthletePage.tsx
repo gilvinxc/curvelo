@@ -18,6 +18,7 @@ import {
   formatDurationS,
   formatPaceSec,
 } from "../../lib/workoutFormat";
+import { useUnits } from "../../lib/units";
 
 function StatCell({ label, value }: { label: string; value: string }) {
   return (
@@ -31,6 +32,7 @@ function StatCell({ label, value }: { label: string; value: string }) {
 }
 
 export function AthletePage() {
+  const units = useUnits();
   const { id: teamId, userId } = useParams<{ id: string; userId: string }>();
 
   const athleteQuery = useQuery({
@@ -77,7 +79,7 @@ export function AthletePage() {
         <StatCell label="Activities" value={String(athlete.stats.count)} />
         <StatCell
           label="Distance"
-          value={formatDistanceM(athlete.stats.totalDistanceM)}
+          value={formatDistanceM(athlete.stats.totalDistanceM, units)}
         />
         <StatCell
           label="Time"
@@ -87,7 +89,7 @@ export function AthletePage() {
           label="Avg pace"
           value={
             athlete.stats.avgPaceS != null
-              ? formatPaceSec(athlete.stats.avgPaceS)
+              ? formatPaceSec(athlete.stats.avgPaceS, units)
               : "—"
           }
         />

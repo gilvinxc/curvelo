@@ -13,6 +13,7 @@ import {
 } from "../../components/ui";
 import { cn } from "../../components/cx";
 import { ShareToFeedDialog } from "../feed/ShareToFeedDialog";
+import { useUnits } from "../../lib/units";
 import {
   activityKindLabel,
   activityTitle,
@@ -44,6 +45,7 @@ export function ActivityDetailPage() {
   const queryClient = useQueryClient();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const units = useUnits();
 
   const detailQuery = useQuery({
     queryKey: ["activity", id],
@@ -101,11 +103,11 @@ export function ActivityDetailPage() {
 
   const metrics: { label: string; value: string }[] = [];
   if (activity.distanceM != null)
-    metrics.push({ label: "Distance", value: formatDistanceM(activity.distanceM) });
+    metrics.push({ label: "Distance", value: formatDistanceM(activity.distanceM, units) });
   if (activity.durationS != null)
     metrics.push({ label: "Time", value: formatDurationS(activity.durationS) });
   if (activity.avgPaceS != null)
-    metrics.push({ label: "Avg pace", value: formatPaceSec(activity.avgPaceS) });
+    metrics.push({ label: "Avg pace", value: formatPaceSec(activity.avgPaceS, units) });
   if (activity.avgHrBpm != null)
     metrics.push({ label: "Avg HR", value: `${activity.avgHrBpm} bpm` });
   if (activity.maxHrBpm != null)

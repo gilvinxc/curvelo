@@ -7,6 +7,7 @@ import {
   activityTitle,
   formatActivityDateShort,
 } from "../../lib/activityFormat";
+import { useUnits } from "../../lib/units";
 import {
   EmptyState,
   ErrorBanner,
@@ -27,6 +28,7 @@ export function ActivityPicker({
   onClose: () => void;
   onPick: (activity: ActivityDTO) => void;
 }) {
+  const units = useUnits();
   const [query, setQuery] = useState("");
 
   const from = useMemo(() => {
@@ -51,9 +53,9 @@ export function ActivityPicker({
     return list.filter(
       (a) =>
         activityTitle(a).toLowerCase().includes(q) ||
-        activitySummary(a).toLowerCase().includes(q),
+        activitySummary(a, units).toLowerCase().includes(q),
     );
-  }, [activitiesQuery.data, query]);
+  }, [activitiesQuery.data, query, units]);
 
   return (
     <Modal open={open} onClose={onClose} title="Share a run">
@@ -93,7 +95,7 @@ export function ActivityPicker({
                   {activityTitle(a)}
                 </p>
                 <p className="mt-0.5 text-[13px] text-mist">
-                  {formatActivityDateShort(a.startedAt)} · {activitySummary(a)}
+                  {formatActivityDateShort(a.startedAt)} · {activitySummary(a, units)}
                 </p>
               </div>
               <span className="shrink-0 text-[13px] font-bold text-volt-300">

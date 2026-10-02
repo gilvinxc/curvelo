@@ -15,11 +15,19 @@ import {
   TextInput,
 } from "../../components/ui";
 import {
-  formatPaceSec,
   stepKindLabel,
   stepSummary,
   workoutKindLabel,
 } from "../../lib/workoutFormat";
+import {
+  distanceUnitLabel,
+  formatPaceInput,
+  fromMeters,
+  parsePaceToSecPerKm,
+  toMeters,
+  useUnits,
+  type Units,
+} from "../../lib/units";
 
 let localIdCounter = 0;
 const nextLocalId = () => `step-${Date.now()}-${localIdCounter++}`;
@@ -27,9 +35,9 @@ const nextLocalId = () => `step-${Date.now()}-${localIdCounter++}`;
 interface StepDraft {
   localId: string;
   kind: string;
-  distanceKm: string;
+  distance: string;
   durationMin: string;
-  paceMinKm: string;
+  pace: string;
   hrBpm: string;
   rpe: string;
   repetitions: string;
@@ -40,29 +48,14 @@ function blankStep(kind = "STEADY"): StepDraft {
   return {
     localId: nextLocalId(),
     kind,
-    distanceKm: "",
+    distance: "",
     durationMin: "",
-    paceMinKm: "",
+    pace: "",
     hrBpm: "",
     rpe: "",
     repetitions: "1",
     notes: "",
   };
-}
-
-/** "3:20" → 200 (sec/km). Accepts "3.5" (decimal minutes) too. */
-function parsePaceToSecPerKm(raw: string): number | undefined {
-  const t = raw.trim();
-  if (!t) return undefined;
-  if (t.includes(":")) {
-    const [m, s] = t.split(":");
-    const mins = Number(m);
-    const secs = Number(s);
-    if (!Number.isFinite(mins) || !Number.isFinite(secs)) return undefined;
-    return mins * 60 + secs;
-  }
-  const mins = Number(t);
-  return Number.isFinite(mins) ? mins * 60 : undefined;
 }
 
 function parsePositive(raw: string): number | undefined {
@@ -72,16 +65,21 @@ function parsePositive(raw: string): number | undefined {
   return Number.isFinite(n) && n > 0 ? n : NaN;
 }
 
-function toPayload(s: StepDraft): WorkoutStepPayload {
-  const distanceKm = parsePositive(s.distanceKm);
+/** Format a number for an input: up to 2 decimals, no trailing zeros. */
+function trimNum(n: number): string {
+  return String(parseFloat(n.toFixed(2)));
+}
+
+function toPayload(s: StepDraft, units: Units): WorkoutStepPayload {
+  const distance = parsePositive(s.distance);
   const durationMin = parsePositive(s.durationMin);
-  const pace = parsePaceToSecPerKm(s.paceMinKm);
+  const pace = parsePaceToSecPerKm(s.pace, units);
   const hr = parsePositive(s.hrBpm);
   const rpeRaw = s.rpe.trim();
   const repsRaw = s.repetitions.trim();
   return {
     kind: s.kind,
-    ...(distanceKm ? { distanceM: distanceKm * 1000 } : {}),
+    ...(distance ? { distanceM: Math.round(toMeters(distance, units)) } : {}),
     ...(durationMin ? { durationS: Math.round(durationMin * 60) } : {}),
     ...(pace ? { targetPaceS: pace } : {}),
     ...(hr ? { targetHrBpm: Math.round(hr) } : {}),
@@ -91,8 +89,8 @@ function toPayload(s: StepDraft): WorkoutStepPayload {
   };
 }
 
-function previewSummary(s: StepDraft): string {
-  const p = toPayload(s);
+function previewSummary(s: StepDraft, units: Units): string {
+  const p = toPayload(s, units);
   return stepSummary({
     kind: p.kind,
     distanceM: p.distanceM ?? null,
@@ -109,16 +107,16 @@ interface StepFieldErrors {
   numbers?: string;
 }
 
-function validateStep(s: StepDraft): StepFieldErrors {
+function validateStep(s: StepDraft, units: Units): StepFieldErrors {
   const errors: StepFieldErrors = {};
-  const p = toPayload(s);
+  const p = toPayload(s, units);
   if (p.distanceM === undefined && p.durationS === undefined && s.kind !== "REST") {
     errors.distance = "Needs a distance or duration (REST steps excepted).";
   }
   const bad: string[] = [];
   if (Number.isNaN(p.distanceM)) bad.push("distance");
   if (Number.isNaN(p.durationS)) bad.push("duration");
-  if (s.paceMinKm.trim() && parsePaceToSecPerKm(s.paceMinKm) === undefined)
+  if (s.pace.trim() && parsePaceToSecPerKm(s.pace, units) === undefined)
     bad.push("pace (try 3:20)");
   if (Number.isNaN(p.targetHrBpm)) bad.push("heart rate");
   const rpeRaw = s.rpe.trim();
@@ -137,6 +135,8 @@ export function WorkoutBuilderPage({ mode }: { mode: "create" | "edit" }) {
   const workoutId = mode === "edit" ? params.workoutId : undefined;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const units = useUnits();
+  const distUnit = distanceUnitLabel(units);
 
   const [title, setTitle] = useState("");
   const [kind, setKind] = useState<string>("CUSTOM");
@@ -166,9 +166,9 @@ export function WorkoutBuilderPage({ mode }: { mode: "create" | "edit" }) {
       w.steps.map((s) => ({
         localId: nextLocalId(),
         kind: s.kind,
-        distanceKm: s.distanceM != null ? String(s.distanceM / 1000) : "",
+        distance: s.distanceM != null ? trimNum(fromMeters(s.distanceM, units)) : "",
         durationMin: s.durationS != null ? String(s.durationS / 60) : "",
-        paceMinKm: s.targetPaceS != null ? formatPaceSec(s.targetPaceS).replace("/km", "") : "",
+        pace: s.targetPaceS != null ? formatPaceInput(s.targetPaceS, units) : "",
         hrBpm: s.targetHrBpm != null ? String(s.targetHrBpm) : "",
         rpe: s.targetRpe != null ? String(s.targetRpe) : "",
         repetitions: String(s.repetitions),
@@ -182,7 +182,7 @@ export function WorkoutBuilderPage({ mode }: { mode: "create" | "edit" }) {
     mutationFn: async () => {
       const errs: Record<string, StepFieldErrors> = {};
       steps.forEach((s) => {
-        const e = validateStep(s);
+        const e = validateStep(s, units);
         if (e.distance || e.numbers) errs[s.localId] = e;
       });
       const t = title.trim();
@@ -193,7 +193,7 @@ export function WorkoutBuilderPage({ mode }: { mode: "create" | "edit" }) {
         throw new Error("Fix the highlighted steps before saving.");
       }
       setStepErrors({});
-      const payloadSteps = steps.map(toPayload);
+      const payloadSteps = steps.map((s) => toPayload(s, units));
       if (mode === "create") {
         return (
           await api.createWorkout(teamId!, {
@@ -338,7 +338,7 @@ export function WorkoutBuilderPage({ mode }: { mode: "create" | "edit" }) {
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-volt-400/15 text-[13px] font-bold text-volt-300">
                     {i + 1}
                   </span>
-                  <p className="text-[15px] font-bold">{previewSummary(step)}</p>
+                  <p className="text-[15px] font-bold">{previewSummary(step, units)}</p>
                 </div>
                 <div className="flex shrink-0 gap-1">
                   <button
@@ -385,10 +385,10 @@ export function WorkoutBuilderPage({ mode }: { mode: "create" | "edit" }) {
                     </Select>
                   </Field>
                 </div>
-                <Field label="Distance (km)">
+                <Field label={`Distance (${distUnit})`}>
                   <TextInput
-                    value={step.distanceKm}
-                    onChange={(e) => updateStep(step.localId, { distanceKm: e.target.value })}
+                    value={step.distance}
+                    onChange={(e) => updateStep(step.localId, { distance: e.target.value })}
                     placeholder="0.8"
                     inputMode="decimal"
                   />
@@ -401,10 +401,10 @@ export function WorkoutBuilderPage({ mode }: { mode: "create" | "edit" }) {
                     inputMode="decimal"
                   />
                 </Field>
-                <Field label="Target pace (min/km)" hint="e.g. 3:20">
+                <Field label={`Target pace (min/${distUnit})`} hint="e.g. 3:20">
                   <TextInput
-                    value={step.paceMinKm}
-                    onChange={(e) => updateStep(step.localId, { paceMinKm: e.target.value })}
+                    value={step.pace}
+                    onChange={(e) => updateStep(step.localId, { pace: e.target.value })}
                     placeholder="4:30"
                     inputMode="decimal"
                   />

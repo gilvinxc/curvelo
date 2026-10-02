@@ -17,6 +17,7 @@ import {
 } from "../../components/ui";
 import { cn } from "../../components/cx";
 import { formatDistanceM, formatDurationS } from "../../lib/workoutFormat";
+import { useUnits } from "../../lib/units";
 import { activityKindLabel, formatActivityDateTime } from "../../lib/activityFormat";
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -43,6 +44,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 export function ImportWorkoutPage() {
+  const units = useUnits();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -257,7 +259,7 @@ export function ImportWorkoutPage() {
                 label="Distance"
                 value={
                   summary.distanceM != null
-                    ? formatDistanceM(summary.distanceM)
+                    ? formatDistanceM(summary.distanceM, units)
                     : "—"
                 }
               />

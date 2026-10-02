@@ -11,6 +11,7 @@ import {
   formatPaceSec,
   todayYMD,
 } from "../../lib/workoutFormat";
+import { useUnits } from "../../lib/units";
 
 function startOfWeekYMD(): string {
   // Monday-based week.
@@ -31,6 +32,7 @@ function StatCell({ label, value }: { label: string; value: string }) {
 }
 
 export function TrainingLog() {
+  const units = useUnits();
   const weekFrom = startOfWeekYMD();
   const weekTo = addDaysYMD(weekFrom, 6);
   const logFrom = addDaysYMD(todayYMD(), -29);
@@ -80,7 +82,7 @@ export function TrainingLog() {
           <StatCell label="Runs" value={String(stats.count)} />
           <StatCell
             label="Distance"
-            value={formatDistanceM(stats.totalDistanceM)}
+            value={formatDistanceM(stats.totalDistanceM, units)}
           />
           <StatCell
             label="Time"
@@ -89,7 +91,7 @@ export function TrainingLog() {
           <StatCell
             label="Avg pace"
             value={
-              stats.avgPaceS != null ? formatPaceSec(stats.avgPaceS) : "—"
+              stats.avgPaceS != null ? formatPaceSec(stats.avgPaceS, units) : "—"
             }
           />
         </div>

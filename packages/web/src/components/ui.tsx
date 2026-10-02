@@ -14,22 +14,11 @@ import { cn } from "./cx";
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
-    <span className="flex items-center gap-2">
-      <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden>
-        <path
-          d="M14.5 1.5 4 15.5h7L11 24.5 22 10.5h-7l-.5-9Z"
-          fill="#c8f542"
-          stroke="#090b06"
-          strokeWidth="1.5"
-          strokeLinejoin="round"
-        />
-      </svg>
-      {!compact && (
-        <span className="text-lg font-black tracking-tight text-ink-50">
-          CURVELO
-        </span>
-      )}
-    </span>
+    <img
+      src="/logo.png"
+      alt="Curvelo"
+      className={compact ? "h-8 w-auto" : "h-10 w-auto"}
+    />
   );
 }
 

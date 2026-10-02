@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import type { WorkoutDTO } from "@curvelo/shared";
 import { Card } from "../../components/ui";
 import { stepSummary, workoutKindLabel } from "../../lib/workoutFormat";
+import { useUnits } from "../../lib/units";
 
 /* ------------------------------ kind badge ------------------------------ */
 
@@ -71,6 +72,7 @@ export function WorkoutSteps({
   workout: WorkoutDTO;
   numbered?: boolean;
 }) {
+  const units = useUnits();
   return (
     <ol className="flex flex-col gap-2">
       {workout.steps.map((step, i) => (
@@ -84,7 +86,7 @@ export function WorkoutSteps({
             </span>
           )}
           <div className="min-w-0 flex-1">
-            <p className="text-[15px] font-semibold">{stepSummary(step)}</p>
+            <p className="text-[15px] font-semibold">{stepSummary(step, units)}</p>
             {step.notes && (
               <p className="mt-0.5 text-[13px] text-mist">{step.notes}</p>
             )}

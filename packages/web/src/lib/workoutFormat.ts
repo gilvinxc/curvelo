@@ -1,4 +1,9 @@
 import type { WorkoutStepDTO } from "@curvelo/shared";
+import {
+  formatDistance as formatDistanceUnits,
+  formatPace as formatPaceUnits,
+  type Units,
+} from "./units";
 
 export const WORKOUT_KIND_LABELS: Record<string, string> = {
   INTERVAL: "Intervals",
@@ -29,21 +34,14 @@ export function stepKindLabel(kind: string): string {
   return STEP_KIND_LABELS[kind] ?? kind;
 }
 
-/** 200 (sec/km) → "3:20/km". */
-export function formatPaceSec(paceS: number): string {
-  const total = Math.round(paceS);
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return `${m}:${String(s).padStart(2, "0")}/km`;
+/** 200 (sec/km) → "3:20/km" (metric) or "5:12/mi" (imperial). */
+export function formatPaceSec(paceS: number, units: Units = "metric"): string {
+  return formatPaceUnits(paceS, units);
 }
 
-/** 800 → "800m", 1500 → "1.5km", 5000 → "5km". */
-export function formatDistanceM(distanceM: number): string {
-  if (distanceM >= 1000) {
-    const km = distanceM / 1000;
-    return `${Number.isInteger(km) ? km.toFixed(0) : km.toFixed(1)}km`;
-  }
-  return `${Math.round(distanceM)}m`;
+/** 800 → "800m", 1500 → "1.5km" (metric) or "0.93 mi" (imperial). */
+export function formatDistanceM(distanceM: number, units: Units = "metric"): string {
+  return formatDistanceUnits(distanceM, units);
 }
 
 /** 600 → "10:00", 5400 → "1:30:00". */
@@ -61,23 +59,26 @@ export function formatDurationS(durationS: number): string {
  * Human-readable one-line summary for a workout step.
  * e.g. "6 × 800m @ 3:20/km", "Warmup · 10:00", "Rest · 1:00".
  */
-export function stepSummary(step: Pick<
-  WorkoutStepDTO,
-  | "kind"
-  | "distanceM"
-  | "durationS"
-  | "targetPaceS"
-  | "targetHrBpm"
-  | "targetRpe"
-  | "repetitions"
->): string {
+export function stepSummary(
+  step: Pick<
+    WorkoutStepDTO,
+    | "kind"
+    | "distanceM"
+    | "durationS"
+    | "targetPaceS"
+    | "targetHrBpm"
+    | "targetRpe"
+    | "repetitions"
+  >,
+  units: Units = "metric",
+): string {
   const parts: string[] = [];
   const base: string[] = [];
-  if (step.distanceM != null) base.push(formatDistanceM(step.distanceM));
+  if (step.distanceM != null) base.push(formatDistanceM(step.distanceM, units));
   if (step.durationS != null) base.push(formatDurationS(step.durationS));
   const targets: string[] = [];
   if (step.targetPaceS != null)
-    targets.push(`@ ${formatPaceSec(step.targetPaceS)}`);
+    targets.push(`@ ${formatPaceSec(step.targetPaceS, units)}`);
   if (step.targetHrBpm != null) targets.push(`${step.targetHrBpm}bpm`);
   if (step.targetRpe != null) targets.push(`RPE ${step.targetRpe}`);
 

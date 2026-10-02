@@ -1,5 +1,6 @@
 import type { ActivityDTO } from "@curvelo/shared";
 import { formatDistanceM, formatDurationS, formatPaceSec } from "./workoutFormat";
+import type { Units } from "./units";
 
 export const ACTIVITY_KIND_LABELS: Record<string, string> = {
   RUN: "Run",
@@ -52,11 +53,12 @@ export function activityYMD(iso: string): string {
  */
 export function activitySummary(
   a: Pick<ActivityDTO, "distanceM" | "durationS" | "avgPaceS">,
+  units: Units = "metric",
 ): string {
   const parts: string[] = [];
-  if (a.distanceM != null) parts.push(formatDistanceM(a.distanceM));
+  if (a.distanceM != null) parts.push(formatDistanceM(a.distanceM, units));
   if (a.durationS != null) parts.push(formatDurationS(a.durationS));
-  if (a.avgPaceS != null) parts.push(formatPaceSec(a.avgPaceS));
+  if (a.avgPaceS != null) parts.push(formatPaceSec(a.avgPaceS, units));
   return parts.join(" · ") || "—";
 }
 

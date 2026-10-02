@@ -7,6 +7,7 @@ import {
   activityTitle,
   formatActivityDateShort,
 } from "../../lib/activityFormat";
+import { useUnits } from "../../lib/units";
 
 const kindDot: Record<string, string> = {
   RUN: "bg-volt-400",
@@ -25,6 +26,7 @@ export function ActivityRow({
   activity: ActivityDTO;
   showAthlete?: boolean;
 }) {
+  const units = useUnits();
   return (
     <Link
       to={`/activities/${activity.id}`}
@@ -56,7 +58,7 @@ export function ActivityRow({
         <p className="mt-0.5 text-[13px] text-mist">
           {formatActivityDateShort(activity.startedAt)}
           {" · "}
-          {activitySummary(activity)}
+          {activitySummary(activity, units)}
         </p>
         <p className="mt-0.5 text-[12px] text-mist/70">
           {showAthlete ? `${activity.userName} · ` : ""}

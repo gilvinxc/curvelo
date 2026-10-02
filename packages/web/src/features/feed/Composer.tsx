@@ -9,6 +9,7 @@ import {
   activityTitle,
   formatActivityDateShort,
 } from "../../lib/activityFormat";
+import { useUnits } from "../../lib/units";
 import { ActivityPicker } from "./ActivityPicker";
 
 /** Post composer: optional text + optional shared activity. */
@@ -25,6 +26,7 @@ export function Composer({
   const [activity, setActivity] = useState<ActivityDTO | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const units = useUnits();
 
   const canPost = body.trim().length > 0 || activity !== null;
 
@@ -76,7 +78,7 @@ export function Composer({
             </p>
             <p className="text-[13px] text-mist">
               {formatActivityDateShort(activity.startedAt)} ·{" "}
-              {activitySummary(activity)}
+              {activitySummary(activity, units)}
             </p>
           </div>
           <button
