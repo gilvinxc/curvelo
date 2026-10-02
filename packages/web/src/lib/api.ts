@@ -84,6 +84,19 @@ interface ErrorBody {
 }
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  return doRequest<T>(path, init, false);
+}
+
+/**
+ * Core fetch wrapper. On a 401 the access token (15 min) has expired, so we
+ * try the refresh endpoint once (30-day rotating refresh cookie) and retry
+ * the original request. This is what keeps you signed in between visits.
+ */
+async function doRequest<T>(
+  path: string,
+  init: RequestInit,
+  retried: boolean,
+): Promise<T> {
   const hasBody = init.body !== undefined && init.body !== null;
   const headers: Record<string, string> = {
     ...(init.headers as Record<string, string> | undefined),
@@ -104,6 +117,21 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       "NETWORK_ERROR",
       0,
     );
+  }
+
+  // Access token expired: try a silent refresh once, then retry.
+  if (res.status === 401 && !retried && path !== "/auth/refresh") {
+    try {
+      const refreshRes = await fetch(`${BASE_URL}/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (refreshRes.ok) {
+        return doRequest<T>(path, init, true);
+      }
+    } catch {
+      // Refresh failed — fall through to the 401 handling below.
+    }
   }
 
   let body: unknown = null;
@@ -215,6 +243,7 @@ export interface CreateActivityPayload {
   shoeId?: string | null;
   weightKg?: number;
   steps?: number;
+  shareToFeed?: boolean;
   city?: string;
   weatherTempC?: number;
   weatherCondition?: string;
@@ -237,6 +266,7 @@ export interface UpdateActivityPayload {
   shoeId?: string | null;
   weightKg?: number;
   steps?: number;
+  shareToFeed?: boolean;
   city?: string;
   weatherTempC?: number;
   weatherCondition?: string;

@@ -32,6 +32,7 @@ import {
   NewActivityPage,
 } from "./features/activities/ActivityFormPage";
 import { ActivityDetailPage } from "./features/activities/ActivityDetailPage";
+import { ActivitiesPage } from "./features/activities/ActivitiesPage";
 import { ImportWorkoutPage } from "./features/imports/ImportWorkout";
 import { AthletePage } from "./features/athletes/AthletePage";
 import { GuardianInviteAcceptPage } from "./features/guardians/GuardianInviteAcceptPage";
@@ -302,6 +303,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <PersonalCalendarPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/activities"
+            element={
+              <ProtectedRoute>
+                <ActivitiesPage />
               </ProtectedRoute>
             }
           />

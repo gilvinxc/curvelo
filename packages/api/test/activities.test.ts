@@ -231,3 +231,49 @@ describe("activities", () => {
     expect(mine.body.activities).toHaveLength(1);
   });
 });
+
+describe("share to feed on log", () => {
+  beforeEach(truncate);
+
+  it("shares to the feed only when shareToFeed is set", async () => {
+    const app = await getApp();
+    const coach = await registerUser("COACH", "shareCoach");
+    const runner = await registerUser("RUNNER", "shareRunner");
+    const teamId = await createTeamAs(coach, "Share Team");
+    await addRunnerToTeam(coach, teamId, runner);
+
+    const payload = {
+      kind: "RUN",
+      startedAt: new Date(Date.now() - 3600000).toISOString(),
+      distanceM: 5000,
+      durationS: 1500,
+      teamId,
+      visibility: "TEAM",
+    };
+
+    // With shareToFeed: a feed post appears.
+    const shared = await request(app.server)
+      .post("/api/v1/activities")
+      .set(cookieHeader(runner))
+      .send({ ...payload, shareToFeed: true });
+    expect(shared.status).toBe(201);
+
+    const feed = await request(app.server)
+      .get(`/api/v1/teams/${teamId}/feed`)
+      .set(cookieHeader(runner));
+    expect(feed.body.posts).toHaveLength(1);
+    expect(feed.body.posts[0].activity.id).toBe(shared.body.activity.id);
+
+    // Without shareToFeed: no new post.
+    const unshared = await request(app.server)
+      .post("/api/v1/activities")
+      .set(cookieHeader(runner))
+      .send(payload);
+    expect(unshared.status).toBe(201);
+
+    const feed2 = await request(app.server)
+      .get(`/api/v1/teams/${teamId}/feed`)
+      .set(cookieHeader(runner));
+    expect(feed2.body.posts).toHaveLength(1);
+  });
+});

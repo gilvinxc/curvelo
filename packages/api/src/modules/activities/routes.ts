@@ -18,6 +18,7 @@ import {
   myStats,
   updateActivity,
 } from "./service.js";
+import { createPost } from "../feed/service.js";
 
 export async function activityRoutes(app: FastifyInstance): Promise<void> {
   app.post(
@@ -30,6 +31,24 @@ export async function activityRoutes(app: FastifyInstance): Promise<void> {
         body,
         request.ip,
       );
+      // Opt-in at log time: share the new activity to the team feed.
+      // Sharing is best-effort — the activity itself is already saved.
+      if (
+        body.shareToFeed &&
+        activity.teamId &&
+        activity.visibility === "TEAM"
+      ) {
+        try {
+          await createPost(
+            request.user!.id,
+            activity.teamId,
+            { activityId: activity.id },
+            request.ip,
+          );
+        } catch {
+          // Share validation failed (e.g. visibility changed); activity stands.
+        }
+      }
       return reply.status(201).send({ activity });
     },
   );

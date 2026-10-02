@@ -62,9 +62,17 @@ export function TrainingLog() {
   return (
     <section className="mb-8">
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-[13px] font-bold uppercase tracking-[0.18em] text-mist">
-          Training log
-        </h2>
+        <div className="flex items-baseline gap-3">
+          <h2 className="text-[13px] font-bold uppercase tracking-[0.18em] text-mist">
+            Training log
+          </h2>
+          <Link
+            to="/activities"
+            className="text-[14px] font-semibold text-volt-300 hover:underline"
+          >
+            View all
+          </Link>
+        </div>
         <div className="flex gap-2">
           <Link to="/activities/import">
             <Button variant="secondary" className="min-h-[40px] px-4 text-[14px]">

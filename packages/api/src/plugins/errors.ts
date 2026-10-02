@@ -71,6 +71,21 @@ export const errorPlugin = fp(async function errorPlugin(
       });
     }
 
+    // Pass through HTTP errors from other plugins (e.g. rate limiter's 429).
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      "statusCode" in err &&
+      typeof (err as { statusCode: unknown }).statusCode === "number"
+    ) {
+      const statusCode = (err as { statusCode: number }).statusCode;
+      if (statusCode === 429) {
+        return reply.status(429).send({
+          error: { code: "RATE_LIMITED", message: "Too many requests. Try again shortly." },
+        });
+      }
+    }
+
     app.log.error(err);
     return reply.status(500).send({
       error: { code: "INTERNAL_ERROR", message: "Something went wrong" },

@@ -76,6 +76,7 @@ interface FormState {
   notes: string;
   teamId: string;
   visibility: "TEAM" | "PRIVATE";
+  shareToFeed: boolean;
   shoeId: string | null;
   weight: string;
 }
@@ -103,6 +104,7 @@ function blankForm(): FormState {  return {
     notes: "",
     teamId: "",
     visibility: "TEAM",
+    shareToFeed: false,
     shoeId: null,
     weight: "",
   };
@@ -203,6 +205,7 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       notes: a.notes ?? "",
       teamId: a.teamId ?? "",
       visibility: a.visibility === "PRIVATE" ? "PRIVATE" : "TEAM",
+      shareToFeed: false,
       shoeId: a.shoeId ?? null,
       weight: "",
     });
@@ -290,6 +293,7 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
         kind: form.kind,
         startedAt: localInputToISO(form.startedAt),
         visibility: form.visibility,
+      shareToFeed: form.shareToFeed || undefined,
       };
       const dist = parseFloat(form.distance);
       if (form.distance.trim() !== "" && !Number.isNaN(dist) && dist > 0)
@@ -627,6 +631,23 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
             ]}
           />
         </Field>
+
+        {mode === "new" && form.teamId && form.visibility === "TEAM" && (
+          <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-ink-900 px-4 py-3">
+            <input
+              type="checkbox"
+              checked={form.shareToFeed}
+              onChange={(e) => set("shareToFeed", e.target.checked)}
+              className="h-5 w-5 accent-lime-400"
+            />
+            <span className="text-[15px]">
+              <span className="font-semibold">Share to team feed</span>
+              <span className="block text-[13px] text-mist">
+                Post this activity to the team feed when you save it
+              </span>
+            </span>
+          </label>
+        )}
 
         {(mode === "new" || isOwner) && (
           <ShoePicker value={form.shoeId} onChange={(v) => set("shoeId", v)} applyDefault={mode === "new"} />
