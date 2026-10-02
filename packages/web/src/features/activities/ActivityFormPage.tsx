@@ -131,6 +131,7 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
   });
   const profileHeightCm = profileQuery.data?.user.profile?.heightCm ?? null;
   const profileWeightKg = profileQuery.data?.user.profile?.weightKg ?? null;
+  const profileCity = profileQuery.data?.user.profile?.city ?? null;
 
   // Prefill the weight from the profile; editing it here updates the profile.
   useEffect(() => {
@@ -142,6 +143,13 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       );
     }
   }, [mode, profileWeightKg, units]);
+
+  // Prefill the city from the profile; weather auto-fills from it.
+  useEffect(() => {
+    if (mode === "new" && profileCity) {
+      setForm((f) => (f.city === "" ? { ...f, city: profileCity } : f));
+    }
+  }, [mode, profileCity]);
 
   const assignmentId = mode === "new" ? searchParams.get("assignmentId") : null;
   const preWorkoutTitle = searchParams.get("workoutTitle") ?? "";

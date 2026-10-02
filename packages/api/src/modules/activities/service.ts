@@ -187,6 +187,12 @@ export async function createActivity(
     if (!teamId) teamId = aTeam;
   }
 
+  // Profile city is the default city for the activity (weather uses it too).
+  const ownerProfile = await db.profile.findUnique({
+    where: { userId: ownerId },
+  });
+  const activityCity = input.city?.trim() || ownerProfile?.city?.trim() || null;
+
   const activity = await db.activity.create({
     data: {
       userId: ownerId,
@@ -204,7 +210,7 @@ export async function createActivity(
       effortRpe: input.effortRpe,
       calories: input.calories ?? undefined,
       steps: input.steps ?? undefined,
-      city: input.city?.trim() || null,
+      city: activityCity,
       weatherTempC: input.weatherTempC ?? undefined,
       weatherCondition: input.weatherCondition?.trim() || null,
       notes: input.notes?.trim() || null,
@@ -219,9 +225,6 @@ export async function createActivity(
   // Auto-estimate calories/steps when the athlete didn't provide them
   // (tracker imports keep their own values). Uses profile height/weight.
   if (activity.calories == null || activity.steps == null) {
-    const ownerProfile = await db.profile.findUnique({
-      where: { userId: ownerId },
-    });
     const effWeightKg = input.weightKg ?? ownerProfile?.weightKg ?? null;
     const patch: { calories?: number; steps?: number } = {};
     if (activity.calories == null) {

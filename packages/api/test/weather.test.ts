@@ -57,6 +57,34 @@ describe("weather auto-fill", () => {
     }
   });
 
+  it("profile city is the default when the activity has no city", async () => {
+    const realFetch = mockOpenMeteo(21.0, 0); // 0 = Clear
+    try {
+      const a = await app();
+      const user = await registerUser("RUNNER", "wx3");
+      await request(a.server)
+        .patch("/api/v1/users/me")
+        .set(cookieHeader(user))
+        .send({ city: "Lexington" });
+
+      const res = await request(a.server)
+        .post("/api/v1/activities")
+        .set(cookieHeader(user))
+        .send({
+          kind: "RUN",
+          startedAt: new Date("2026-10-02T12:00:00").toISOString(),
+          distanceM: 5000,
+          durationS: 1500,
+        });
+      expect(res.status).toBe(201);
+      expect(res.body.activity.city).toBe("Lexington");
+      expect(res.body.activity.weatherTempC).toBe(21.0);
+      expect(res.body.activity.weatherCondition).toBe("Clear");
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+  });
+
   it("manual weather wins; lookup failure leaves fields empty", async () => {
     const a = await app();
     const user = await registerUser("RUNNER", "wx2");
