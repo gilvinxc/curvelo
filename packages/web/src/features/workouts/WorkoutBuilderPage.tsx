@@ -15,6 +15,7 @@ import {
   TextInput,
 } from "../../components/ui";
 import {
+  formatDurationS,
   stepKindLabel,
   stepSummary,
   workoutKindLabel,
@@ -23,6 +24,7 @@ import {
   distanceUnitLabel,
   formatPaceInput,
   fromMeters,
+  parseDurationInput,
   parsePaceToSecPerKm,
   toMeters,
   useUnits,
@@ -36,7 +38,7 @@ interface StepDraft {
   localId: string;
   kind: string;
   distance: string;
-  durationMin: string;
+  duration: string;
   pace: string;
   hrBpm: string;
   rpe: string;
@@ -49,7 +51,7 @@ function blankStep(kind = "STEADY"): StepDraft {
     localId: nextLocalId(),
     kind,
     distance: "",
-    durationMin: "",
+    duration: "",
     pace: "",
     hrBpm: "",
     rpe: "",
@@ -72,7 +74,7 @@ function trimNum(n: number): string {
 
 function toPayload(s: StepDraft, units: Units): WorkoutStepPayload {
   const distance = parsePositive(s.distance);
-  const durationMin = parsePositive(s.durationMin);
+  const durationS = parseDurationInput(s.duration);
   const pace = parsePaceToSecPerKm(s.pace, units);
   const hr = parsePositive(s.hrBpm);
   const rpeRaw = s.rpe.trim();
@@ -80,7 +82,7 @@ function toPayload(s: StepDraft, units: Units): WorkoutStepPayload {
   return {
     kind: s.kind,
     ...(distance ? { distanceM: Math.round(toMeters(distance, units)) } : {}),
-    ...(durationMin ? { durationS: Math.round(durationMin * 60) } : {}),
+    ...(durationS ? { durationS } : {}),
     ...(pace ? { targetPaceS: pace } : {}),
     ...(hr ? { targetHrBpm: Math.round(hr) } : {}),
     ...(rpeRaw ? { targetRpe: Number(rpeRaw) } : {}),
@@ -115,7 +117,7 @@ function validateStep(s: StepDraft, units: Units): StepFieldErrors {
   }
   const bad: string[] = [];
   if (Number.isNaN(p.distanceM)) bad.push("distance");
-  if (Number.isNaN(p.durationS)) bad.push("duration");
+  if (Number.isNaN(parseDurationInput(s.duration))) bad.push("duration (mm:ss)");
   if (s.pace.trim() && parsePaceToSecPerKm(s.pace, units) === undefined)
     bad.push("pace (try 3:20)");
   if (Number.isNaN(p.targetHrBpm)) bad.push("heart rate");
@@ -167,7 +169,7 @@ export function WorkoutBuilderPage({ mode }: { mode: "create" | "edit" }) {
         localId: nextLocalId(),
         kind: s.kind,
         distance: s.distanceM != null ? trimNum(fromMeters(s.distanceM, units)) : "",
-        durationMin: s.durationS != null ? String(s.durationS / 60) : "",
+        duration: s.durationS != null ? formatDurationS(s.durationS) : "",
         pace: s.targetPaceS != null ? formatPaceInput(s.targetPaceS, units) : "",
         hrBpm: s.targetHrBpm != null ? String(s.targetHrBpm) : "",
         rpe: s.targetRpe != null ? String(s.targetRpe) : "",
@@ -393,12 +395,13 @@ export function WorkoutBuilderPage({ mode }: { mode: "create" | "edit" }) {
                     inputMode="decimal"
                   />
                 </Field>
-                <Field label="Duration (min)">
+                <Field label="Duration" hint="mm:ss">
                   <TextInput
-                    value={step.durationMin}
-                    onChange={(e) => updateStep(step.localId, { durationMin: e.target.value })}
-                    placeholder="10"
-                    inputMode="decimal"
+                    value={step.duration}
+                    onChange={(e) => updateStep(step.localId, { duration: e.target.value })}
+                    placeholder="10:00"
+                    autoCapitalize="off"
+                    autoCorrect="off"
                   />
                 </Field>
                 <Field label={`Target pace (min/${distUnit})`} hint="e.g. 3:20">

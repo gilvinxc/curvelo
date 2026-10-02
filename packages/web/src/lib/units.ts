@@ -86,6 +86,30 @@ export function formatPaceInput(paceSecPerKm: number, units: Units): string {
   return formatPace(paceSecPerKm, units).replace(`/${distanceUnitLabel(units)}`, "");
 }
 
+/**
+ * Parse a duration typed as "h:mm:ss", "m:ss", "m:ss.ss" (fractional seconds),
+ * or plain minutes ("45" / "45.5", kept for backward compatibility).
+ * Returns whole seconds. undefined = blank, NaN = invalid.
+ */
+export function parseDurationInput(raw: string): number | undefined {
+  const t = raw.trim();
+  if (!t) return undefined;
+  if (!t.includes(":")) {
+    const m = Number(t);
+    return Number.isFinite(m) && m > 0 ? Math.round(m * 60) : NaN;
+  }
+  const parts = t.split(":");
+  if (parts.length > 3 || parts.some((p) => p.trim() === "")) return NaN;
+  const nums = parts.map(Number);
+  if (nums.some((n) => !Number.isFinite(n) || n < 0)) return NaN;
+  const secs = nums[nums.length - 1];
+  const mins = nums.length >= 2 ? nums[nums.length - 2] : 0;
+  const hrs = nums.length >= 3 ? nums[nums.length - 3] : 0;
+  if (!Number.isInteger(mins) || !Number.isInteger(hrs)) return NaN;
+  const total = hrs * 3600 + mins * 60 + secs;
+  return total > 0 ? Math.round(total) : NaN;
+}
+
 function trimDec(n: number, decimals: number): string {
   return String(parseFloat(n.toFixed(decimals)));
 }

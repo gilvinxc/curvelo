@@ -21,10 +21,11 @@ import {
   localInputToISO,
   nowLocalInput,
 } from "../../lib/activityFormat";
-import { formatYMDCompact } from "../../lib/workoutFormat";
+import { formatDurationS, formatYMDCompact } from "../../lib/workoutFormat";
 import {
   distanceUnitLabel,
   fromMeters,
+  parseDurationInput,
   toMeters,
   useUnits,
 } from "../../lib/units";
@@ -52,7 +53,7 @@ interface FormState {
   title: string;
   startedAt: string; // datetime-local
   distance: string;
-  durationMin: string;
+  duration: string;
   avgHr: string;
   maxHr: string;
   rpeOn: boolean;
@@ -73,7 +74,7 @@ function blankForm(): FormState {  return {
     title: "",
     startedAt: nowLocalInput(),
     distance: "",
-    durationMin: "",
+    duration: "",
     avgHr: "",
     maxHr: "",
     rpeOn: false,
@@ -141,7 +142,7 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       title: a.title ?? "",
       startedAt: isoToLocalInput(a.startedAt),
       distance: a.distanceM != null ? trimNum(fromMeters(a.distanceM, units)) : "",
-      durationMin: a.durationS != null ? trimNum(a.durationS / 60) : "",
+      duration: a.durationS != null ? formatDurationS(a.durationS) : "",
       avgHr: a.avgHrBpm != null ? String(a.avgHrBpm) : "",
       maxHr: a.maxHrBpm != null ? String(a.maxHrBpm) : "",
       rpeOn: a.effortRpe != null,
@@ -165,12 +166,15 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
   function validate(): boolean {
     const errs: Record<string, string> = {};
     const dist = parseFloat(form.distance);
-    const min = parseFloat(form.durationMin);
+    const durS = parseDurationInput(form.duration);
     if (
       (form.distance.trim() === "" || Number.isNaN(dist) || dist <= 0) &&
-      (form.durationMin.trim() === "" || Number.isNaN(min) || min <= 0)
+      (durS === undefined || Number.isNaN(durS))
     ) {
       errs.metrics = "Log at least a distance or a duration";
+    }
+    if (form.duration.trim() !== "" && Number.isNaN(durS)) {
+      errs.duration = "Use mm:ss, e.g. 45:30";
     }
     const started = new Date(form.startedAt).getTime();
     if (Number.isNaN(started)) {
@@ -197,9 +201,9 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       const dist = parseFloat(form.distance);
       if (form.distance.trim() !== "" && !Number.isNaN(dist) && dist > 0)
         payload.distanceM = Math.round(toMeters(dist, units));
-      const min = parseFloat(form.durationMin);
-      if (form.durationMin.trim() !== "" && !Number.isNaN(min) && min > 0)
-        payload.durationS = Math.round(min * 60);
+      const durSubmit = parseDurationInput(form.duration);
+      if (durSubmit !== undefined && !Number.isNaN(durSubmit))
+        payload.durationS = durSubmit;
       const avg = parseInt(form.avgHr, 10);
       if (!Number.isNaN(avg) && avg > 0) payload.avgHrBpm = avg;
       const max = parseInt(form.maxHr, 10);
@@ -341,15 +345,14 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
               placeholder="8.0"
             />
           </Field>
-          <Field label="Duration (min)">
+          <Field label="Duration" hint="mm:ss" error={errors.duration}>
             <TextInput
-              type="number"
-              inputMode="decimal"
-              min="0"
-              step="any"
-              value={form.durationMin}
-              onChange={(e) => set("durationMin", e.target.value)}
-              placeholder="40"
+              value={form.duration}
+              onChange={(e) => set("duration", e.target.value)}
+              placeholder="45:30"
+              inputMode="text"
+              autoCapitalize="off"
+              autoCorrect="off"
             />
           </Field>
         </div>
