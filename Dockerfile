@@ -3,6 +3,8 @@
 # Run:    docker run -p 4000:4000 -e DATABASE_URL=... -e JWT_ACCESS_SECRET=... -e JWT_REFRESH_SECRET=... curvelo
 
 FROM node:24-slim AS build
+# Prisma needs OpenSSL to detect/download the right engine binaries.
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 COPY package.json package-lock.json ./
@@ -18,6 +20,8 @@ RUN npm run db:generate --workspace=@curvelo/api \
   && VITE_API_URL=/api/v1 npm run build --workspace=@curvelo/web
 
 FROM node:24-slim AS runtime
+# Prisma engines need OpenSSL at runtime too.
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production
 # The start command runs `prisma` via the engines wrapper; it lives in .bin.
