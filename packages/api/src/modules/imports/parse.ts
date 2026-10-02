@@ -158,13 +158,28 @@ function parseTcx(buf: Buffer): ParsedWorkout {
   };
 }
 
+interface FitSession {
+  sport?: unknown;
+  start_time?: unknown;
+  total_elapsed_time?: unknown;
+  total_timer_time?: unknown;
+  total_distance?: unknown;
+  avg_heart_rate?: unknown;
+  max_heart_rate?: unknown;
+  total_calories?: unknown;
+}
+
 function parseFit(buf: Buffer): Promise<ParsedWorkout> {
   return new Promise((resolve, reject) => {
     const parser = new FitParser({ force: true, speedUnit: "m/s", lengthUnit: "m" });
-    parser.parse(buf, (error: unknown, data: Record<string, unknown>) => {
+    // fit-file-parser's bundled types predate generic Buffers; at runtime it
+    // accepts a Node Buffer as it always has.
+    const input = buf as unknown as ArrayBuffer;
+    parser.parse(input, (error: unknown, data: { sessions?: FitSession | FitSession[] } | undefined) => {
       if (error) return reject(new Error("Could not parse FIT file."));
       try {
-        const sessions = asArray(data?.sessions as Record<string, unknown> | undefined);
+        const raw = data?.sessions;
+        const sessions: FitSession[] = Array.isArray(raw) ? raw : raw ? [raw] : [];
         const s = sessions[0];
         if (!s) throw new Error("No sessions found in FIT file.");
         const startRaw = s.start_time as Date | string | undefined;
