@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import type { ActivityStatsDTO } from "@curvelo/shared";
 import { api } from "../../lib/api";
-import { Button, ErrorBanner } from "../../components/ui";
+import { ErrorBanner } from "../../components/ui";
 import { ActivityRow } from "./ActivityRow";
 import {
   addDaysYMD,
@@ -61,35 +61,16 @@ export function TrainingLog() {
 
   return (
     <section className="mb-8">
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-baseline gap-3">
-          <h2 className="text-[13px] font-bold uppercase tracking-[0.18em] text-mist">
-            Training log
-          </h2>
-          <Link
-            to="/activities"
-            className="text-[14px] font-semibold text-volt-300 hover:underline"
-          >
-            View all
-          </Link>
-        </div>
-        <div className="flex gap-2">
-          <Link to="/activities/import">
-            <Button variant="secondary" className="min-h-[40px] px-4 text-[14px]">
-              ⭳ Import file
-            </Button>
-          </Link>
-          <Link to="/activities/new">
-            <Button variant="secondary" className="min-h-[40px] px-4 text-[14px]">
-              + Log activity
-            </Button>
-          </Link>
-          <Link to="/progress">
-            <Button variant="secondary" className="min-h-[40px] px-4 text-[14px]">
-              📈 Progress
-            </Button>
-          </Link>
-        </div>
+      <div className="mb-3 flex items-baseline justify-between">
+        <h2 className="text-[13px] font-bold uppercase tracking-[0.18em] text-mist">
+          Training log
+        </h2>
+        <Link
+          to="/activities"
+          className="text-[14px] font-semibold text-volt-300 hover:underline"
+        >
+          View all →
+        </Link>
       </div>
 
       {statsQuery.isError && (

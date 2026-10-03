@@ -48,6 +48,24 @@ export function DashboardPage() {
         </p>
       </div>
 
+      <div className="mb-6 flex flex-wrap gap-2">
+        <Link to="/activities/new">
+          <Button className="min-h-[48px] px-6 text-[15px]">
+            🏃 Log activity
+          </Button>
+        </Link>
+        <Link to="/calendar">
+          <Button variant="secondary" className="min-h-[48px] px-5 text-[15px]">
+            📅 My calendar
+          </Button>
+        </Link>
+        <Link to="/activities/import">
+          <Button variant="secondary" className="min-h-[48px] px-5 text-[15px]">
+            ⭳ Import
+          </Button>
+        </Link>
+      </div>
+
       {teamsQuery.isError && (
         <ErrorBanner message="Couldn't load your teams. Pull to retry." />
       )}
