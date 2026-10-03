@@ -1,4 +1,6 @@
 import type { FastifyInstance } from "fastify";
+import { z } from "zod";
+import { db } from "../../db.js";
 import {
   adminAuditQuerySchema,
   adminUpdateUserSchema,
@@ -58,6 +60,52 @@ export async function adminRoutes(app: FastifyInstance) {
     async (request) => {
       const q = adminAuditQuerySchema.parse(request.query);
       return auditLog(request.user!.id, q);
+    },
+  );
+
+  app.get(
+    "/admin/feedback",
+    { preHandler: [app.authenticate, sysAdmin] },
+    async (request) => {
+      const q = z
+        .object({ status: z.enum(["OPEN", "REVIEWED", "RESOLVED"]).optional() })
+        .parse(request.query);
+      const items = await db.feedback.findMany({
+        where: q.status ? { status: q.status } : {},
+        include: {
+          user: { select: { displayName: true } },
+          team: { select: { name: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+      });
+      return {
+        feedback: items.map((f) => ({
+          id: f.id,
+          userName: f.user.displayName,
+          teamName: f.team?.name ?? null,
+          category: f.category,
+          body: f.body,
+          status: f.status,
+          createdAt: f.createdAt.toISOString(),
+        })),
+      };
+    },
+  );
+
+  app.patch(
+    "/admin/feedback/:id",
+    { preHandler: [app.authenticate, sysAdmin] },
+    async (request) => {
+      const { id } = z.object({ id: z.string().uuid() }).parse(request.params);
+      const body = z
+        .object({ status: z.enum(["OPEN", "REVIEWED", "RESOLVED"]) })
+        .parse(request.body);
+      const updated = await db.feedback.update({
+        where: { id },
+        data: { status: body.status },
+      });
+      return { ok: true, status: updated.status };
     },
   );
 }

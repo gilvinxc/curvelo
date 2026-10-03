@@ -13,7 +13,7 @@ import {
   TextInput,
 } from "../../components/ui";
 
-type Tab = "overview" | "users" | "teams" | "audit";
+type Tab = "overview" | "users" | "teams" | "audit" | "feedback";
 
 function StatCell({ label, value }: { label: string; value: string }) {
   return (
@@ -283,6 +283,78 @@ function Audit() {
   );
 }
 
+function FeedbackTab() {
+  const queryClient = useQueryClient();
+  const [status, setStatus] = useState<string>("");
+  const list = useQuery({
+    queryKey: ["adminFeedback", status],
+    queryFn: () => api.adminFeedback(status || undefined),
+  });
+  const update = useMutation({
+    mutationFn: ({ id, s }: { id: string; s: "OPEN" | "REVIEWED" | "RESOLVED" }) =>
+      api.adminUpdateFeedback(id, s),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ["adminFeedback"] }),
+  });
+  const items = list.data?.feedback ?? [];
+  const openCount = items.filter((f) => f.status === "OPEN").length;
+  return (
+    <div>
+      <div className="mb-4 flex items-center gap-2">
+        <span className="text-[14px] font-bold">
+          {openCount} open
+        </span>
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="min-h-[40px] rounded-xl border border-white/10 bg-ink-900 px-3 text-[14px]"
+        >
+          <option value="">All statuses</option>
+          <option value="OPEN">Open</option>
+          <option value="REVIEWED">Reviewed</option>
+          <option value="RESOLVED">Resolved</option>
+        </select>
+      </div>
+      {items.length === 0 ? (
+        <p className="text-[14px] text-mist">No feedback yet.</p>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {items.map((f) => (
+            <div key={f.id} className="rounded-xl bg-white/[0.04] p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-md bg-volt-400/20 px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-volt-200">
+                  {f.category}
+                </span>
+                <span className="text-[12px] text-mist">
+                  {f.userName}
+                  {f.teamName ? ` · ${f.teamName}` : ""} ·{" "}
+                  {new Date(f.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+              <p className="mt-2 text-[14px] leading-relaxed">{f.body}</p>
+              <div className="mt-2 flex gap-1.5">
+                {(["OPEN", "REVIEWED", "RESOLVED"] as const).map((st) => (
+                  <button
+                    key={st}
+                    disabled={f.status === st || update.isPending}
+                    onClick={() => update.mutate({ id: f.id, s: st })}
+                    className={`rounded-full px-2.5 py-1 text-[12px] font-semibold ${
+                      f.status === st
+                        ? "bg-volt-400 text-ink-950"
+                        : "bg-white/5 text-mist hover:bg-white/10"
+                    }`}
+                  >
+                    {st.charAt(0) + st.slice(1).toLowerCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AdminPage() {
   const { user } = useAuth();
   const [tab, setTab] = useState<Tab>("overview");
@@ -301,6 +373,7 @@ export function AdminPage() {
     { id: "users", label: "Users" },
     { id: "teams", label: "Teams" },
     { id: "audit", label: "Audit log" },
+    { id: "feedback", label: "Feedback" },
   ];
 
   return (
@@ -330,6 +403,7 @@ export function AdminPage() {
         {tab === "users" && <Users />}
         {tab === "teams" && <Teams />}
         {tab === "audit" && <Audit />}
+        {tab === "feedback" && <FeedbackTab />}
       </Card>
     </div>
   );

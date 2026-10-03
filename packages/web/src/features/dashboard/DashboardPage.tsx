@@ -1,6 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { api } from "../../lib/api";
+import { ApiError, api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import {
   Avatar,
@@ -9,6 +10,7 @@ import {
   EmptyState,
   ErrorBanner,
   FullScreenLoader,
+  Modal,
   RoleBadge,
 } from "../../components/ui";
 import { TeamLogo } from "../teams/TeamLogo";
@@ -65,6 +67,7 @@ export function DashboardPage() {
           </Button>
         </Link>
       </div>
+      <SelfReportInjuryLink teams={teams} userId={user?.id} />
 
       {teamsQuery.isError && (
         <ErrorBanner message="Couldn't load your teams. Pull to retry." />
@@ -187,5 +190,115 @@ export function DashboardPage() {
         </div>
       )}
     </div>
+  );
+}
+
+
+/** Subtle self-report entry: runners can flag an injury to their coach. */
+function SelfReportInjuryLink({
+  teams,
+  userId,
+}: {
+  teams: Array<{ id: string; name: string }>;
+  userId: string | undefined;
+}) {
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [teamId, setTeamId] = useState(teams[0]?.id ?? "");
+  const [title, setTitle] = useState("");
+  const [detail, setDetail] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const report = useMutation({
+    mutationFn: () =>
+      api.reportInjury(teamId, {
+        athleteId: userId!,
+        title: title.trim(),
+        detail: detail.trim() || undefined,
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["injuries"] });
+      setOpen(false);
+      setTitle("");
+      setDetail("");
+      setError(null);
+    },
+    onError: (err) =>
+      setError(err instanceof ApiError ? err.message : "Couldn't report."),
+  });
+
+  if (teams.length === 0 || !userId) return null;
+  const canSubmit =
+    teamId !== "" && title.trim() !== "" && !report.isPending;
+
+  return (
+    <>
+      <div className="mb-6 -mt-4">
+        <button
+          type="button"
+          onClick={() => {
+            setTeamId(teams[0]?.id ?? "");
+            setOpen(true);
+          }}
+          className="text-[13px] font-semibold text-mist/70 hover:text-mist"
+        >
+          🩹 Hurt? Let your coach know
+        </button>
+      </div>
+      <Modal open={open} onClose={() => setOpen(false)} title="Report an injury">
+        <div className="flex flex-col gap-3">
+          {error && <ErrorBanner message={error} />}
+          {teams.length > 1 && (
+            <label className="flex flex-col gap-1.5">
+              <span className="text-[13px] font-bold text-mist">Team</span>
+              <select
+                value={teamId}
+                onChange={(e) => setTeamId(e.target.value)}
+                className="min-h-[44px] rounded-xl border border-white/10 bg-ink-900 px-3 text-[14px]"
+              >
+                {teams.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[13px] font-bold text-mist">What hurts?</span>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Shin splints, sore knee"
+              maxLength={120}
+              className="min-h-[44px] rounded-xl border border-white/10 bg-ink-900 px-3 text-[14px]"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-[13px] font-bold text-mist">
+              Details <span className="font-normal">(optional)</span>
+            </span>
+            <textarea
+              value={detail}
+              onChange={(e) => setDetail(e.target.value)}
+              rows={3}
+              maxLength={2000}
+              placeholder="When did it start, what makes it worse…"
+              className="rounded-xl border border-white/10 bg-ink-900 px-3 py-2.5 text-[14px]"
+            />
+          </label>
+          <p className="text-[12px] text-mist/70">
+            Your coach will see this in the team injury log.
+          </p>
+          <Button
+            disabled={!canSubmit}
+            onClick={() => report.mutate()}
+            className="min-h-[48px]"
+          >
+            {report.isPending ? "Sending…" : "Report to coach"}
+          </Button>
+        </div>
+      </Modal>
+    </>
   );
 }

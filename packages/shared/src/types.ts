@@ -695,3 +695,28 @@ export interface PersonalPlanDTO {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface InjuryDTO {
+  id: string;
+  athleteId: string;
+  athleteName: string;
+  reportedByName: string;
+  title: string;
+  detail: string | null;
+  status: "ACTIVE" | "RECOVERED";
+  expectedReturn: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+}
+
+export interface FeedbackDTO {
+  id: string;
+  userId?: string;
+  userName: string;
+  teamId: string | null;
+  teamName: string | null;
+  category: "BUG" | "FEATURE" | "OTHER";
+  body: string;
+  status: "OPEN" | "REVIEWED" | "RESOLVED";
+  createdAt: string;
+}

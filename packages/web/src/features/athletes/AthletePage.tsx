@@ -13,6 +13,7 @@ import { AssignmentRow } from "../calendar/CalendarBits";
 import { ActivityRow } from "../activities/ActivityRow";
 import { AthleteGuardians } from "../guardians/AthleteGuardians";
 import { AthleteInsights } from "../insights/AthleteInsights";
+import { InjurySection } from "../injuries/InjurySection";
 import {
   addDaysYMD,
   formatDistanceM,
@@ -187,6 +188,17 @@ export function AthletePage() {
           athleteId={userId}
           athleteName={athlete.displayName}
         />
+      )}
+
+      {teamId && userId && (
+        <section className="mt-8">
+          <InjurySection
+            teamId={teamId}
+            athleteId={userId}
+            athleteName={athlete.displayName}
+            title={`${athlete.displayName.split(" ")[0]}'s injuries`}
+          />
+        </section>
       )}
 
       <div className="mt-8">

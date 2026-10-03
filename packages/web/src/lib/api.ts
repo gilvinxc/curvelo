@@ -23,6 +23,8 @@ import type {
   GuardianInviteDTO,
   GoalDTO,
   GuardianLinkDTO,
+  FeedbackDTO,
+  InjuryDTO,
   InvitationDTO,
   InvitationPreviewDTO,
   InviteGuardianInput,
@@ -484,6 +486,15 @@ export const api = {
     }),
   deleteAccount: () => del<{ ok: boolean }>(`/users/me`),
   deleteUser: (userId: string) => del<{ ok: boolean }>(`/users/${userId}`),
+  submitFeedback: (input: { category: "BUG" | "FEATURE" | "OTHER"; body: string; teamId?: string }) =>
+    post<{ feedback: FeedbackDTO }>(`/feedback`, input),
+  myFeedback: () => request<{ feedback: FeedbackDTO[] }>(`/feedback/mine`),
+  adminFeedback: (status?: string) =>
+    request<{ feedback: FeedbackDTO[] }>(
+      `/admin/feedback${status ? `?status=${status}` : ""}`,
+    ),
+  adminUpdateFeedback: (id: string, status: "OPEN" | "REVIEWED" | "RESOLVED") =>
+    patch<{ ok: boolean }>(`/admin/feedback/${id}`, { status }),
   transferTeam: (teamId: string, newOwnerId: string) =>
     post<{ ok: boolean; newOwnerId: string }>(`/teams/${teamId}/transfer`, {
       newOwnerId,
@@ -812,6 +823,57 @@ export const api = {
     request<{ events: TeamEventDTO[] }>(
       `/team-events/mine?from=${from}&to=${to}`,
     ),
+  listInjuries: (teamId: string) =>
+    request<{ injuries: InjuryDTO[] }>(`/teams/${teamId}/injuries`),
+  reportInjury: (
+    teamId: string,
+    input: { athleteId: string; title: string; detail?: string; expectedReturn?: string },
+  ) => post<{ injury: InjuryDTO }>(`/teams/${teamId}/injuries`, input),
+  updateInjury: (
+    teamId: string,
+    injuryId: string,
+    input: { title?: string; detail?: string | null; status?: "ACTIVE" | "RECOVERED"; expectedReturn?: string | null },
+  ) => patch<{ injury: InjuryDTO }>(`/teams/${teamId}/injuries/${injuryId}`, input),
+  deleteInjury: (teamId: string, injuryId: string) =>
+    del<{ ok: boolean }>(`/teams/${teamId}/injuries/${injuryId}`),
+  /** Download the meet-entry CSV (coach only). Uses cookie auth like the rest. */
+  exportEntries: async (teamId: string, eventIds: string[]): Promise<void> => {
+    const qs =
+      eventIds.length > 0 ? `?eventIds=${eventIds.join(",")}` : "";
+    const doFetch = () =>
+      fetch(`${BASE_URL}/teams/${teamId}/entries/export${qs}`, {
+        credentials: "include",
+      });
+    let res = await doFetch();
+    if (res.status === 401) {
+      // Mirror the JSON client's silent refresh once.
+      try {
+        const refreshRes = await fetch(`${BASE_URL}/auth/refresh`, {
+          method: "POST",
+          credentials: "include",
+        });
+        if (refreshRes.ok) res = await doFetch();
+      } catch {
+        // fall through to the error below
+      }
+    }
+    if (!res.ok) {
+      throw new ApiError(
+        `Couldn't export entries (${res.status})`,
+        "EXPORT_FAILED",
+        res.status,
+      );
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "meet-entries.csv";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
   postMessage: (teamId: string, conversationId: string, body: string) =>
     post<{ message: ChatMessageDTO }>(
       `/teams/${teamId}/conversations/${conversationId}/messages`,

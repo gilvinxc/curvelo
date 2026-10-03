@@ -24,6 +24,7 @@ import { GoalsTab } from "../goals/GoalsTab";
 import { FeedPage } from "../feed/FeedPage";
 import { MessagesSection } from "../messages/MessagesSection";
 import { TeamDigestSection } from "../insights/TeamDigestSection";
+import { InjurySection } from "../injuries/InjurySection";
 import { AlumniDigestDialog } from "../insights/AlumniDigestDialog";
 import { PracticePlanner } from "./PracticePlanner";
 import { TeamLogDialog } from "../activities/TeamLogDialog";
@@ -502,6 +503,9 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
             >
               ✍️ Draft alumni update
             </Button>
+          </div>
+          <div className="mt-6">
+            <InjurySection teamId={team.id} showAthletePicker />
           </div>
           <div className="mt-6">
             <PracticePlanner teamId={team.id} />

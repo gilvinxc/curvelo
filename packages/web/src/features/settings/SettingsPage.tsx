@@ -401,6 +401,8 @@ export function SettingsPage() {
 
       <PrivacySection />
 
+      <FeedbackSection />
+
       <p className="mt-6 text-center text-[12px] text-mist/60">
         Curvelo v0.1.0 — Empower Your Run
       </p>
@@ -496,6 +498,81 @@ function PrivacySection() {
           </button>
         )}
       </div>
+    </Card>
+  );
+}
+
+
+/** Send feedback to the Curvelo team. */
+function FeedbackSection() {
+  const [category, setCategory] = useState<"BUG" | "FEATURE" | "OTHER">("FEATURE");
+  const [body, setBody] = useState("");
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const submit = useMutation({
+    mutationFn: () => api.submitFeedback({ category, body }),
+    onSuccess: () => {
+      setSent(true);
+      setBody("");
+    },
+    onError: (err) =>
+      setError(err instanceof ApiError ? err.message : "Couldn't send feedback."),
+  });
+  return (
+    <Card className="mt-4">
+      <h3 className="text-[15px] font-extrabold">Send feedback</h3>
+      <p className="mt-1 text-[14px] text-mist">
+        Found a bug or want a feature? Tell us — it goes straight to the team
+        building Curvelo.
+      </p>
+      {error && (
+        <div className="mb-3 mt-2">
+          <ErrorBanner message={error} />
+        </div>
+      )}
+      {sent ? (
+        <p className="mt-3 text-[14px] font-semibold text-volt-300">
+          Thanks — your feedback is in.
+        </p>
+      ) : (
+        <div className="mt-3 flex flex-col gap-2">
+          <div className="flex gap-1.5">
+            {(
+              [
+                ["BUG", "Bug"],
+                ["FEATURE", "Feature"],
+                ["OTHER", "Other"],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setCategory(key)}
+                className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${
+                  category === key
+                    ? "bg-volt-400 text-ink-950"
+                    : "bg-white/5 text-mist hover:bg-white/10"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="What's on your mind?"
+            rows={3}
+            className="rounded-xl border border-white/10 bg-ink-900 p-3 text-[14px]"
+          />
+          <Button
+            disabled={!body.trim() || submit.isPending}
+            onClick={() => submit.mutate()}
+            className="min-h-[44px] self-start px-5 text-[14px]"
+          >
+            Send
+          </Button>
+        </div>
+      )}
     </Card>
   );
 }
