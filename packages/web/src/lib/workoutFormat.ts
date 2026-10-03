@@ -135,7 +135,7 @@ export function formatYMDLong(ymd: string): string {
 
 /** "2026-10-05" → "Oct 5". */
 export function formatYMDCompact(ymd: string): string {
-  const [y, m, d] = ymd.split("-").map(Number);
+  const [y, m, d] = ymd.split("T")[0].split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
