@@ -184,3 +184,25 @@ export function toTemp(value: number, units: Units): number {
 export function tempUnitLabel(units: Units): "°C" | "°F" {
   return units === "metric" ? "°C" : "°F";
 }
+
+export const M_PER_FT = 0.3048;
+
+/** Meters → the user's elevation unit (m or ft), for input fields. */
+export function fromMetersElev(meters: number, units: Units): number {
+  return units === "metric" ? meters : meters / M_PER_FT;
+}
+
+/** The user's elevation unit (m or ft) → meters, for API payloads. */
+export function toMetersElev(value: number, units: Units): number {
+  return units === "metric" ? value : value * M_PER_FT;
+}
+
+export function elevationUnitLabel(units: Units): "m" | "ft" {
+  return units === "metric" ? "m" : "ft";
+}
+
+/** Pretty elevation gain: 150 ft imperial, 46 m metric. */
+export function formatElevation(meters: number, units: Units): string {
+  const v = fromMetersElev(meters, units);
+  return `${Math.round(v)} ${elevationUnitLabel(units)}`;
+}

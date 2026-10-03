@@ -181,7 +181,7 @@ export function DashboardPage() {
               here.
             </p>
             <a
-              href="/stride-sense-marketing.mp4"
+              href="/stride-sense-marketing-v2.mp4"
               target="_blank"
               rel="noreferrer"
               className="mt-3 inline-block font-bold text-volt-300 hover:text-volt-400"

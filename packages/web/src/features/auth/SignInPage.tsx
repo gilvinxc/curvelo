@@ -90,7 +90,7 @@ export function SignInPage() {
       </Card>
       <p className="mt-4 text-center text-[14px]">
         <a
-          href="/stride-sense-marketing.mp4"
+          href="/stride-sense-marketing-v2.mp4"
           target="_blank"
           rel="noreferrer"
           className="font-semibold text-volt-300 hover:text-volt-400"

@@ -262,6 +262,7 @@ export interface CreateActivityPayload {
   shoeId?: string | null;
   weightKg?: number;
   steps?: number;
+  elevationGainM?: number;
   shareToFeed?: boolean;
   city?: string;
   cityLat?: number;

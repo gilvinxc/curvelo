@@ -17,7 +17,7 @@ import {
 } from "../../components/ui";
 import { cn } from "../../components/cx";
 import { formatDistanceM, formatDurationS } from "../../lib/workoutFormat";
-import { useUnits } from "../../lib/units";
+import { formatElevation, useUnits } from "../../lib/units";
 import { activityKindLabel, formatActivityDateTime } from "../../lib/activityFormat";
 
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -286,6 +286,14 @@ export function ImportWorkoutPage() {
               <Stat
                 label="Calories"
                 value={summary.calories != null ? `${summary.calories}` : "—"}
+              />
+              <Stat
+                label="Elev gain"
+                value={
+                  summary.elevationGainM != null
+                    ? formatElevation(summary.elevationGainM, units)
+                    : "—"
+                }
               />
             </div>
           </Card>

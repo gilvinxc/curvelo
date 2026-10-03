@@ -16,7 +16,7 @@ import { ShareToFeedDialog } from "../feed/ShareToFeedDialog";
 import { downloadIcs } from "../../lib/ics";
 import { RichText } from "../../components/RichText";
 import { AddRaceResultDialog } from "../records/RecordsSection";
-import { useUnits } from "../../lib/units";
+import { formatElevation, useUnits } from "../../lib/units";
 import {
   activityKindLabel,
   activityTitle,
@@ -122,6 +122,8 @@ export function ActivityDetailPage() {
     metrics.push({ label: "Effort", value: `RPE ${activity.effortRpe}` });
   if (activity.calories != null)
     metrics.push({ label: "Calories", value: `${activity.calories}` });
+  if (activity.elevationGainM != null)
+    metrics.push({ label: "Elev gain", value: formatElevation(activity.elevationGainM, units) });
 
   return (
     <div>

@@ -25,6 +25,9 @@ import {
 import { formatDurationS, formatYMDCompact } from "../../lib/workoutFormat";
 import {
   distanceUnitLabel,
+  elevationUnitLabel,
+  fromMetersElev,
+  toMetersElev,
   formatHeight,
   formatWeight,
   parseHeightInput,
@@ -73,6 +76,7 @@ interface FormState {
   rpe: number;
   calories: string;
   steps: string;
+  elevation: string;
   city: string;
   cityLat: number | null;
   cityLon: number | null;
@@ -106,6 +110,7 @@ function blankForm(): FormState {  return {
     rpe: 7,
     calories: "",
     steps: "",
+    elevation: "",
     city: "",
     cityLat: null,
     cityLon: null,
@@ -223,6 +228,8 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       rpe: a.effortRpe ?? 7,
       calories: a.calories != null ? String(a.calories) : "",
       steps: a.steps != null ? String(a.steps) : "",
+      elevation:
+        a.elevationGainM != null ? trimNum(fromMetersElev(a.elevationGainM, units)) : "",
       city: a.city ?? "",
       cityLat: a.cityLat ?? null,
       cityLon: a.cityLon ?? null,
@@ -321,6 +328,10 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
     if (form.duration.trim() !== "" && Number.isNaN(durS)) {
       errs.duration = "Use mm:ss, e.g. 45:30";
     }
+    const elev = parseFloat(form.elevation);
+    if (form.elevation.trim() !== "" && (Number.isNaN(elev) || elev < 0)) {
+      errs.elevation = "Elevation gain can't be negative.";
+    }
     const started = new Date(form.startedAt).getTime();
     if (Number.isNaN(started)) {
       errs.startedAt = "Pick a valid date and time";
@@ -366,6 +377,9 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       if (!Number.isNaN(cal) && cal > 0) payload.calories = cal;
       const stp = parseInt(form.steps, 10);
       if (!Number.isNaN(stp) && stp > 0) payload.steps = stp;
+      const elevM = parseFloat(form.elevation);
+      if (form.elevation.trim() !== "" && !Number.isNaN(elevM) && elevM >= 0)
+        payload.elevationGainM = Math.round(toMetersElev(elevM, units) * 10) / 10;
       if (form.terrain) payload.terrain = form.terrain;
       if (form.city.trim()) {
         payload.city = form.city.trim();
@@ -663,6 +677,21 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
             value={form.steps}
             onChange={(e) => set("steps", e.target.value)}
             placeholder={estSteps != null ? `~${estSteps.toLocaleString()}` : "8000"}
+          />
+        </Field>
+
+        <Field
+          label={`Elevation gain (${elevationUnitLabel(units)})`}
+          hint="Optional"
+          error={errors.elevation}
+        >
+          <TextInput
+            type="number"
+            inputMode="decimal"
+            min="0"
+            value={form.elevation}
+            onChange={(e) => set("elevation", e.target.value)}
+            placeholder={units === "metric" ? "46" : "150"}
           />
         </Field>
 
