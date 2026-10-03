@@ -9,6 +9,7 @@ import {
 } from "../../components/ui";
 import { AssignmentRow, CalendarMonth, monthRange } from "./CalendarBits";
 import { ActivityRow } from "../activities/ActivityRow";
+import { PersonalPlansSection } from "./PersonalPlansSection";
 import { activityYMD } from "../../lib/activityFormat";
 import { addDaysYMD, formatYMDLong, todayYMD } from "../../lib/workoutFormat";
 
@@ -34,6 +35,15 @@ export function PersonalCalendarPage() {
 
   const assignments = calQuery.data?.assignments ?? [];
   const activities = calQuery.data?.activities ?? [];
+  const planDaysQuery = useQuery({
+    queryKey: ["personalPlanDays", range.from, range.to],
+    queryFn: () => api.personalPlanDays(range.from, range.to),
+  });
+  const planDays = planDaysQuery.data?.days ?? [];
+  const dayPlanItems = (selectedDate
+    ? planDays.filter((d) => d.date === selectedDate)
+    : []
+  ).sort((a, b) => a.title.localeCompare(b.title));
   const dayAssignments = (selectedDate
     ? assignments.filter((a) => a.scheduledDate === selectedDate)
     : []
@@ -82,6 +92,7 @@ export function PersonalCalendarPage() {
           <CalendarMonth
             assignments={assignments}
             activities={activities}
+            planDays={planDays}
             monthOffset={monthOffset}
             selectedDate={selectedDate}
             onSelectDate={(d) => setSelectedDate((prev) => (prev === d ? null : d))}
@@ -90,10 +101,34 @@ export function PersonalCalendarPage() {
             <h3 className="mb-3 text-[13px] font-bold uppercase tracking-[0.18em] text-mist">
               {selectedDate ? formatYMDLong(selectedDate) : "Pick a day"}
             </h3>
-            {selectedDate && dayAssignments.length === 0 && dayActivities.length === 0 ? (
+            {selectedDate &&
+            dayAssignments.length === 0 &&
+            dayActivities.length === 0 &&
+            dayPlanItems.length === 0 ? (
               <p className="text-[14px] text-mist">Nothing scheduled that day.</p>
             ) : (
               <div className="flex flex-col gap-2">
+                {dayPlanItems.map((d) => (
+                  <div
+                    key={d.id}
+                    className="rounded-2xl border border-volt-400/25 bg-volt-400/[0.06] p-4"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-md bg-volt-400/20 px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-volt-200">
+                        My plan
+                      </span>
+                      <span className="text-[11px] font-semibold text-mist">
+                        {d.planName}
+                      </span>
+                    </div>
+                    <p className="mt-1.5 text-[15px] font-bold text-ink-50">
+                      {d.title}
+                    </p>
+                    {d.notes && (
+                      <p className="mt-0.5 text-[13px] text-mist">{d.notes}</p>
+                    )}
+                  </div>
+                ))}
                 {dayAssignments.map((a) => (
                   <AssignmentRow
                     key={a.id}
@@ -110,6 +145,7 @@ export function PersonalCalendarPage() {
           </div>
         </>
       )}
+      <PersonalPlansSection />
     </div>
   );
 }

@@ -14,9 +14,12 @@ import { ActivityRow } from "../activities/ActivityRow";
 import { AthleteGuardians } from "../guardians/AthleteGuardians";
 import { AthleteInsights } from "../insights/AthleteInsights";
 import {
+  addDaysYMD,
   formatDistanceM,
   formatDurationS,
   formatPaceSec,
+  formatYMDLong,
+  todayYMD,
 } from "../../lib/workoutFormat";
 import { useUnits } from "../../lib/units";
 
@@ -28,6 +31,50 @@ function StatCell({ label, value }: { label: string; value: string }) {
         {label}
       </p>
     </div>
+  );
+}
+
+/** What the athlete plans to do on their own (off-season, no team plan). */
+function AthletePlannedWorkouts({
+  teamId,
+  userId,
+  firstName,
+}: {
+  teamId: string;
+  userId: string;
+  firstName: string;
+}) {
+  const from = todayYMD();
+  const to = addDaysYMD(from, 29);
+  const plannedQuery = useQuery({
+    queryKey: ["athletePlanned", teamId, userId, from, to],
+    queryFn: () => api.athletePlannedDays(teamId, userId, from, to),
+  });
+  if (plannedQuery.isLoading || plannedQuery.isError) return null;
+  const days = plannedQuery.data?.days ?? [];
+  if (days.length === 0) return null;
+  return (
+    <section className="mb-8">
+      <h2 className="mb-3 text-[13px] font-bold uppercase tracking-[0.18em] text-mist">
+        {firstName}&apos;s planned workouts
+      </h2>
+      <div className="flex flex-col gap-2">
+        {days.map((d) => (
+          <div
+            key={d.id}
+            className="rounded-2xl border border-volt-400/25 bg-volt-400/[0.06] p-4"
+          >
+            <p className="text-[12px] font-bold uppercase tracking-wider text-mist">
+              {formatYMDLong(d.date)} · {d.planName}
+            </p>
+            <p className="mt-1 text-[15px] font-bold text-ink-50">{d.title}</p>
+            {d.notes && (
+              <p className="mt-0.5 text-[13px] text-mist">{d.notes}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -109,6 +156,12 @@ export function AthletePage() {
           </div>
         )}
       </section>
+
+      <AthletePlannedWorkouts
+        teamId={teamId!}
+        userId={userId!}
+        firstName={athlete.displayName.split(" ")[0]}
+      />
 
       <section>
         <h2 className="mb-3 text-[13px] font-bold uppercase tracking-[0.18em] text-mist">

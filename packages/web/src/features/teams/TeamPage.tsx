@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Link, useParams } from "react-router-dom";
-import { api } from "../../lib/api";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ApiError, api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import {
   Avatar,
@@ -62,12 +62,14 @@ function RosterTab({
   canInvite,
   canViewAthlete,
   myUserId,
+  isOwner,
   onInvite,
 }: {
   teamId: string;
   canInvite: boolean;
   canViewAthlete: boolean;
   myUserId: string;
+  isOwner: boolean;
   onInvite: () => void;
 }) {
   const rosterQuery = useQuery({
@@ -197,6 +199,66 @@ function RosterTab({
           </div>
         </div>
       )}
+      <LeaveTeamButton teamId={teamId} isOwner={isOwner} />
+    </div>
+  );
+}
+
+/** Voluntary departure. Owners must transfer ownership first (API enforces). */
+function LeaveTeamButton({
+  teamId,
+  isOwner,
+}: {
+  teamId: string;
+  isOwner: boolean;
+}) {
+  const navigate = useNavigate();
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const leave = useMutation({
+    mutationFn: () => api.leaveTeam(teamId),
+    onSuccess: () => navigate("/dashboard"),
+    onError: (err) =>
+      setError(
+        err instanceof ApiError ? err.message : "Couldn't leave the team.",
+      ),
+  });
+  if (isOwner) return null;
+  return (
+    <div className="mt-8 border-t border-white/10 pt-4">
+      {error && (
+        <div className="mb-3">
+          <ErrorBanner message={error} />
+        </div>
+      )}
+      {confirming ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[14px] text-mist">Leave this team?</span>
+          <Button
+            variant="secondary"
+            className="min-h-[44px] px-4 text-[14px]"
+            disabled={leave.isPending}
+            onClick={() => leave.mutate()}
+          >
+            Yes, leave
+          </Button>
+          <Button
+            variant="secondary"
+            className="min-h-[44px] px-4 text-[14px]"
+            onClick={() => setConfirming(false)}
+          >
+            Stay
+          </Button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          className="text-[14px] font-semibold text-mist hover:text-red-300"
+        >
+          Leave team
+        </button>
+      )}
     </div>
   );
 }
@@ -298,6 +360,7 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
           canInvite={canInvite}
           canViewAthlete={canInvite}
           myUserId={user?.id ?? ""}
+          isOwner={team.isOwner ?? false}
           onInvite={() => setInviteOpen(true)}
         />
       )}

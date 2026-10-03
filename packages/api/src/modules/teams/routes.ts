@@ -14,6 +14,7 @@ import {
   getTeam,
   getTeamLogo,
   listMyTeams,
+  leaveTeam,
   removeMember,
   removeTeamLogo,
   setTeamLogo,
@@ -93,6 +94,16 @@ export async function teamRoutes(app: FastifyInstance): Promise<void> {
       const { id, userId } = teamMemberParamsSchema.parse(request.params);
       const result = await removeMember(request.user!.id, id, userId, request.ip);
       return reply.send(result);
+    },
+  );
+
+  app.post(
+    "/:id/leave",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { id } = teamParamsSchema.parse(request.params);
+      await leaveTeam(request.user!.id, id, request.ip);
+      return reply.send({ ok: true });
     },
   );
 

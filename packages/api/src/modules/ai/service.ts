@@ -13,6 +13,10 @@ import { computeStats } from "./stats.js";
 import { selectProvider } from "./llm.js";
 
 const INSIGHT_DAYS = 28;
+/** No app login for this long counts as dormant. */
+const DORMANT_DAYS = 21;
+/** No coach/admin login for this long means the team has no active coach. */
+const COACH_ACTIVE_DAYS = 30;
 
 function athleteStatus(
   sessions: number,
@@ -145,15 +149,17 @@ export async function getTeamDigest(
     where: { id: teamId },
     select: { name: true },
   });
+  const dormantCutoff = new Date(Date.now() - DORMANT_DAYS * 24 * 60 * 60 * 1000);
   const athletes = await db.teamMembership.findMany({
     where: { teamId, status: "ACTIVE", role: "RUNNER" },
-    include: { user: { select: { displayName: true } } },
+    include: { user: { select: { displayName: true, lastLoginAt: true } } },
     orderBy: { createdAt: "asc" },
   });
 
   const rows: TeamDigestAthlete[] = [];
   for (const a of athletes) {
     const stats = await computeStats(a.userId, teamId, days);
+    const dormant = !a.user.lastLoginAt || a.user.lastLoginAt < dormantCutoff;
     rows.push({
       athleteId: a.userId,
       athleteName: a.user.displayName,
@@ -161,8 +167,30 @@ export async function getTeamDigest(
       activeDays: stats.activeDays,
       completionRate: stats.completionRate,
       status: athleteStatus(stats.sessions, stats.completionRate, stats.avgRpe),
+      dormant,
+      lastLoginAt: a.user.lastLoginAt?.toISOString() ?? null,
     });
   }
+  // Dormant athletes float to the top for coach review.
+  rows.sort((a, b) => Number(b.dormant) - Number(a.dormant));
+
+  const coachCutoff = new Date(Date.now() - COACH_ACTIVE_DAYS * 24 * 60 * 60 * 1000);
+  const coaches = await db.teamMembership.findMany({
+    where: {
+      teamId,
+      status: "ACTIVE",
+      role: { in: ["COACH", "TEAM_ADMIN"] },
+    },
+    include: { user: { select: { lastLoginAt: true } } },
+  });
+  const activeCoachCount = coaches.filter(
+    (c) => c.user.lastLoginAt && c.user.lastLoginAt >= coachCutoff,
+  ).length;
+  const coachHealth = {
+    coachCount: coaches.length,
+    activeCoachCount,
+    noActiveCoach: coaches.length > 0 && activeCoachCount === 0,
+  };
 
   const provider = selectProvider();
   let summary: string;
@@ -190,6 +218,7 @@ export async function getTeamDigest(
     summary,
     provider: provider.name,
     generatedAt: new Date().toISOString(),
+    coachHealth,
   };
 }
 

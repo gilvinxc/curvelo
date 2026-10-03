@@ -509,6 +509,9 @@ export interface TeamDigestAthlete {
   activeDays: number;
   completionRate: number | null;
   status: "on-track" | "quiet" | "needs-attention";
+  /** True when the athlete hasn't opened the app in 21+ days. */
+  dormant: boolean;
+  lastLoginAt: string | null;
 }
 
 export interface ImportedActivitySummary {
@@ -535,6 +538,13 @@ export interface TeamDigest {
   summary: string;
   provider: "local" | "llm";
   generatedAt: string;
+  /** Leadership health: are any coaches/admins still active? */
+  coachHealth: {
+    coachCount: number;
+    activeCoachCount: number;
+    /** True when no coach/admin has logged in within 30 days. */
+    noActiveCoach: boolean;
+  };
 }
 
 export interface ConversationDTO {
@@ -662,4 +672,24 @@ export interface AdminStatsDTO {
   documents: number;
   posts: number;
   auditEvents24h: number;
+}
+
+/** One day in a personal training plan (plain-text workout). */
+export interface PersonalPlanDayDTO {
+  id: string;
+  date: string; // YYYY-MM-DD
+  title: string;
+  notes: string | null;
+  position: number;
+}
+
+/** An individual's own training plan: a dated list of plain-text workouts. */
+export interface PersonalPlanDTO {
+  id: string;
+  name: string;
+  description: string | null;
+  applied: boolean;
+  days: PersonalPlanDayDTO[];
+  createdAt: string;
+  updatedAt: string;
 }

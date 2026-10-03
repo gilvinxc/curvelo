@@ -18,3 +18,4 @@ export * from "./schemas/records.js";
 export * from "./schemas/documents.js";
 export * from "./schemas/admin.js";
 export * from "./types.js";
+export * from "./schemas/personal-plans.js";

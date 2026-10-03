@@ -291,7 +291,7 @@ export async function removeMember(
   requireManager(membership);
 
   if (targetUserId === actorId) {
-    throw forbidden("You can't remove yourself — transfer ownership first");
+    throw forbidden("You can't remove yourself — use Leave team instead");
   }
 
   const team = await db.team.findUniqueOrThrow({ where: { id: teamId } });
@@ -331,6 +331,36 @@ export async function removeMember(
 }
 
 /** Hand team ownership to another member (owner only). The new owner becomes a coach. */
+/**
+ * A member leaves the team voluntarily. The owner must transfer ownership
+ * first — a team is never left without an owner.
+ */
+export async function leaveTeam(
+  actorId: string,
+  teamId: string,
+  ipAddress?: string,
+): Promise<void> {
+  const membership = await activeMembership(actorId, teamId);
+  const team = await db.team.findUniqueOrThrow({ where: { id: teamId } });
+  if (team.ownerId === actorId) {
+    throw forbidden(
+      "Transfer ownership to another coach before leaving the team",
+    );
+  }
+  await db.teamMembership.update({
+    where: { id: membership.id },
+    data: { status: "REMOVED" },
+  });
+  const { audit } = await import("../../lib/audit.js");
+  await audit({
+    actorId,
+    action: "MEMBER_LEFT",
+    entityType: "Team",
+    entityId: teamId,
+    ipAddress,
+  });
+}
+
 export async function transferTeam(
   actorId: string,
   teamId: string,

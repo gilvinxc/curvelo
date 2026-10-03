@@ -28,6 +28,7 @@ export function CalendarMonth({
   assignments,
   activities = [],
   events = [],
+  planDays = [],
   monthOffset,
   selectedDate,
   onSelectDate,
@@ -35,6 +36,7 @@ export function CalendarMonth({
   assignments: AssignmentDTO[];
   activities?: ActivityDTO[];
   events?: TeamEventDTO[];
+  planDays?: Array<{ date: string; id: string }>;
   monthOffset: number;
   selectedDate: string | null;
   onSelectDate: (ymd: string) => void;
@@ -73,8 +75,13 @@ export function CalendarMonth({
       arr.push({ kind: "event", id: ev.id });
       map.set(ymd, arr);
     }
+    for (const pd of planDays) {
+      const arr = map.get(pd.date) ?? [];
+      arr.push({ kind: "planned", id: `plan-${pd.id}` });
+      map.set(pd.date, arr);
+    }
     return map;
-  }, [assignments, activities, events]);
+  }, [assignments, activities, events, planDays]);
 
   const today = toYMD(new Date());
 

@@ -76,11 +76,20 @@ async function loadSessionUser(userId: string): Promise<SessionUser> {
   return toSessionUser(user);
 }
 
+/** Stamp the user's last-login time (login + token refresh both count as active). */
+async function stampLogin(userId: string): Promise<void> {
+  await db.user.update({
+    where: { id: userId },
+    data: { lastLoginAt: new Date() },
+  });
+}
+
 /** Issues a new token pair and persists the refresh token hash. */
 async function issueSession(userId: string): Promise<SessionTokens> {
   const familyId = newTokenFamily();
   const accessToken = signAccessToken(userId);
   const refreshToken = signRefreshToken(userId, familyId);
+  await stampLogin(userId);
   await db.refreshToken.create({
     data: {
       userId,
@@ -221,6 +230,7 @@ export async function refresh(
     }),
   ]);
 
+  await stampLogin(stored.userId);
   return {
     user: await loadSessionUser(stored.userId),
     tokens: { accessToken, refreshToken: newRefreshToken },

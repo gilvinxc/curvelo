@@ -14,6 +14,7 @@ import { workoutRoutes } from "./modules/workouts/routes.js";
 import { groupRoutes } from "./modules/groups/routes.js";
 import { assignmentRoutes } from "./modules/assignments/routes.js";
 import { trainingPlanRoutes } from "./modules/training-plans/routes.js";
+import { personalPlanRoutes } from "./modules/personal-plans/routes.js";
 import { teamEventRoutes } from "./modules/team-events/routes.js";
 import { activityRoutes } from "./modules/activities/routes.js";
 import { feedRoutes } from "./modules/feed/routes.js";
@@ -63,6 +64,7 @@ export async function buildApp() {
   await app.register(groupRoutes, { prefix: "/api/v1" });
   await app.register(assignmentRoutes, { prefix: "/api/v1" });
   await app.register(trainingPlanRoutes, { prefix: "/api/v1" });
+  await app.register(personalPlanRoutes, { prefix: "/api/v1" });
   await app.register(teamEventRoutes, { prefix: "/api/v1" });
   await app.register(activityRoutes, { prefix: "/api/v1" });
   await app.register(feedRoutes, { prefix: "/api/v1" });

@@ -99,6 +99,7 @@ export function TeamDigestSection({ teamId }: { teamId: string }) {
         (() => {
           const { digest }: { digest: TeamDigest } = digestQuery.data;
           const attentionFirst = [...digest.athletes].sort((a, b) => {
+            if (a.dormant !== b.dormant) return Number(b.dormant) - Number(a.dormant);
             const rank = { "needs-attention": 0, quiet: 1, "on-track": 2 };
             return rank[a.status] - rank[b.status];
           });
@@ -124,6 +125,20 @@ export function TeamDigestSection({ teamId }: { teamId: string }) {
                   {digest.summary}
                 </p>
               </Card>
+
+              {digest.coachHealth.noActiveCoach && (
+                <Card className="mb-4 border-amber-400/40 p-4">
+                  <p className="text-[14px] font-bold text-amber-200">
+                    ⚠️ No active coach
+                  </p>
+                  <p className="mt-1 text-[13px] text-mist">
+                    None of this team&apos;s {digest.coachHealth.coachCount}{" "}
+                    {digest.coachHealth.coachCount === 1 ? "coach has" : "coaches have"}{" "}
+                    opened the app in the last 30 days. Consider handing off
+                    coaching duties.
+                  </p>
+                </Card>
+              )}
 
               {attentionFirst.length === 0 ? (
                 <EmptyState
@@ -155,7 +170,14 @@ export function TeamDigestSection({ teamId }: { teamId: string }) {
                                 : "no assignments"}
                             </p>
                           </div>
-                          <StatusBadge status={a.status} />
+                          <div className="flex shrink-0 flex-col items-end gap-1">
+                            <StatusBadge status={a.status} />
+                            {a.dormant && (
+                              <span className="rounded-md bg-amber-400/15 px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-amber-200">
+                                Dormant
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </Card>
                     </Link>

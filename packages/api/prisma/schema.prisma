@@ -71,6 +71,7 @@ model User {
   emailVerifiedAt DateTime?
   avatarImage     Bytes?
   avatarMime      String?
+  lastLoginAt     DateTime?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
@@ -95,6 +96,7 @@ model User {
   receivedAssignments       WorkoutAssignment[]  @relation("AssignmentRecipient")
   groupMemberships          TeamGroupMember[]
   activities                Activity[]
+  personalPlans           PersonalPlan[]
   loggedActivities          Activity[]           @relation("ActivityLogger")
   authoredPosts             FeedPost[]           @relation("PostAuthor")
   authoredComments          PostComment[]        @relation("CommentAuthor")
@@ -1022,4 +1024,33 @@ model TrackerOAuthClient {
   provider   String   @id // COROS
   clientId   String
   createdAt  DateTime @default(now())
+}
+
+/// An individual's own training plan: a dated list of plain-text workouts.
+/// Visible to the owner and to coaches/admins of the owner's teams.
+model PersonalPlan {
+  id          String            @id @default(uuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  applied     Boolean           @default(false)
+  days        PersonalPlanDay[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([userId])
+}
+
+model PersonalPlanDay {
+  id        String       @id @default(uuid())
+  planId    String
+  plan      PersonalPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  date      DateTime
+  title     String
+  notes     String?
+  position  Int          @default(0)
+  createdAt DateTime     @default(now())
+
+  @@index([planId, date])
 }

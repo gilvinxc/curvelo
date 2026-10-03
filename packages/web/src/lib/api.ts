@@ -10,6 +10,8 @@ import type {
   ChildSummaryDTO,
   CommentDTO,
   DocumentDTO,
+  PersonalPlanDayDTO,
+  PersonalPlanDTO,
   DocumentRequirementDTO,
   AdminAuditDTO,
   AdminStatsDTO,
@@ -473,6 +475,8 @@ export const api = {
     }),
   removeMember: (teamId: string, userId: string) =>
     del<{ ok: boolean }>(`/teams/${teamId}/members/${userId}`),
+  leaveTeam: (teamId: string) =>
+    post<{ ok: boolean }>(`/teams/${teamId}/leave`, {}),
   transferTeam: (teamId: string, newOwnerId: string) =>
     post<{ ok: boolean; newOwnerId: string }>(`/teams/${teamId}/transfer`, {
       newOwnerId,
@@ -673,6 +677,37 @@ export const api = {
     put<{ ok: boolean }>(`/teams/${teamId}/logo`, { image }),
   removeTeamLogo: (teamId: string) => del<{ ok: boolean }>(`/teams/${teamId}/logo`),
   teamLogoUrl: (teamId: string) => `${BASE_URL}/teams/${teamId}/logo`,
+
+  // personal training plans
+  listPersonalPlans: () =>
+    request<{ plans: PersonalPlanDTO[] }>("/personal-plans"),
+  createPersonalPlan: (input: {
+    name: string;
+    description?: string;
+    days: Array<{ date: string; title: string; notes?: string }>;
+  }) => post<{ plan: PersonalPlanDTO }>("/personal-plans", input),
+  updatePersonalPlan: (
+    planId: string,
+    input: {
+      name?: string;
+      description?: string | null;
+      days?: Array<{ date: string; title: string; notes?: string }>;
+    },
+  ) => patch<{ plan: PersonalPlanDTO }>(`/personal-plans/${planId}`, input),
+  deletePersonalPlan: (planId: string) =>
+    del<{ ok: boolean }>(`/personal-plans/${planId}`),
+  applyPersonalPlan: (planId: string) =>
+    post<{ plan: PersonalPlanDTO }>(`/personal-plans/${planId}/apply`, {}),
+  unapplyPersonalPlan: (planId: string) =>
+    post<{ plan: PersonalPlanDTO }>(`/personal-plans/${planId}/unapply`, {}),
+  personalPlanDays: (from: string, to: string) =>
+    request<{
+      days: Array<PersonalPlanDayDTO & { planId: string; planName: string }>;
+    }>(`/personal-plans/days?from=${from}&to=${to}`),
+  athletePlannedDays: (teamId: string, userId: string, from: string, to: string) =>
+    request<{
+      days: Array<PersonalPlanDayDTO & { planId: string; planName: string }>;
+    }>(`/teams/${teamId}/athletes/${userId}/planned?from=${from}&to=${to}`),
   setAvatar: (image: string) =>
     put<{ ok: boolean; hasAvatar: boolean }>("/users/me/avatar", { image }),
   removeAvatar: () => del<{ ok: boolean; hasAvatar: boolean }>("/users/me/avatar"),
