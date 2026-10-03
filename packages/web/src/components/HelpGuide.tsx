@@ -21,6 +21,11 @@ const ENTRIES: GuideEntry[] = [
   { title: "My progress", body: "Stats, streaks, shoes, and pacing trends.", to: "/progress", roles: ["runner"] },
   { title: "Training plans", body: "Create a personal plan for the off-season — it lands on your calendar.", to: "/calendar", roles: ["runner"] },
   { title: "Connect a tracker", body: "Link COROS to sync workouts automatically.", to: "/settings", roles: ["runner"] },
+  { title: "Personal records", body: "Your fastest pace at standard distances, from all your logged runs.", to: "/dashboard", roles: ["runner"] },
+  { title: "Today's workout", body: "If your coach assigned something for today, it nudges you on the dashboard with a Log it button.", to: "/dashboard", roles: ["runner"] },
+  { title: "Elevation, cadence & splits", body: "Optional fields on every run — log them by hand or let your watch file fill them in.", to: "/activities/new", roles: ["runner"] },
+  { title: "Tag teammates", body: "Ran with friends? Tag them and they can add it to their own log with one tap.", to: "/activities/new", roles: ["runner"] },
+  { title: "Your route maps", body: "Imported runs show your GPS route — visible only to you and your verified guardians.", to: "/activities", roles: ["runner"] },
   // Coach
   { title: "Coach a team", body: "Insights, quiet/dormant athletes, and the team digest.", teamTab: "coaching", roles: ["coach"] },
   { title: "Create a workout", body: "Build and assign workouts to runners.", teamTab: "workouts", roles: ["coach"] },
@@ -31,9 +36,14 @@ const ENTRIES: GuideEntry[] = [
   { title: "Review reports", body: "Moderation queue for reported posts.", teamTab: "reports", roles: ["coach"] },
   { title: "Draft alumni update", body: "AI draft of recent highlights to publish as an announcement.", teamTab: "coaching", roles: ["coach"] },
   { title: "Invite a guardian", body: "Link a parent to their athlete for consent and visibility.", teamTab: "manage", roles: ["coach"] },
+  { title: "Team health", body: "Miles, pace, effort, races, participation, and injuries — six tiles, all drill-down.", teamTab: "health", roles: ["coach"] },
+  { title: "Season timeline", body: "Seasons, championship countdown, weekly mileage, and race markers.", teamTab: "season", roles: ["coach"] },
+  { title: "GPS badge", body: "A GPS badge on a run means it was actually tracked — not hand-typed.", teamTab: "coaching", roles: ["coach"] },
+  { title: "Check-ins", body: "Private coach-runner conversations — guardians are always included for minors.", teamTab: "messages", roles: ["coach"] },
   // Parent
   { title: "Family dashboard", body: "Your athletes' schedules, runs, and consent status.", to: "/family", roles: ["parent"] },
   { title: "Team conversations", body: "Read-only view of your athlete's team chat.", to: "/family", roles: ["parent"] },
+  { title: "Route maps", body: "Your athlete's GPS route maps are visible to you as a verified guardian.", to: "/family", roles: ["parent"] },
   { title: "Privacy", body: "Password reset and delete-my-data live in Settings.", to: "/settings", roles: ["runner", "coach", "parent"] },
 ];
 
