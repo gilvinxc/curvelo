@@ -27,6 +27,8 @@ import {
   distanceUnitLabel,
   formatHeight,
   formatWeight,
+  parseHeightInput,
+  toCm,
   fromKg,
   fromMeters,
   fromTemp,
@@ -84,6 +86,7 @@ interface FormState {
   shareToFeed: boolean;
   shoeId: string | null;
   weight: string;
+  height: string;
 }
 
 // Format a number for an input: up to 2 decimals, no trailing zeros.
@@ -116,6 +119,7 @@ function blankForm(): FormState {  return {
     shareToFeed: false,
     shoeId: null,
     weight: "",
+    height: "",
   };
 }
 
@@ -154,6 +158,17 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       );
     }
   }, [mode, profileWeightKg, units]);
+
+  // Prefill the height from the profile; editing it here updates the profile.
+  useEffect(() => {
+    if (mode === "new" && profileHeightCm != null) {
+      setForm((f) =>
+        f.height === ""
+          ? { ...f, height: formatHeight(profileHeightCm, units) }
+          : f,
+      );
+    }
+  }, [mode, profileHeightCm, units]);
 
   // Prefill the city from the profile; weather auto-fills from it.
   useEffect(() => {
@@ -221,6 +236,7 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       shareToFeed: false,
       shoeId: a.shoeId ?? null,
       weight: "",
+      height: profileHeightCm != null ? formatHeight(profileHeightCm, units) : "",
     });
   }, [detailQuery.data]);
 
@@ -237,11 +253,17 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
     isOwner || detailQuery.data?.activity.loggedByUserId === user?.id;
 
   // Live estimates (labeled as such; the athlete's own numbers always win).
+  const formHeightCm = useMemo(() => {
+    const parsed = parseHeightInput(form.height, units);
+    if (parsed !== undefined) return toCm(parsed, units);
+    return profileHeightCm;
+  }, [form.height, profileHeightCm, units]);
+
   const estSteps = useMemo(() => {
     const d = parseFloat(form.distance);
     if (form.distance.trim() === "" || Number.isNaN(d) || d <= 0) return null;
-    return estimateSteps(Math.round(toMeters(d, units)), profileHeightCm, form.kind);
-  }, [form.distance, form.kind, profileHeightCm, units]);
+    return estimateSteps(Math.round(toMeters(d, units)), formHeightCm, form.kind);
+  }, [form.distance, form.kind, formHeightCm, units]);
 
   const estCalories = useMemo(() => {
     const d = parseFloat(form.distance);
@@ -267,6 +289,15 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
 
   function validate(): boolean {
     const errs: Record<string, string> = {};
+    if (form.height.trim() !== "") {
+      const h = parseHeightInput(form.height, units);
+      if (h === undefined || toCm(h, units) < 100 || toCm(h, units) > 250) {
+        errs.height =
+          units === "metric"
+            ? "Enter a height between 100 and 250 cm."
+            : "Enter a height like 5'10\".";
+      }
+    }
     const dist = parseFloat(form.distance);
     const durS = parseDurationInput(form.duration);
     if (
@@ -351,6 +382,18 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       return res.activity.id;
     },
     onSuccess: (activityId) => {
+      // Sync height to profile if the user changed it here.
+      const hCm = formHeightCm;
+      if (
+        hCm != null &&
+        (profileHeightCm == null || Math.abs(hCm - profileHeightCm) > 0.5)
+      ) {
+        void api
+          .updateProfile({ heightCm: Math.round(hCm) })
+          .then(() =>
+            queryClient.invalidateQueries({ queryKey: ["profile"] }),
+          );
+      }
       queryClient.invalidateQueries({ queryKey: ["activities"] });
       queryClient.invalidateQueries({ queryKey: ["myStats"] });
       queryClient.invalidateQueries({ queryKey: ["teamCalendar"] });
@@ -693,28 +736,44 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
           <ShoePicker value={form.shoeId} onChange={(v) => set("shoeId", v)} applyDefault={mode === "new"} />
         )}
 
-        <Field
-          label={`Weight (${weightUnitLabel(units)})`}
-          error={errors.weight}
-          hint={
-            profileHeightCm != null
-              ? `Height ${formatHeight(profileHeightCm, units)} · updating weight here updates your profile`
-              : "Updating weight here updates your profile"
-          }
-        >
-          <TextInput
-            value={form.weight}
-            onChange={(e) => set("weight", e.target.value)}
-            placeholder={
-              profileWeightKg != null
-                ? formatWeight(profileWeightKg, units)
-                : units === "metric"
-                  ? "70"
-                  : "154"
-            }
-            inputMode="decimal"
-          />
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field
+            label={`Height (${units === "metric" ? "cm" : "ft/in"})`}
+            error={errors.height}
+            hint="Updates your profile"
+          >
+            <TextInput
+              value={form.height}
+              onChange={(e) => set("height", e.target.value)}
+              placeholder={
+                profileHeightCm != null
+                  ? formatHeight(profileHeightCm, units)
+                  : units === "metric"
+                    ? "178"
+                    : "5'10\""
+              }
+              inputMode="text"
+            />
+          </Field>
+          <Field
+            label={`Weight (${weightUnitLabel(units)})`}
+            error={errors.weight}
+            hint="Updates your profile"
+          >
+            <TextInput
+              value={form.weight}
+              onChange={(e) => set("weight", e.target.value)}
+              placeholder={
+                profileWeightKg != null
+                  ? formatWeight(profileWeightKg, units)
+                  : units === "metric"
+                    ? "70"
+                    : "154"
+              }
+              inputMode="decimal"
+            />
+          </Field>
+        </div>
 
         <Field label="Notes" hint="Optional — how it felt, conditions, etc.">
           <MentionTextarea

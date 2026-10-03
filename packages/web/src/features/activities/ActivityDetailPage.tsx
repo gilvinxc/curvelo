@@ -131,7 +131,7 @@ export function ActivityDetailPage() {
         backTo="/dashboard"
         action={
           canEdit ? (
-            <div className="flex shrink-0 gap-2">
+            <div className="flex flex-wrap gap-2">
               {isOwner && canShare && (
                 <Button
                   variant="secondary"

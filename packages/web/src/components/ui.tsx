@@ -423,7 +423,7 @@ export function PageHeader({
 }) {
   const navigate = useNavigate();
   return (
-    <div className="mb-6 flex items-start gap-3">
+    <div className="mb-6 flex flex-wrap items-start gap-3">
       {backTo && (
         <button
           onClick={() => navigate(backTo)}
@@ -435,7 +435,7 @@ export function PageHeader({
           </svg>
         </button>
       )}
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 basis-40">
         <h1 className="truncate text-2xl font-black tracking-tight">{title}</h1>
         {subtitle && <p className="mt-0.5 text-[14px] text-mist">{subtitle}</p>}
       </div>
