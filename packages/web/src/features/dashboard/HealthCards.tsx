@@ -8,7 +8,7 @@ import {
   formatPaceSec,
   todayYMD,
 } from "../../lib/workoutFormat";
-import { Card } from "../../components/ui";
+import { Card, RoleBadge } from "../../components/ui";
 import { TeamLogo } from "../teams/TeamLogo";
 
 /** Compact personal rollup: week miles, 28d pace, current streak. */
@@ -97,14 +97,17 @@ export function TeamStatusRow({
   const isCoach = myRole === "COACH";
 
   return (
-    <Link to={`/teams/${teamId}/health`} className="block">
+    <Link to={`/teams/${teamId}`} className="block">
       <Card className="p-4 transition hover:border-volt-400/40">
         <div className="flex items-center gap-3">
           <TeamLogo teamId={teamId} teamName={teamName} hasLogo={false} size={40} />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-extrabold text-ink-50">
-              {teamName}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="truncate text-[15px] font-extrabold text-ink-50">
+                {teamName}
+              </p>
+              {myRole && <RoleBadge role={myRole} />}
+            </div>
             <p className="mt-0.5 truncate text-[13px] text-mist">
               {h ? (
                 <>

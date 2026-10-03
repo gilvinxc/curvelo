@@ -11,9 +11,7 @@ import {
   ErrorBanner,
   FullScreenLoader,
   Modal,
-  RoleBadge,
 } from "../../components/ui";
-import { TeamLogo } from "../teams/TeamLogo";
 import { UpcomingWorkouts } from "../calendar/PersonalCalendar";
 import { TrainingLog } from "../activities/TrainingLog";
 import { MyHealthCard, TeamStatusRow } from "./HealthCards";
@@ -99,9 +97,16 @@ export function DashboardPage() {
         <>
           <MyHealthCard />
           <div className="mb-6">
-            <h2 className="mb-3 text-[13px] font-bold uppercase tracking-[0.18em] text-mist">
-              Team status
-            </h2>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="text-[13px] font-bold uppercase tracking-[0.18em] text-mist">
+                Team status
+              </h2>
+              <Link to="/teams/new">
+                <Button variant="secondary" className="min-h-[44px] px-4 text-[14px]">
+                  + New team
+                </Button>
+              </Link>
+            </div>
             <div className="flex flex-col gap-3">
               {teams.map((t) => (
                 <TeamStatusRow
@@ -165,47 +170,7 @@ export function DashboardPage() {
             </Link>
           }
         />
-      ) : (
-        <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[13px] font-bold uppercase tracking-[0.18em] text-mist">
-              My teams
-            </h2>
-            <Link to="/teams/new">
-              <Button variant="secondary" className="min-h-[44px] px-4 text-[14px]">
-                + New team
-              </Button>
-            </Link>
-          </div>
-          {teams.map((team) => (
-            <Link key={team.id} to={`/teams/${team.id}`} className="block">
-              <Card className="transition hover:border-volt-400/40">
-                <div className="flex items-center gap-3">
-                  <TeamLogo teamId={team.id} teamName={team.name} hasLogo={team.hasLogo ?? false} size={44} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="truncate text-[17px] font-extrabold tracking-tight">
-                        {team.name}
-                      </h3>
-                    </div>
-                    <p className="mt-0.5 text-[13px] text-mist">
-                      {team.memberCount}{" "}
-                      {team.memberCount === 1 ? "member" : "members"}
-                      {team.visibility === "PUBLIC" ? " · Public" : " · Private"}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-1.5">
-                    {team.myRole && <RoleBadge role={team.myRole} />}
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a7ae97" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="m9 18 6-6-6-6" />
-                    </svg>
-                  </div>
-                </div>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      )}
+) : null}
     </div>
   );
 }
