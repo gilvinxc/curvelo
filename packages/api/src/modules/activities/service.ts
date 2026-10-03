@@ -37,6 +37,7 @@ export type ActivityWithJoins = {
   effortRpe: number | null;
   calories: number | null;
   steps: number | null;
+  elevationGainM: number | null;
   city: string | null;
   cityLat: number | null;
   cityLon: number | null;
@@ -83,6 +84,7 @@ export async function toActivityDTO(a: ActivityWithJoins): Promise<ActivityDTO> 
     effortRpe: a.effortRpe,
     calories: a.calories,
     steps: a.steps,
+    elevationGainM: a.elevationGainM,
     city: a.city,
     cityLat: a.cityLat,
     cityLon: a.cityLon,
@@ -220,6 +222,7 @@ export async function createActivity(
       effortRpe: input.effortRpe,
       calories: input.calories ?? undefined,
       steps: input.steps ?? undefined,
+      elevationGainM: input.elevationGainM ?? undefined,
       city: activityCity,
       cityLat: input.cityLat ?? undefined,
       cityLon: input.cityLon ?? undefined,
@@ -446,6 +449,7 @@ export async function updateActivity(
       maxHrBpm: input.maxHrBpm,
       effortRpe: input.effortRpe,
       calories: input.calories,
+      elevationGainM: input.elevationGainM,
       notes:
         input.notes === undefined ? undefined : input.notes?.trim() || null,
       teamId,
@@ -659,6 +663,7 @@ export async function logTeamRun(
         maxHrBpm: o?.maxHrBpm ?? input.maxHrBpm,
         effortRpe: input.effortRpe,
         calories: input.calories,
+        elevationGainM: input.elevationGainM,
         notes: input.notes,
         teamId: input.teamId,
         visibility: input.visibility,

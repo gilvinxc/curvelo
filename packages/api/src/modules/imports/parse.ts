@@ -13,6 +13,7 @@ export interface ParsedWorkout {
   maxHrBpm: number | null;
   calories: number | null;
   steps: number | null;
+  elevationGainM: number | null;
 }
 
 export const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
@@ -38,6 +39,20 @@ function mapSport(sport: string | undefined | null): string {
     return "CROSS_TRAINING";
   if (["strengthtraining", "fitnessequipment", "yoga", "pilates"].includes(s)) return "STRENGTH";
   return "OTHER";
+}
+
+/** Total ascent: sum of positive elevation diffs between consecutive points. */
+function elevationGainM(eles: (number | null)[]): number | null {
+  let gain = 0;
+  let prev: number | null = null;
+  let seen = 0;
+  for (const e of eles) {
+    if (e === null || !Number.isFinite(e)) continue;
+    seen++;
+    if (prev !== null && e > prev) gain += e - prev;
+    prev = e;
+  }
+  return seen >= 2 ? Math.round(gain * 10) / 10 : null;
 }
 
 function haversineM(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -72,6 +87,7 @@ function parseGpx(buf: Buffer): ParsedWorkout {
   let start: Date | null = null;
   let end: Date | null = null;
   let prev: { lat: number; lon: number } | null = null;
+  const eles: (number | null)[] = [];
 
   for (const trk of trks) {
     for (const seg of asArray(trk?.trkseg)) {
@@ -79,6 +95,7 @@ function parseGpx(buf: Buffer): ParsedWorkout {
         const lat = parseFloat(pt["@lat"]);
         const lon = parseFloat(pt["@lon"]);
         const t = pt?.time ? new Date(pt.time) : null;
+        eles.push(num(pt?.ele));
         if (Number.isFinite(lat) && Number.isFinite(lon)) {
           if (prev) distanceM += haversineM(prev.lat, prev.lon, lat, lon);
           prev = { lat, lon };
@@ -102,6 +119,7 @@ function parseGpx(buf: Buffer): ParsedWorkout {
     maxHrBpm: null,
     calories: null,
     steps: null,
+    elevationGainM: elevationGainM(eles),
   };
 }
 
@@ -131,6 +149,7 @@ function parseTcx(buf: Buffer): ParsedWorkout {
   let maxHr: number | null = null;
   let start: Date | null = act?.Id ? new Date(act.Id) : null;
   if (start && Number.isNaN(start.getTime())) start = null;
+  const eles: (number | null)[] = [];
 
   for (const lap of laps) {
     const d = num(lap?.DistanceMeters);
@@ -145,6 +164,11 @@ function parseTcx(buf: Buffer): ParsedWorkout {
     if (m && (!maxHr || m > maxHr)) maxHr = m;
     const ls = lap?.["@StartTime"] ? new Date(lap["@StartTime"]) : null;
     if (ls && !Number.isNaN(ls.getTime()) && (!start || ls < start)) start = ls;
+    for (const track of asArray(lap?.Track)) {
+      for (const tp of asArray(track?.Trackpoint)) {
+        eles.push(num(tp?.AltitudeMeters));
+      }
+    }
   }
   if (!start) throw new Error("TCX file has no start time.");
 
@@ -158,6 +182,7 @@ function parseTcx(buf: Buffer): ParsedWorkout {
     maxHrBpm: maxHr,
     calories: calories ? Math.round(calories) : null,
     steps: null,
+    elevationGainM: elevationGainM(eles),
   };
 }
 
@@ -171,6 +196,7 @@ interface FitSession {
   avg_heart_rate?: unknown;
   max_heart_rate?: unknown;
   total_calories?: unknown;
+  total_ascent?: unknown;
 }
 
 function parseFit(buf: Buffer): Promise<ParsedWorkout> {
@@ -206,6 +232,10 @@ function parseFit(buf: Buffer): Promise<ParsedWorkout> {
           calories: num(s.total_calories) ? Math.round(num(s.total_calories)!) : null,
           // FIT counts strides (cycles) for running; steps ≈ 2 per stride.
           steps: num(s.total_cycles) ? Math.round(num(s.total_cycles)!) * 2 : null,
+          elevationGainM:
+            num(s.total_ascent) && num(s.total_ascent)! > 0
+              ? Math.round(num(s.total_ascent)! * 10) / 10
+              : null,
         });
       } catch (e) {
         reject(e instanceof Error ? e : new Error("Could not parse FIT file."));

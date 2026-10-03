@@ -28,6 +28,7 @@ const metrics = {
   effortRpe: z.number().int().min(1).max(10).optional(),
   calories: z.number().int().positive().max(50_000).optional(),
   steps: z.number().int().positive().max(200_000).optional(),
+  elevationGainM: z.number().min(0).max(100_000).optional(),
   shareToFeed: z.boolean().optional(),
   city: z.string().trim().max(120).optional(),
   cityLat: z.number().min(-90).max(90).optional(),

@@ -24,6 +24,8 @@ const MIME: Record<string, string> = {
   ".svg": "image/svg+xml",
   ".ico": "image/x-icon",
   ".webmanifest": "application/manifest+json",
+  ".mp4": "video/mp4",
+  ".webm": "video/webm",
 };
 
 /**

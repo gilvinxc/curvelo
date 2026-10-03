@@ -543,6 +543,7 @@ model Activity {
   startedAt        DateTime
   distanceM        Float?
   durationS        Int?
+  elevationGainM   Float?
   avgPaceS         Float?
   avgHrBpm         Int?
   maxHrBpm         Int?

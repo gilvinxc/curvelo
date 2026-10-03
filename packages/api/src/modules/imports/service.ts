@@ -38,6 +38,7 @@ function toSummary(
     maxHrBpm: parsed.maxHrBpm,
     calories: parsed.calories,
     steps: parsed.steps,
+    elevationGainM: parsed.elevationGainM,
     alreadyImported,
   };
 }
@@ -96,6 +97,7 @@ export async function confirmImport(
     maxHrBpm: parsed.maxHrBpm ?? undefined,
     calories: parsed.calories ?? undefined,
     steps: parsed.steps ?? undefined,
+    elevationGainM: parsed.elevationGainM ?? undefined,
     teamId: input.teamId,
     visibility: input.visibility,
     notes: `Imported from ${parsed.format} file ${fileName}`,

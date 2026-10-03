@@ -371,6 +371,7 @@ export interface ActivityDTO {  id: string;
   effortRpe: number | null;
   calories: number | null;
   steps: number | null;
+  elevationGainM: number | null;
   city: string | null;
   cityLat: number | null;
   cityLon: number | null;
@@ -529,6 +530,7 @@ export interface ImportedActivitySummary {
   maxHrBpm: number | null;
   calories: number | null;
   steps: number | null;
+  elevationGainM: number | null;
   alreadyImported: boolean;
 }
 

@@ -66,6 +66,7 @@ export async function syncCorosForUser(userId: string): Promise<CorosSyncResult>
         maxHrBpm: parsed.maxHrBpm ?? undefined,
         calories: parsed.calories ?? undefined,
         steps: parsed.steps ?? undefined,
+        elevationGainM: parsed.elevationGainM ?? undefined,
         visibility: "TEAM",
         notes: "Synced from COROS",
       });
