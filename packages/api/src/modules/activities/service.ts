@@ -12,6 +12,7 @@ import type {
 import { estimateCalories, estimateSteps } from "@curvelo/shared";
 import { lookupWeather } from "../../lib/weather.js";
 import { db } from "../../db.js";
+import { canSeeRoute } from "./route.js";
 import { mentionRefsFor, syncMentions } from "../../lib/mentions.js";
 import { checkGoalCompletions } from "../goals/service.js";
 import { assertOwnShoe, getDefaultShoeId } from "../records/service.js";
@@ -56,6 +57,7 @@ export type ActivityWithJoins = {
   loggedBy: { displayName: string } | null;
   team: { name: string } | null;
   shoe: { name: string } | null;
+  route: { id: string } | null;
 };
 
 const WITH_JOINS = {
@@ -64,11 +66,15 @@ const WITH_JOINS = {
   team: { select: { name: true } },
   shoe: { select: { name: true } },
   splits: { orderBy: { position: "asc" as const } },
+  route: { select: { id: true } },
 } as const;
 
 export const ACTIVITY_WITH_JOINS = WITH_JOINS;
 
-export async function toActivityDTO(a: ActivityWithJoins): Promise<ActivityDTO> {
+export async function toActivityDTO(
+  a: ActivityWithJoins,
+  opts?: { route?: Array<[number, number]> | null },
+): Promise<ActivityDTO> {
   const mentions = await mentionRefsFor("ACTIVITY", [a.id]);
   return {
     id: a.id,
@@ -110,6 +116,8 @@ export async function toActivityDTO(a: ActivityWithJoins): Promise<ActivityDTO> 
     loggedByName: a.loggedBy?.displayName ?? null,
     source: a.source,
     visibility: a.visibility,
+    hasGpsRoute: a.route !== null,
+    ...(opts?.route !== undefined ? { route: opts.route } : {}),
   };
 }
 
@@ -141,6 +149,15 @@ async function canView(
 ): Promise<boolean> {
   if (activity.userId === actorId) return true;
   if (activity.visibility !== "TEAM" || !activity.teamId) return false;
+  // Verified guardians can view their athlete's team-visible activities
+  // (the family page already lists them).
+  const guardianLink = await db.guardianLink
+    .findFirst({
+      where: { guardianId: actorId, athleteId: activity.userId, status: "VERIFIED" },
+      select: { id: true },
+    })
+    .catch(() => null);
+  if (guardianLink) return true;
   const membership = await activeMembership(actorId, activity.teamId).catch(
     () => null,
   );
@@ -402,7 +419,7 @@ export async function listMyActivities(
     include: WITH_JOINS,
     orderBy: { startedAt: "desc" },
   });
-  return Promise.all(activities.map(toActivityDTO));
+  return Promise.all(activities.map((a) => toActivityDTO(a)));
 }
 
 export async function getActivity(
@@ -411,12 +428,17 @@ export async function getActivity(
 ): Promise<ActivityDTO> {
   const activity = await db.activity.findUnique({
     where: { id: activityId },
-    include: WITH_JOINS,
+    include: { ...WITH_JOINS, route: { select: { id: true, points: true } } },
   });
   if (!activity || !(await canView(actorId, activity))) {
     throw notFound("Activity not found");
   }
-  return await toActivityDTO(activity);
+  // Route maps: owner + verified guardians only.
+  const route =
+    (await canSeeRoute(actorId, activity.userId)) && activity.route
+      ? (activity.route.points as Array<[number, number]>)
+      : null;
+  return await toActivityDTO(activity, { route });
 }
 
 export async function updateActivity(
@@ -1087,7 +1109,7 @@ export async function athleteView(
           ? Math.round((paceDurationS / paceDistanceM) * 1000 * 10) / 10
           : null,
     },
-    recentActivities: await Promise.all(recent.map(toActivityDTO)),
+    recentActivities: await Promise.all(recent.map((a) => toActivityDTO(a))),
     upcomingAssignments: upcoming.map((a) => ({
       id: a.id,
       workoutId: a.workoutId,
@@ -1137,7 +1159,7 @@ export async function calendarActivities(
     include: WITH_JOINS,
     orderBy: { startedAt: "asc" },
   });
-  return Promise.all(activities.map(toActivityDTO));
+  return Promise.all(activities.map((a) => toActivityDTO(a)));
 }
 
 /**

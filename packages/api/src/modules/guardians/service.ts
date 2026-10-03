@@ -458,7 +458,7 @@ export async function myChildren(actorId: string): Promise<ChildSummaryDTO[]> {
           guardianName: c.guardian.displayName,
         })),
         upcomingAssignments: upcomingDTOs,
-        recentActivities: await Promise.all(recent.map(toActivityDTO)),
+        recentActivities: await Promise.all(recent.map((a) => toActivityDTO(a))),
       });
     }
   }

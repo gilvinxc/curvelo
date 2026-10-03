@@ -395,6 +395,10 @@ export interface ActivityDTO {  id: string;
   shoeName: string | null;
   loggedByUserId: string | null;
   loggedByName: string | null;
+  /** GPS track, owner + verified guardians only. Absent otherwise. */
+  route?: Array<[number, number]> | null;
+  /** True when a GPS route is stored. Not location data — safe for all viewers. */
+  hasGpsRoute: boolean;
 }
 
 export interface ActivityTagDTO {

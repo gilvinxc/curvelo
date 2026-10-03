@@ -6,6 +6,7 @@
 import { db } from "../../db.js";
 import { parseWorkoutFile } from "../imports/parse.js";
 import { createActivity } from "../activities/service.js";
+import { saveActivityRoute } from "../activities/route.js";
 import { createActivitySchema } from "@curvelo/shared";
 import {
   downloadActivityFit,
@@ -72,10 +73,11 @@ export async function syncCorosForUser(userId: string): Promise<CorosSyncResult>
         visibility: "TEAM",
         notes: "Synced from COROS",
       });
-      await createActivity(userId, validated, undefined, {
+      const synced = await createActivity(userId, validated, undefined, {
         source: "COROS",
         externalId,
       });
+      await saveActivityRoute(synced.id, parsed.route);
       result.imported++;
     } catch (err) {
       result.errors.push(`Activity ${rec.id}: ${(err as Error).message}`.slice(0, 200));

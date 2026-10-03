@@ -9,6 +9,7 @@ import { db } from "../../db.js";
 import { audit } from "../../lib/audit.js";
 import { AppError, conflict } from "../../lib/errors.js";
 import { createActivity } from "../activities/service.js";
+import { saveActivityRoute } from "../activities/route.js";
 import { parseWorkoutFile, type ParsedWorkout } from "./parse.js";
 
 function idsFor(userId: string, buf: Buffer): { externalId: string; fileHash: string } {
@@ -121,6 +122,8 @@ export async function confirmImport(
     }
     throw err;
   }
+
+  await saveActivityRoute(activity.id, parsed.route);
 
   await audit({
     actorId: userId,

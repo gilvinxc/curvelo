@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import type { ActivityDTO } from "@curvelo/shared";
 import { cn } from "../../components/cx";
+import { GpsBadge } from "../../components/ui";
 import {
   activityKindLabel,
   activitySummary,
@@ -54,6 +55,7 @@ export function ActivityRow({
               Workout
             </span>
           )}
+          {activity.hasGpsRoute && <GpsBadge />}
         </div>
         <p className="mt-0.5 text-[13px] text-mist">
           {formatActivityDateShort(activity.startedAt)}

@@ -576,6 +576,7 @@ model Activity {
 
   sharedInPosts FeedPost[] @relation("SharedInPosts")
   splits        ActivitySplit[]
+  route         ActivityRoute?
   tags          ActivityTag[]
 
   @@unique([source, externalId])
@@ -613,6 +614,17 @@ model ActivitySplit {
   durationS  Int?
 
   @@index([activityId, position])
+}
+
+// ─── GPS route: simplified trackpoints, owner + verified guardians only ───
+
+model ActivityRoute {
+  id         String   @id @default(uuid())
+  activityId String   @unique
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  // Simplified [lat, lon] pairs, max 500 points.
+  points     Json
+  createdAt  DateTime @default(now())
 }
 
 // ─── Slice 4: private team social feed ───────────────────────────────────

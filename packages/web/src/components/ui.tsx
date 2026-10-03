@@ -24,6 +24,25 @@ export function Logo({ compact = false }: { compact?: boolean }) {
   );
 }
 
+/* ---------------------------------- badges --------------------------------- */
+
+/** GPS-tracked indicator: the run came from a file/tracker, not hand-typed.
+ *  This is a boolean, not location data — safe for every activity viewer. */
+export function GpsBadge({ className = "" }: { className?: string }) {
+  return (
+    <span
+      title="GPS-tracked run"
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full border border-sky-400/30 bg-sky-400/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-300 ${className}`}
+    >
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+      GPS
+    </span>
+  );
+}
+
 /* --------------------------------- button -------------------------------- */
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";

@@ -21,6 +21,8 @@ export interface ParsedWorkout {
   elevationGainM: number | null;
   avgCadenceSpm: number | null;
   splits: ParsedSplit[];
+  /** Simplified [lat, lon] track, max 500 points, or null when no GPS. */
+  route: Array<[number, number]> | null;
 }
 
 export const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
@@ -53,6 +55,62 @@ function avgCadenceSpm(cads: (number | null)[]): number | null {
   const vals = cads.filter((c): c is number => c !== null && Number.isFinite(c) && c > 0 && c <= 300);
   if (vals.length === 0) return null;
   return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+}
+
+/** Simplify a [lat, lon] track to at most `max` points (Douglas-Peucker). */
+export function simplifyRoute(
+  points: Array<[number, number]>,
+  max = 500,
+): Array<[number, number]> | null {
+  const valid = points.filter(
+    ([lat, lon]) =>
+      Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180,
+  );
+  if (valid.length < 2) return null;
+  let eps = 1e-7; // ~1cm in degrees; grows until we fit
+  let simplified = valid;
+  for (let i = 0; i < 24 && simplified.length > max; i++) {
+    simplified = douglasPeucker(valid, eps);
+    eps *= 2;
+  }
+  return simplified.length >= 2 ? simplified : null;
+}
+
+function perpDist(p: [number, number], a: [number, number], b: [number, number]): number {
+  // Equirectangular-ish perpendicular distance in degrees; fine for simplification.
+  const [px, py] = p;
+  const [ax, ay] = a;
+  const [bx, by] = b;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return Math.hypot(px - ax, py - ay);
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+function douglasPeucker(points: Array<[number, number]>, eps: number): Array<[number, number]> {
+  if (points.length <= 2) return points;
+  const keep = new Array(points.length).fill(false);
+  keep[0] = keep[points.length - 1] = true;
+  const stack: Array<[number, number]> = [[0, points.length - 1]];
+  while (stack.length > 0) {
+    const [first, last] = stack.pop()!;
+    let maxDist = 0;
+    let index = -1;
+    for (let i = first + 1; i < last; i++) {
+      const d = perpDist(points[i], points[first], points[last]);
+      if (d > maxDist) {
+        maxDist = d;
+        index = i;
+      }
+    }
+    if (index !== -1 && maxDist > eps) {
+      keep[index] = true;
+      stack.push([first, index], [index, last]);
+    }
+  }
+  return points.filter((_, i) => keep[i]);
 }
 
 /** Total ascent: sum of positive elevation diffs between consecutive points. */
@@ -104,6 +162,7 @@ function parseGpx(buf: Buffer): ParsedWorkout {
   const eles: (number | null)[] = [];
 
   const cads: (number | null)[] = [];
+  const track: Array<[number, number]> = [];
   for (const trk of trks) {
     for (const seg of asArray(trk?.trkseg)) {
       for (const pt of asArray(seg?.trkpt)) {
@@ -115,6 +174,7 @@ function parseGpx(buf: Buffer): ParsedWorkout {
         if (Number.isFinite(lat) && Number.isFinite(lon)) {
           if (prev) distanceM += haversineM(prev.lat, prev.lon, lat, lon);
           prev = { lat, lon };
+          track.push([lat, lon]);
         }
         if (t && !Number.isNaN(t.getTime())) {
           if (!start || t < start) start = t;
@@ -138,6 +198,7 @@ function parseGpx(buf: Buffer): ParsedWorkout {
     elevationGainM: elevationGainM(eles),
     avgCadenceSpm: avgCadenceSpm(cads),
     splits: [],
+    route: simplifyRoute(track),
   };
 }
 
@@ -187,6 +248,7 @@ function parseTcx(buf: Buffer): ParsedWorkout {
   const eles: (number | null)[] = [];
   const cads: (number | null)[] = [];
   const splits: ParsedSplit[] = [];
+  const track: Array<[number, number]> = [];
 
   for (const lap of laps) {
     const d = num(lap?.DistanceMeters);
@@ -212,6 +274,9 @@ function parseTcx(buf: Buffer): ParsedWorkout {
         eles.push(num(tp?.AltitudeMeters));
         const c = num(tp?.Cadence);
         cads.push(c !== null && c > 0 && c <= 300 ? Math.round(c) : null);
+        const lat = num(tp?.LatitudeDegrees);
+        const lon = num(tp?.LongitudeDegrees);
+        if (lat !== null && lon !== null) track.push([lat, lon]);
       }
     }
   }
@@ -230,6 +295,7 @@ function parseTcx(buf: Buffer): ParsedWorkout {
     elevationGainM: elevationGainM(eles),
     avgCadenceSpm: avgCadenceSpm(cads),
     splits,
+    route: simplifyRoute(track),
   };
 }
 
@@ -237,6 +303,19 @@ interface FitLap {
   total_distance?: unknown;
   total_timer_time?: unknown;
   total_elapsed_time?: unknown;
+}
+
+interface FitRecord {
+  position_lat?: unknown;
+  position_long?: unknown;
+}
+
+/** FIT stores coordinates in semicircles; 2^31 semicircles = 180 degrees. */
+function semicircleToDeg(v: unknown): number | null {
+  const n = num(v);
+  if (n === null || n === 0) return null;
+  const deg = (n * 180) / 2147483648;
+  return Math.abs(deg) <= 180 ? deg : null;
 }
 
 interface FitSession {
@@ -259,7 +338,7 @@ function parseFit(buf: Buffer): Promise<ParsedWorkout> {
     // fit-file-parser's bundled types predate generic Buffers; at runtime it
     // accepts a Node Buffer as it always has.
     const input = buf as unknown as ArrayBuffer;
-    parser.parse(input, (error: unknown, data: { sessions?: FitSession | FitSession[]; laps?: FitLap[] } | undefined) => {
+    parser.parse(input, (error: unknown, data: { sessions?: FitSession | FitSession[]; laps?: FitLap[]; records?: FitRecord[] } | undefined) => {
       if (error) return reject(new Error("Could not parse FIT file."));
       try {
         const raw = data?.sessions;
@@ -270,6 +349,16 @@ function parseFit(buf: Buffer): Promise<ParsedWorkout> {
         const start = startRaw ? new Date(startRaw) : null;
         if (!start || Number.isNaN(start.getTime())) {
           throw new Error("FIT file has no start time.");
+        }
+        const track: Array<[number, number]> = [];
+        try {
+          for (const r of data?.records ?? []) {
+            const lat = semicircleToDeg(r.position_lat);
+            const lon = semicircleToDeg(r.position_long);
+            if (lat !== null && lon !== null) track.push([lat, lon]);
+          }
+        } catch {
+          // GPS extraction must never fail the import.
         }
         resolve({
           format: "FIT",
@@ -305,6 +394,7 @@ function parseFit(buf: Buffer): Promise<ParsedWorkout> {
               };
             })
             .filter((sp) => sp.distanceM !== null || sp.durationS !== null),
+          route: simplifyRoute(track),
         });
       } catch (e) {
         reject(e instanceof Error ? e : new Error("Could not parse FIT file."));

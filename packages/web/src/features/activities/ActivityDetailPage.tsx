@@ -1,5 +1,9 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { Suspense, lazy } from "react";
+const RouteMap = lazy(() =>
+  import("./RouteMap").then((m) => ({ default: m.RouteMap })),
+);
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -9,6 +13,7 @@ import {
   EmptyState,
   ErrorBanner,
   FullScreenLoader,
+  GpsBadge,
   PageHeader,
 } from "../../components/ui";
 import { cn } from "../../components/cx";
@@ -234,6 +239,7 @@ export function ActivityDetailPage() {
             {activity.terrain.charAt(0) + activity.terrain.slice(1).toLowerCase()}
           </span>
         )}
+        {activity.hasGpsRoute && <GpsBadge className="px-2.5 py-0.5 text-[11px]" />}
         {activity.source !== "MANUAL" && (
           <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider text-mist">
             {activity.source.replace(/_/g, " ")}
@@ -314,6 +320,24 @@ export function ActivityDetailPage() {
               );
             })}
           </div>
+        </Card>
+      )}
+
+      {activity.route && activity.route.length >= 2 && (
+        <Card className="mt-5">
+          <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.15em] text-mist">
+            Route
+          </p>
+          <Suspense
+            fallback={
+              <div className="h-60 w-full animate-pulse rounded-xl bg-white/5" />
+            }
+          >
+            <RouteMap points={activity.route} />
+          </Suspense>
+          <p className="mt-2 text-[12px] text-mist">
+            Only visible to you and your verified guardians.
+          </p>
         </Card>
       )}
 

@@ -22,6 +22,7 @@ import {
   transferActivities,
   updateActivity,
 } from "./service.js";
+import { getActivityRoute } from "./route.js";
 import { createPost, createSystemPost } from "../feed/service.js";
 import { detectMilestones } from "../../lib/milestones.js";
 
@@ -134,6 +135,17 @@ export async function activityRoutes(app: FastifyInstance): Promise<void> {
       const { id } = activityParamsSchema.parse(request.params);
       const activity = await getActivity(request.user!.id, id);
       return reply.send({ activity });
+    },
+  );
+
+  // GPS route: owner + verified guardians only (403 otherwise).
+  app.get(
+    "/activities/:id/route",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { id } = activityParamsSchema.parse(request.params);
+      const route = await getActivityRoute(request.user!.id, id);
+      return reply.send({ route });
     },
   );
 

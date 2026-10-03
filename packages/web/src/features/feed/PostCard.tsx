@@ -9,6 +9,7 @@ import {
   Button,
   ErrorBanner,
   Modal,
+  GpsBadge,
 } from "../../components/ui";
 import { cn } from "../../components/cx";
 import {
@@ -373,8 +374,9 @@ export function PostCard({
             <path d="M13 2 3 14h7l-1 8 10-12h-7l1-8Z" />
           </svg>
           <div className="min-w-0">
-            <p className="truncate text-[14px] font-bold text-volt-300">
-              {activityTitle(post.activity)}
+            <p className="flex items-center gap-2 text-[14px] font-bold text-volt-300">
+              <span className="truncate">{activityTitle(post.activity)}</span>
+              {post.activity.hasGpsRoute && <GpsBadge />}
             </p>
             <p className="text-[13px] text-mist">
               {formatActivityDateShort(post.activity.startedAt)} ·{" "}
