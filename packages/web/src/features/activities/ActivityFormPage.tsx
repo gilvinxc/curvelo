@@ -246,6 +246,18 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
   });
   const teams = teamsQuery.data?.teams ?? [];
 
+  // Default the team: last-used team if still a member, else first team.
+  // The user can change it or clear it, and adjust visibility after.
+  useEffect(() => {
+    if (mode !== "new" || teams.length === 0) return;
+    setForm((f) => {
+      if (f.teamId !== "") return f;
+      const last = localStorage.getItem("curvelo.lastTeamId");
+      const match = teams.find((t) => t.id === last);
+      return { ...f, teamId: match ? match.id : teams[0].id };
+    });
+  }, [mode, teams]);
+
   const isOwner =
     mode === "new" || detailQuery.data?.activity.userId === user?.id;
   // A coach who logged this run on the athlete's behalf can edit it too.
@@ -382,6 +394,13 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       return res.activity.id;
     },
     onSuccess: (activityId) => {
+      if (form.teamId) {
+        try {
+          localStorage.setItem("curvelo.lastTeamId", form.teamId);
+        } catch {
+          /* private mode */
+        }
+      }
       // Sync height to profile if the user changed it here.
       const hCm = formHeightCm;
       if (
