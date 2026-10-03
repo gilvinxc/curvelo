@@ -16,6 +16,7 @@ import {
 import { TeamLogo } from "../teams/TeamLogo";
 import { UpcomingWorkouts } from "../calendar/PersonalCalendar";
 import { TrainingLog } from "../activities/TrainingLog";
+import { MyHealthCard, TeamStatusRow } from "./HealthCards";
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -96,6 +97,22 @@ export function DashboardPage() {
 
       {teams.length > 0 && (
         <>
+          <MyHealthCard />
+          <div className="mb-6">
+            <h2 className="mb-3 text-[13px] font-bold uppercase tracking-[0.18em] text-mist">
+              Team status
+            </h2>
+            <div className="flex flex-col gap-3">
+              {teams.map((t) => (
+                <TeamStatusRow
+                  key={t.id}
+                  teamId={t.id}
+                  teamName={t.name}
+                  myRole={t.myRole}
+                />
+              ))}
+            </div>
+          </div>
           <UpcomingWorkouts />
           <TrainingLog />
         </>

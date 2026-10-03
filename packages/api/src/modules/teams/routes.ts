@@ -22,6 +22,7 @@ import {
   updateMemberRole,
   updateTeam,
 } from "./service.js";
+import { teamHealth } from "../health/service.js";
 
 export async function teamRoutes(app: FastifyInstance): Promise<void> {
   app.post(
@@ -67,6 +68,16 @@ export async function teamRoutes(app: FastifyInstance): Promise<void> {
       const { id } = teamParamsSchema.parse(request.params);
       const roster = await getRoster(request.user!.id, id);
       return reply.send({ roster });
+    },
+  );
+
+  app.get(
+    "/:id/health",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { id } = teamParamsSchema.parse(request.params);
+      const health = await teamHealth(request.user!.id, id);
+      return reply.send({ health });
     },
   );
 

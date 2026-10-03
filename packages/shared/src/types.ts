@@ -720,3 +720,52 @@ export interface FeedbackDTO {
   status: "OPEN" | "REVIEWED" | "RESOLVED";
   createdAt: string;
 }
+
+export interface TeamHealthRaceGroup {
+  raceName: string;
+  /** YYYY-MM-DD */
+  racedAt: string;
+  resultsCount: number;
+  prCount: number;
+}
+
+export interface TeamHealthPaceByDistance {
+  distanceM: number;
+  /** Seconds per km, averaged across the group's results. */
+  avgPaceS: number;
+  resultsCount: number;
+}
+
+/**
+ * Team Health rollup: headline tiles with drill-downs instead of a million
+ * reports. Race health is PRs + pace-by-distance, not raw race counts.
+ */
+export interface TeamHealthDTO {
+  teamId: string;
+  /** Meters logged in TEAM-visible activities, last 7 days. */
+  milesWeekM: number;
+  /** Same for the 7 days before that (trend). */
+  milesPrevWeekM: number;
+  /** 28d average pace (sec/km); only runs with distance AND time count. */
+  avgPaceS: number | null;
+  /** 28d average RPE; null when nobody logged one. */
+  avgRpe: number | null;
+  /** Active injuries — COACH only, null for everyone else. */
+  activeInjuries: number | null;
+  /** % of ACTIVE RUNNER members with >=1 TEAM-visible activity in 7d. */
+  participationPct: number | null;
+  runnerCount: number;
+  activeRunnerCount: number;
+  races: {
+    /** New personal records set in the last 30d (fastest pace per runner per distance, all-time comparison). */
+    prs30d: number;
+    /** Distinct races (name+day) with team results in the last 30d. */
+    races30d: number;
+    /** Team race results in the last 30d. */
+    results30d: number;
+    /** Last 90d, grouped by distance, ordered by distance asc. */
+    paceByDistance: TeamHealthPaceByDistance[];
+    /** Most recent races (name+day), up to 5. Deep link: team coaching tab race section. */
+    recent: TeamHealthRaceGroup[];
+  };
+}

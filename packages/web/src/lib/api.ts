@@ -48,6 +48,7 @@ import type {
   TeamDigest,
   TeamDTO,
   TeamEventDTO,
+  TeamHealthDTO,
   TeamRecordDTO,
   TeamGroupDTO,
   TeamRole,
@@ -400,8 +401,19 @@ export const api = {
   // teams
   listTeams: () => request<{ teams: TeamDTO[] }>("/teams"),
   getTeam: (id: string) => request<{ team: TeamDTO }>(`/teams/${id}`),
+  getTeamHealth: (id: string) =>
+    request<{ health: TeamHealthDTO }>(`/teams/${id}/health`),
   createTeam: (input: CreateTeamInput) =>
     post<{ team: TeamDTO }>("/teams", input),
+  findSimilarTeams: (name: string) =>
+    request<{ teams: { id: string; name: string; description: string | null }[] }>(
+      `/teams/similar?name=${encodeURIComponent(name)}`,
+    ),
+  requestJoinDirect: (teamId: string) =>
+    post<{ requestId: string; teamId: string; teamName: string }>(
+      `/teams/${teamId}/join-requests`,
+      {},
+    ),
   updateTeam: (id: string, input: { name?: string; description?: string }) =>
     patch<{ team: TeamDTO }>(`/teams/${id}`, input),
   listNotifications: (cursor?: string) =>

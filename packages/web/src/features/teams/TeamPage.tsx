@@ -31,11 +31,13 @@ import { TeamLogDialog } from "../activities/TeamLogDialog";
 import { TeamRaceDialog } from "../records/TeamRaceDialog";
 import { DocumentsTab } from "../documents/DocumentsTab";
 import { PhotosTab } from "../photos/PhotosTab";
+import { HealthTab } from "./HealthTab";
 
 const CAN_INVITE = new Set(["COACH", "TEAM_ADMIN"]);
 
 export type TeamTab =
   | "roster"
+  | "health"
   | "photos"
   | "feed"
   | "messages"
@@ -48,6 +50,7 @@ export type TeamTab =
 
 const TABS: { id: TeamTab; label: string; href: (id: string) => string; coachOnly?: boolean }[] = [
   { id: "roster", label: "Roster", href: (id) => `/teams/${id}` },
+  { id: "health", label: "Health", href: (id) => `/teams/${id}/health` },
   { id: "photos", label: "Photos", href: (id) => `/teams/${id}/photos` },
   { id: "feed", label: "Feed", href: (id) => `/teams/${id}/feed` },
   { id: "messages", label: "Messages", href: (id) => `/teams/${id}/messages` },
@@ -393,7 +396,9 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
   // Alumni (outer tier): no photos, no manage tab.
   const isAlumni = team.myRole === "ALUMNI";
   const tabs = TABS.filter(
-    (t) => (!t.coachOnly || canInvite) && !(isAlumni && t.id === "photos"),
+    (t) =>
+      (!t.coachOnly || canInvite) &&
+      !(isAlumni && (t.id === "photos" || t.id === "health")),
   );
 
   return (
@@ -468,6 +473,9 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
           isOwner={team.isOwner ?? false}
           onInvite={() => setInviteOpen(true)}
         />
+      )}
+      {initialTab === "health" && !isAlumni && (
+        <HealthTab teamId={team.id} myRole={team.myRole} />
       )}
       {initialTab === "photos" && (
         <PhotosTab teamId={team.id} isCoach={canInvite} />
