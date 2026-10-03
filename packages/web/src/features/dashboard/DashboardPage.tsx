@@ -14,7 +14,13 @@ import {
 } from "../../components/ui";
 import { UpcomingWorkouts } from "../calendar/PersonalCalendar";
 import { TrainingLog } from "../activities/TrainingLog";
-import { MyHealthCard, TeamDiscovery, TeamStatusRow } from "./HealthCards";
+import {
+  MyHealthCard,
+  PersonalRecords,
+  TeamDiscovery,
+  TeamStatusRow,
+  TodayWorkout,
+} from "./HealthCards";
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -95,7 +101,9 @@ export function DashboardPage() {
 
       {teams.length > 0 && (
         <>
+          <TodayWorkout />
           <MyHealthCard />
+          <PersonalRecords />
           <TeamDiscovery />
           <div className="mb-6">
             <div className="mb-3 flex items-center justify-between">

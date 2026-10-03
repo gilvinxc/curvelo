@@ -7,6 +7,7 @@ import {
   addDaysYMD,
   formatDistanceM,
   formatPaceSec,
+  formatYMDCompact,
   todayYMD,
 } from "../../lib/workoutFormat";
 import { Button, Card, Field, RoleBadge, TextInput } from "../../components/ui";
@@ -213,6 +214,95 @@ export function TeamDiscovery() {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+/** "What's today" nudge: today's workout assignment with a one-tap log link. */
+export function TodayWorkout() {
+  const today = todayYMD();
+  const calQuery = useQuery({
+    queryKey: ["myCalendar", today, today],
+    queryFn: () => api.myCalendar(today, today),
+    staleTime: 5 * 60 * 1000,
+  });
+  const todays = (calQuery.data?.assignments ?? []).filter(
+    (a) => a.scheduledDate === today,
+  );
+  if (calQuery.isLoading || calQuery.isError || todays.length === 0) return null;
+  const first = todays[0];
+  const params = new URLSearchParams({
+    assignmentId: first.id,
+    workoutTitle: first.workoutTitle,
+    scheduledDate: first.scheduledDate,
+    teamId: first.teamId,
+  });
+  return (
+    <Link
+      to={`/activities/new?${params.toString()}`}
+      className="mb-6 block"
+    >
+      <Card className="border-volt-400/40 bg-volt-400/10 p-4 transition hover:border-volt-400/70">
+        <div className="flex items-center gap-3">
+          <span className="text-[26px]">🏃</span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-volt-300">
+              Today&apos;s workout
+            </p>
+            <p className="truncate text-[17px] font-extrabold text-ink-50">
+              {first.workoutTitle}
+            </p>
+            <p className="truncate text-[13px] text-mist">
+              {first.teamName}
+              {todays.length > 1 && ` · +${todays.length - 1} more`}
+            </p>
+          </div>
+          <span className="shrink-0 rounded-full bg-volt-400 px-4 py-2 text-[14px] font-extrabold text-ink-950">
+            Log it
+          </span>
+        </div>
+      </Card>
+    </Link>
+  );
+}
+
+/** Personal records shelf: fastest pace ever at each standard distance. */
+export function PersonalRecords() {
+  const units = useUnits();
+  const recQuery = useQuery({
+    queryKey: ["myPersonalRecords"],
+    queryFn: () => api.myPersonalRecords(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const records = recQuery.data?.records ?? [];
+  if (recQuery.isLoading || recQuery.isError || records.length === 0) return null;
+  return (
+    <div className="mb-6">
+      <h2 className="mb-3 text-[13px] font-bold uppercase tracking-[0.18em] text-mist">
+        Personal records
+      </h2>
+      <Card className="p-4">
+        <div className="flex flex-col divide-y divide-white/10">
+          {records.map((r) => (
+            <Link
+              key={r.distanceM}
+              to={`/activities/${r.activityId}`}
+              className="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
+            >
+              <span className="w-16 shrink-0 text-[13px] font-extrabold text-mist">
+                {r.label}
+              </span>
+              <span className="flex-1 text-[17px] font-black text-sky-400">
+                {formatPaceSec(r.bestPaceS, units)}
+              </span>
+              <span className="shrink-0 text-[12px] text-mist">
+                {formatYMDCompact(r.achievedAt)}
+              </span>
+              <span className="shrink-0 text-mist">›</span>
+            </Link>
+          ))}
+        </div>
+      </Card>
     </div>
   );
 }

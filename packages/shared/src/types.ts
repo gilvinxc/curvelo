@@ -781,3 +781,43 @@ export interface TeamHealthDTO {
     recent: TeamHealthRaceGroup[];
   };
 }
+
+export interface PaceRecordDTO {
+  /** Canonical distance in meters (1609.344, 5000, 10000, 21097.5, 42195). */
+  distanceM: number;
+  /** Display label: "1 mi", "5K", "10K", "Half", "Marathon". */
+  label: string;
+  /** Best pace in seconds per km. */
+  bestPaceS: number;
+  activityId: string;
+  achievedAt: string;
+}
+
+export interface SeasonDTO {
+  id: string;
+  teamId: string;
+  name: string;
+  startsAt: string;
+  endsAt: string;
+  isActive: boolean;
+  championshipName: string | null;
+  championshipDate: string | null;
+}
+
+export interface SeasonWeekDTO {
+  /** YYYY-MM-DD of the week's Monday. */
+  weekStart: string;
+  /** Team miles logged that week (meters, TEAM-visible activities). */
+  milesM: number;
+  /** Races (team calendar RACE events) in that week. */
+  races: { id: string; title: string; date: string }[];
+  /** Injuries reported that week — coach only, null for others. */
+  injuryCount: number | null;
+}
+
+export interface ActiveSeasonDTO {
+  season: SeasonDTO;
+  /** Whole days until the championship (negative = past). Null when no championship set. */
+  daysToChampionship: number | null;
+  weeks: SeasonWeekDTO[];
+}

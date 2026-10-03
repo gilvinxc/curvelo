@@ -113,6 +113,7 @@ model User {
   conversationParticipations  ConversationParticipant[]
   messagesAuthored          Message[]            @relation("MessageAuthor")
   createdJoinLinks          TeamJoinLink[]       @relation("JoinLinkCreator")
+  seasonsCreated            Season[]             @relation("SeasonCreator")
   personalGoals             Goal[]               @relation("PersonalGoals")
   createdGoals              Goal[]               @relation("GoalCreator")
   raceResults               RaceResult[]         @relation("UserRaceResults")
@@ -320,15 +321,19 @@ model GuardianLink {
 }
 
 model Season {
-  id        String   @id @default(uuid())
-  teamId    String
-  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  name      String
-  startsAt  DateTime
-  endsAt    DateTime
-  isActive  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String   @id @default(uuid())
+  teamId           String
+  team             Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  name             String
+  startsAt         DateTime
+  endsAt           DateTime
+  isActive         Boolean  @default(false)
+  championshipName String?
+  championshipDate DateTime?
+  createdById      String?
+  createdBy        User?    @relation("SeasonCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@index([teamId, isActive])
 }

@@ -32,12 +32,14 @@ import { TeamRaceDialog } from "../records/TeamRaceDialog";
 import { DocumentsTab } from "../documents/DocumentsTab";
 import { PhotosTab } from "../photos/PhotosTab";
 import { HealthTab } from "./HealthTab";
+import { SeasonTab } from "./SeasonTab";
 
 const CAN_INVITE = new Set(["COACH", "TEAM_ADMIN"]);
 
 export type TeamTab =
   | "roster"
   | "health"
+  | "season"
   | "photos"
   | "feed"
   | "messages"
@@ -51,6 +53,7 @@ export type TeamTab =
 const TABS: { id: TeamTab; label: string; href: (id: string) => string; coachOnly?: boolean }[] = [
   { id: "roster", label: "Roster", href: (id) => `/teams/${id}` },
   { id: "health", label: "Health", href: (id) => `/teams/${id}/health` },
+  { id: "season", label: "Season", href: (id) => `/teams/${id}/season` },
   { id: "photos", label: "Photos", href: (id) => `/teams/${id}/photos` },
   { id: "feed", label: "Feed", href: (id) => `/teams/${id}/feed` },
   { id: "messages", label: "Messages", href: (id) => `/teams/${id}/messages` },
@@ -398,7 +401,7 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
   const tabs = TABS.filter(
     (t) =>
       (!t.coachOnly || canInvite) &&
-      !(isAlumni && (t.id === "photos" || t.id === "health")),
+      !(isAlumni && (t.id === "photos" || t.id === "health" || t.id === "season")),
   );
 
   return (
@@ -476,6 +479,9 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
       )}
       {initialTab === "health" && !isAlumni && (
         <HealthTab teamId={team.id} myRole={team.myRole} />
+      )}
+      {initialTab === "season" && !isAlumni && (
+        <SeasonTab teamId={team.id} myRole={team.myRole} />
       )}
       {initialTab === "photos" && (
         <PhotosTab teamId={team.id} isCoach={canInvite} />

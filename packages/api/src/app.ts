@@ -9,6 +9,7 @@ import { authRoutes } from "./modules/auth/routes.js";
 import { invitationRoutes } from "./modules/invitations/routes.js";
 import { joinLinkRoutes } from "./modules/join-links/routes.js";
 import { teamRoutes } from "./modules/teams/routes.js";
+import { seasonRoutes } from "./modules/seasons/routes.js";
 import { userRoutes } from "./modules/users/routes.js";
 import { workoutRoutes } from "./modules/workouts/routes.js";
 import { groupRoutes } from "./modules/groups/routes.js";
@@ -57,6 +58,7 @@ export async function buildApp() {
   await app.register(authRoutes, { prefix: "/api/v1/auth" });
   await app.register(userRoutes, { prefix: "/api/v1/users" });
   await app.register(teamRoutes, { prefix: "/api/v1/teams" });
+  await app.register(seasonRoutes, { prefix: "/api/v1/teams" });
   // Invitation routes include /teams/:id/invitations + /invitations/:token/*
   await app.register(invitationRoutes, { prefix: "/api/v1" });
   // Join-link routes include /teams/:id/join-links + /join/:token/*

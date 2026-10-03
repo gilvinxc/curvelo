@@ -5,6 +5,7 @@ import type {
   AthleteViewDTO,
   CreateActivityInput,
   LogTeamRunInput,
+  PaceRecordDTO,
   UpdateActivityInput,
 } from "@curvelo/shared";
 import { estimateCalories, estimateSteps } from "@curvelo/shared";
@@ -724,6 +725,48 @@ export async function myStats(
         ? Math.round((paceDurationS / paceDistanceM) * 1000 * 10) / 10
         : null,
   };
+}
+
+/** Standard PR distances: canonical meters + display label. */
+const PR_DISTANCES: { distanceM: number; label: string }[] = [
+  { distanceM: 1609.344, label: "1 mi" },
+  { distanceM: 5000, label: "5K" },
+  { distanceM: 10000, label: "10K" },
+  { distanceM: 21097.5, label: "Half" },
+  { distanceM: 42195, label: "Marathon" },
+];
+
+/** Personal records: fastest pace ever at each standard distance (±2%). */
+export async function myRecords(userId: string): Promise<PaceRecordDTO[]> {
+  const activities = await db.activity.findMany({
+    where: { userId, distanceM: { gt: 0 }, durationS: { gt: 0 } },
+    select: { id: true, distanceM: true, durationS: true, startedAt: true },
+    orderBy: { startedAt: "desc" },
+  });
+  const records: PaceRecordDTO[] = [];
+  for (const { distanceM, label } of PR_DISTANCES) {
+    const lo = distanceM * 0.98;
+    const hi = distanceM * 1.02;
+    let best: { paceS: number; id: string; at: Date } | null = null;
+    for (const a of activities) {
+      const d = a.distanceM!;
+      if (d < lo || d > hi) continue;
+      const paceS = (a.durationS! / d) * 1000;
+      if (!best || paceS < best.paceS) {
+        best = { paceS, id: a.id, at: a.startedAt };
+      }
+    }
+    if (best) {
+      records.push({
+        distanceM,
+        label,
+        bestPaceS: Math.round(best.paceS * 10) / 10,
+        activityId: best.id,
+        achievedAt: best.at.toISOString(),
+      });
+    }
+  }
+  return records;
 }
 
 /**

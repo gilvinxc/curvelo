@@ -36,6 +36,7 @@ import type {
   NotificationDTO,
   PhotoDTO,
   AlbumDTO,
+  PaceRecordDTO,
   PersonalRecordDTO,
   PostDTO,
   ProgressDTO,
@@ -50,6 +51,8 @@ import type {
   TeamDTO,
   TeamEventDTO,
   TeamHealthDTO,
+  SeasonDTO,
+  ActiveSeasonDTO,
   TeamRecordDTO,
   TeamGroupDTO,
   TeamRole,
@@ -404,6 +407,16 @@ export const api = {
   getTeam: (id: string) => request<{ team: TeamDTO }>(`/teams/${id}`),
   getTeamHealth: (id: string) =>
     request<{ health: TeamHealthDTO }>(`/teams/${id}/health`),
+  getActiveSeason: (id: string) =>
+    request<{ active: ActiveSeasonDTO | null }>(`/teams/${id}/seasons/active`),
+  listSeasons: (id: string) =>
+    request<{ seasons: SeasonDTO[] }>(`/teams/${id}/seasons`),
+  createSeason: (id: string, input: object) =>
+    post<{ season: SeasonDTO }>(`/teams/${id}/seasons`, input),
+  updateSeason: (id: string, seasonId: string, input: object) =>
+    patch<{ season: SeasonDTO }>(`/teams/${id}/seasons/${seasonId}`, input),
+  deleteSeason: (id: string, seasonId: string) =>
+    del<{ ok: boolean }>(`/teams/${id}/seasons/${seasonId}`),
   createTeam: (input: CreateTeamInput) =>
     post<{ team: TeamDTO }>("/teams", input),
   discoverTeams: (q: string) =>
@@ -611,6 +624,8 @@ export const api = {
     request<{ stats: ActivityStatsDTO }>(
       `/users/me/stats?from=${from}&to=${to}`,
     ),
+  myRecords: () =>
+    request<{ records: PersonalRecordDTO[] }>(`/users/me/records`),
 
   // goals + leaderboard + analytics
   createGoal: (input: {
@@ -675,7 +690,8 @@ export const api = {
       "/race-results/team-log",
       input,
     ),
-  myRecords: () => request<{ records: PersonalRecordDTO[] }>("/users/me/records"),
+  myPersonalRecords: () =>
+    request<{ records: PaceRecordDTO[] }>(`/users/me/pace-records`),
   teamRecords: (teamId: string) =>
     request<{ records: TeamRecordDTO[] }>(`/teams/${teamId}/records`),
   // shoes

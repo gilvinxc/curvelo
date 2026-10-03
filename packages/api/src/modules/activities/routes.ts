@@ -15,6 +15,7 @@ import {
   getActivity,
   listMyActivities,
   logTeamRun,
+  myRecords,
   myStats,
   transferActivities,
   updateActivity,
@@ -167,6 +168,15 @@ export async function activityRoutes(app: FastifyInstance): Promise<void> {
       const { from, to } = statsQuerySchema.parse(request.query);
       const stats = await myStats(request.user!.id, from, to);
       return reply.send({ stats });
+    },
+  );
+
+  app.get(
+    "/users/me/pace-records",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const records = await myRecords(request.user!.id);
+      return reply.send({ records });
     },
   );
 
