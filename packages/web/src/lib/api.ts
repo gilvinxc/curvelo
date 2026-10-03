@@ -406,6 +406,10 @@ export const api = {
     request<{ health: TeamHealthDTO }>(`/teams/${id}/health`),
   createTeam: (input: CreateTeamInput) =>
     post<{ team: TeamDTO }>("/teams", input),
+  discoverTeams: (q: string) =>
+    request<{ teams: { id: string; name: string; description: string | null }[] }>(
+      `/teams/discover?q=${encodeURIComponent(q)}`,
+    ),
   findSimilarTeams: (name: string) =>
     request<{ teams: { id: string; name: string; description: string | null }[] }>(
       `/teams/similar?name=${encodeURIComponent(name)}`,

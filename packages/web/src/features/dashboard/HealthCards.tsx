@@ -1,6 +1,7 @@
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import { api } from "../../lib/api";
+import { ApiError, api } from "../../lib/api";
 import { useUnits } from "../../lib/units";
 import {
   addDaysYMD,
@@ -8,7 +9,7 @@ import {
   formatPaceSec,
   todayYMD,
 } from "../../lib/workoutFormat";
-import { Card, RoleBadge } from "../../components/ui";
+import { Button, Card, Field, RoleBadge, TextInput } from "../../components/ui";
 import { TeamLogo } from "../teams/TeamLogo";
 
 /** Compact personal rollup: week miles, 28d pace, current streak. */
@@ -128,5 +129,90 @@ export function TeamStatusRow({
         </div>
       </Card>
     </Link>
+  );
+}
+
+/** Public team discovery: name + description only, request-to-join via coach approval. */
+export function TeamDiscovery() {
+  const [query, setQuery] = useState("");
+  const [debounced, setDebounced] = useState("");
+  const [requestedIds, setRequestedIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(query.trim()), 400);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  const searchQuery = useQuery({
+    queryKey: ["discoverTeams", debounced],
+    queryFn: () => api.discoverTeams(debounced),
+    enabled: debounced.length >= 2,
+    staleTime: 30_000,
+  });
+  const results =
+    searchQuery.data?.teams.filter((t) => !requestedIds.includes(t.id)) ?? [];
+
+  const requestJoin = useMutation({
+    mutationFn: (teamId: string) => api.requestJoinDirect(teamId),
+    onSuccess: (_data, teamId) => setRequestedIds((ids) => [...ids, teamId]),
+  });
+
+  return (
+    <div className="mb-6">
+      <Field label="Find a team">
+        <TextInput
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search public teams…"
+        />
+      </Field>
+      {debounced.length >= 2 && (
+        <div className="mt-2 flex flex-col gap-2">
+          {searchQuery.isLoading && (
+            <p className="text-[13px] text-mist">Searching…</p>
+          )}
+          {searchQuery.data && results.length === 0 && requestedIds.length === 0 && (
+            <p className="text-[13px] text-mist">
+              No public teams match "{debounced}".
+            </p>
+          )}
+          {results.map((t) => (
+            <div
+              key={t.id}
+              className="flex items-center gap-3 rounded-xl border border-ink-700 bg-ink-900/40 p-3"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[14px] font-bold text-ink-50">
+                  {t.name}
+                </p>
+                {t.description && (
+                  <p className="truncate text-[12px] text-mist">{t.description}</p>
+                )}
+              </div>
+              <Button
+                variant="secondary"
+                className="shrink-0"
+                loading={requestJoin.isPending}
+                onClick={() => requestJoin.mutate(t.id)}
+              >
+                Request to join
+              </Button>
+            </div>
+          ))}
+          {requestedIds.length > 0 && (
+            <p className="rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3 text-[13px] text-emerald-300">
+              Request sent — a coach will review it.
+            </p>
+          )}
+          {requestJoin.isError && (
+            <p className="text-[13px] text-red-400">
+              {requestJoin.error instanceof ApiError
+                ? requestJoin.error.message
+                : "Couldn't send the request."}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

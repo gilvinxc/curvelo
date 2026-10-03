@@ -71,6 +71,26 @@ describe("teams", () => {
     expect([403, 404]).toContain(page.status);
   });
 
+  it("discover shows public teams (name and description only), hides private ones", async () => {
+    const app = await getApp();
+    const coach = await registerUser("COACH", "disccoaach");
+    const runner = await registerUser("RUNNER", "discrunner");
+    await createTeam(coach, { name: "Springfield Public XC", visibility: "PUBLIC", description: "Open squad" });
+    await createTeam(coach, { name: "Springfield Private XC", visibility: "PRIVATE" });
+
+    const res = await request(app.server)
+      .get("/api/v1/teams/discover?q=springfield")
+      .set(cookieHeader(runner));
+    expect(res.status).toBe(200);
+    expect(res.body.teams).toHaveLength(1);
+    expect(res.body.teams[0].name).toBe("Springfield Public XC");
+    expect(Object.keys(res.body.teams[0]).sort()).toEqual([
+      "description",
+      "id",
+      "name",
+    ]);
+  });
+
   it("rejects duplicate slugs", async () => {
     const coach = await registerUser("COACH", "slugcoach");
     const first = await createTeam(coach, { name: "Riverside RC", slug: "riverside-rc" });

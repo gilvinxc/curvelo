@@ -551,3 +551,20 @@ export async function requestJoinDirect(
 
   return { requestId: request.id, teamId, teamName: team.name };
 }
+
+/** Public team discovery: name + description only. No roster or member info. */
+export async function discoverTeams(
+  query: string,
+): Promise<{ id: string; name: string; description: string | null }[]> {
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) return [];
+  return db.team.findMany({
+    where: {
+      visibility: "PUBLIC",
+      name: { contains: q, mode: "insensitive" },
+    },
+    select: { id: true, name: true, description: true },
+    orderBy: { name: "asc" },
+    take: 10,
+  });
+}

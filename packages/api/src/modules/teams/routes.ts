@@ -11,6 +11,7 @@ import {
 } from "@curvelo/shared";
 import {
   createTeam,
+  discoverTeams,
   findSimilarTeams,
   getRoster,
   getTeam,
@@ -42,6 +43,20 @@ export async function teamRoutes(app: FastifyInstance): Promise<void> {
     const teams = await listMyTeams(request.user!.id);
     return reply.send({ teams });
   });
+
+  // Public team discovery. Name + description only — no roster or
+  // member details leak. Private teams stay unfindable by design.
+  app.get(
+    "/discover",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { q } = z
+        .object({ q: z.string().min(1).max(80) })
+        .parse(request.query);
+      const teams = await discoverTeams(q);
+      return reply.send({ teams });
+    },
+  );
 
   // Similar-name lookup for the new-team nudge. Name + description only —
   // no roster or member details leak.
