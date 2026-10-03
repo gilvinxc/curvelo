@@ -12,6 +12,7 @@ import {
   FullScreenLoader,
   Modal,
 } from "../../components/ui";
+import { BRAND_NAME } from "../../brand";
 import { UpcomingWorkouts } from "../calendar/PersonalCalendar";
 import { TrainingLog } from "../activities/TrainingLog";
 import {
@@ -170,15 +171,34 @@ export function DashboardPage() {
       )}
 
       {teams.length === 0 && !teamsQuery.isError ? (
-        <EmptyState
-          title="No teams yet"
-          body="Create a team to coach, or ask your coach for an invite link to join theirs."
-          action={
-            <Link to="/teams/new">
-              <Button>Create a team</Button>
-            </Link>
-          }
-        />
+        <>
+          <Card className="mb-4 border-volt-400/30 bg-volt-400/5">
+            <p className="text-[15px] font-bold text-white">
+              New to {BRAND_NAME}?
+            </p>
+            <p className="mt-1 text-[14px] text-mist">
+              Take the 60-second tour to see what a running team looks like
+              here.
+            </p>
+            <a
+              href="/stride-sense-marketing.mp4"
+              target="_blank"
+              rel="noreferrer"
+              className="mt-3 inline-block font-bold text-volt-300 hover:text-volt-400"
+            >
+              &#9654; Watch the tour
+            </a>
+          </Card>
+          <EmptyState
+            title="No teams yet"
+            body="Create a team to coach, or ask your coach for an invite link to join theirs."
+            action={
+              <Link to="/teams/new">
+                <Button>Create a team</Button>
+              </Link>
+            }
+          />
+        </>
 ) : null}
     </div>
   );

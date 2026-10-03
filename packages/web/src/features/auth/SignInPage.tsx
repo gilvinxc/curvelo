@@ -88,6 +88,16 @@ export function SignInPage() {
           </Button>
         </form>
       </Card>
+      <p className="mt-4 text-center text-[14px]">
+        <a
+          href="/stride-sense-marketing.mp4"
+          target="_blank"
+          rel="noreferrer"
+          className="font-semibold text-volt-300 hover:text-volt-400"
+        >
+          &#9654; Watch how it works (60 sec)
+        </a>
+      </p>
       <p className="mt-6 text-center text-[14px] text-mist">
         New to {BRAND_NAME}?{" "}
         <Link
