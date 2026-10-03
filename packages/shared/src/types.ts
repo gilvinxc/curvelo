@@ -251,7 +251,24 @@ export interface TeamGroupDTO {
   teamId: string;
   name: string;
   memberCount: number;
+  leaderId: string | null;
+  leaderName: string | null;
   members?: Array<{ userId: string; displayName: string }>;
+}
+
+export interface AttendanceDTO {
+  id: string;
+  teamId: string;
+  date: string;
+  eventId: string | null;
+  eventTitle: string | null;
+  presentCount: number;
+  absentCount: number;
+  presentPct: number;
+  records?: Record<string, boolean>;
+  members?: Array<{ userId: string; displayName: string; present: boolean }>;
+  createdByName: string;
+  createdAt: string;
 }
 
 export interface AssignmentDTO {

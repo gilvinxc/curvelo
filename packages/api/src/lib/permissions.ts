@@ -76,3 +76,59 @@ export async function teamAccess(
   if (await isGuardianOfTeamMember(userId, teamId)) return "guardian";
   return null;
 }
+
+/**
+ * Large teams: group leaders (assistant coaches).
+ *
+ * A group leader is an active COACH-role member designated to run one
+ * subgroup. Leader powers are strictly scoped to the groups they lead:
+ * - manage that group's membership (add/remove runners)
+ * - post announcements to that group's conversation
+ * - see coaching insights scoped to that group
+ * The designation itself grants nothing team-wide. The team owner is never
+ * scoped — owners keep full powers everywhere.
+ */
+export async function groupLeaderIds(
+  actorId: string,
+  teamId: string,
+): Promise<string[]> {
+  const groups = await db.teamGroup.findMany({
+    where: { teamId, leaderId: actorId },
+    select: { id: true },
+  });
+  return groups.map((g) => g.id);
+}
+
+export async function isGroupLeaderOf(
+  actorId: string,
+  groupId: string,
+): Promise<boolean> {
+  const group = await db.teamGroup.findUnique({
+    where: { id: groupId },
+    select: { leaderId: true },
+  });
+  return group?.leaderId === actorId;
+}
+
+/**
+ * Whether the actor may manage a group's membership. Team managers keep
+ * full access — unless they are designated as a group leader, in which case
+ * they are scoped to the groups they lead (the team owner excepted).
+ */
+export async function canManageGroupMembership(
+  actorId: string,
+  teamId: string,
+  groupId: string,
+  groupLeaderId: string | null,
+): Promise<boolean> {
+  const membership = await activeMembership(actorId, teamId);
+  if (!canManageTeam(membership)) return false;
+  const team = await db.team.findUnique({
+    where: { id: teamId },
+    select: { ownerId: true },
+  });
+  if (team?.ownerId === actorId) return true;
+  const led = await groupLeaderIds(actorId, teamId);
+  if (led.length > 0) return groupLeaderId === actorId;
+  return true;
+}

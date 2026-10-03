@@ -90,8 +90,10 @@ model User {
   authoredWorkouts          Workout[]            @relation("WorkoutAuthor")
   createdTrainingPlans      TrainingPlan[]       @relation("TrainingPlanAuthor")
   createdTeamEvents         TeamEvent[]          @relation("TeamEventAuthor")
+  authoredAttendance        Attendance[]         @relation("AttendanceAuthor")
   assignedPlanDays          TrainingPlanDay[]    @relation("TrainingPlanDayAssignee")
   authoredGroups            TeamGroup[]          @relation("GroupAuthor")
+  ledGroups                 TeamGroup[]          @relation("GroupLeader")
   authoredAssignments       WorkoutAssignment[]  @relation("AssignmentAuthor")
   receivedAssignments       WorkoutAssignment[]  @relation("AssignmentRecipient")
   groupMemberships          TeamGroupMember[]
@@ -220,6 +222,7 @@ model Team {
   documents            Document[]
   trainingPlans        TrainingPlan[]
   events               TeamEvent[]
+  attendance           Attendance[]
   Mention              Mention[]
   albums               Album[]
   photos               Photo[]
@@ -463,6 +466,8 @@ model TeamGroup {
   name        String
   createdById String
   createdBy   User     @relation("GroupAuthor", fields: [createdById], references: [id])
+  leaderId    String?
+  leader      User?    @relation("GroupLeader", fields: [leaderId], references: [id], onDelete: SetNull)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -1026,6 +1031,8 @@ model TeamEvent {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
+  attendances Attendance[]
+
   @@index([teamId])
 }
 
@@ -1218,4 +1225,23 @@ model Feedback {
 
   @@index([status, createdAt])
   @@index([userId])
+}
+
+// ─── Large teams: attendance ─────────────────────────────────────────────
+
+model Attendance {
+  id          String   @id @default(uuid())
+  teamId      String
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  date        DateTime @db.Date
+  eventId     String?
+  event       TeamEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  // userId -> true (present) / false (absent)
+  records     Json
+  createdById String
+  createdBy   User     @relation("AttendanceAuthor", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([teamId, date])
 }

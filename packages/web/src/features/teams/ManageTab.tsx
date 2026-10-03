@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { GroupsSection } from "./GroupsSection";
+import { AttendanceSection } from "./AttendanceSection";
 import { TeamLogo, resizeImageFile } from "./TeamLogo";
 import {
   Avatar,
@@ -784,7 +785,13 @@ export function ManageTab({
       <Card>
         <SectionTitle>Training groups</SectionTitle>
         <div className="mt-3">
-          <GroupsSection teamId={teamId} myRole={myRole} />
+          <GroupsSection teamId={teamId} myRole={myRole} isOwner={isOwner} />
+        </div>
+      </Card>
+      <Card>
+        <SectionTitle>Attendance</SectionTitle>
+        <div className="mt-3">
+          <AttendanceSection teamId={teamId} />
         </div>
       </Card>
       {isOwner && <TransferSection teamId={teamId} myUserId={user.id} />}

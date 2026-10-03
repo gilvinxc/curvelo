@@ -93,6 +93,26 @@ export const addGroupMembersSchema = z.object({
 });
 export type AddGroupMembersInput = z.infer<typeof addGroupMembersSchema>;
 
+export const setGroupLeaderSchema = z.object({
+  leaderId: z.string().uuid().nullable(),
+});
+export type SetGroupLeaderInput = z.infer<typeof setGroupLeaderSchema>;
+
+export const bulkAssignSchema = z.object({
+  workoutId: z.string().uuid(),
+  athleteIds: z.array(z.string().uuid()).min(1).max(200),
+  scheduledDate: z.string().date(),
+  notes: z.string().max(500).optional(),
+});
+export type BulkAssignInput = z.infer<typeof bulkAssignSchema>;
+
+export const bulkMessageSchema = z.object({
+  groupIds: z.array(z.string().uuid()).max(50).default([]),
+  athleteIds: z.array(z.string().uuid()).max(200).default([]),
+  body: z.string().trim().min(1).max(4000),
+});
+export type BulkMessageInput = z.infer<typeof bulkMessageSchema>;
+
 export const createPracticePlanSchema = z
   .object({
     workoutId: z.string().uuid(),

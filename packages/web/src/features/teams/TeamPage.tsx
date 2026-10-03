@@ -513,6 +513,9 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
             </Button>
           </div>
           <TeamDigestSection teamId={team.id} />
+          <div className="mt-6">
+            <MyGroupsDigest teamId={team.id} />
+          </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button
               variant="secondary"
@@ -579,6 +582,46 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
         open={teamRaceOpen}
         onClose={() => setTeamRaceOpen(false)}
       />
+    </div>
+  );
+}
+
+/** Assistant coaches: coaching insights scoped to the groups they lead. */
+function MyGroupsDigest({ teamId }: { teamId: string }) {
+  const { user } = useAuth();
+  const groupsQuery = useQuery({
+    queryKey: ["groups", teamId],
+    queryFn: () => api.listGroups(teamId),
+  });
+  const led = (groupsQuery.data?.groups ?? []).filter((g) => g.leaderId === user?.id);
+  const [groupId, setGroupId] = useState<string>("");
+  const active = led.find((g) => g.id === groupId) ?? led[0];
+
+  if (groupsQuery.isLoading || led.length === 0) return null;
+
+  return (
+    <div>
+      {led.length > 1 && (
+        <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+          {led.map((g) => (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => setGroupId(g.id)}
+              className={`shrink-0 rounded-xl border px-4 py-2 text-[14px] font-bold transition ${
+                (active?.id ?? "") === g.id
+                  ? "border-volt-400/50 bg-volt-400/10"
+                  : "border-white/10 bg-white/5"
+              }`}
+            >
+              {g.name}
+            </button>
+          ))}
+        </div>
+      )}
+      {active && (
+        <TeamDigestSection teamId={teamId} groupId={active.id} title={`${active.name} — insights`} />
+      )}
     </div>
   );
 }

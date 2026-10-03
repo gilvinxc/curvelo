@@ -8,7 +8,13 @@ import { STANDARD_RACE_DISTANCES } from "@curvelo/shared";
 import { db } from "../../db.js";
 import { audit } from "../../lib/audit.js";
 import { notFound } from "../../lib/errors.js";
-import { activeMembership, requireManager } from "../../lib/permissions.js";
+import {
+  activeMembership,
+  canManageTeam,
+  isGroupLeaderOf,
+  requireManager,
+} from "../../lib/permissions.js";
+import { forbidden } from "../../lib/errors.js";
 import { computeStats } from "./stats.js";
 import { selectProvider } from "./llm.js";
 
@@ -136,26 +142,17 @@ export async function getMyInsight(
   };
 }
 
-export async function getTeamDigest(
-  actorId: string,
+type DigestMembership = {
+  userId: string;
+  user: { displayName: string; lastLoginAt: Date | null };
+};
+
+async function digestRows(
+  athletes: DigestMembership[],
   teamId: string,
   days: number,
-  ipAddress?: string,
-): Promise<TeamDigest> {
-  const membership = await activeMembership(actorId, teamId);
-  requireManager(membership);
-
-  const team = await db.team.findUniqueOrThrow({
-    where: { id: teamId },
-    select: { name: true },
-  });
+): Promise<TeamDigestAthlete[]> {
   const dormantCutoff = new Date(Date.now() - DORMANT_DAYS * 24 * 60 * 60 * 1000);
-  const athletes = await db.teamMembership.findMany({
-    where: { teamId, status: "ACTIVE", role: "RUNNER" },
-    include: { user: { select: { displayName: true, lastLoginAt: true } } },
-    orderBy: { createdAt: "asc" },
-  });
-
   const rows: TeamDigestAthlete[] = [];
   for (const a of athletes) {
     const stats = await computeStats(a.userId, teamId, days);
@@ -173,6 +170,29 @@ export async function getTeamDigest(
   }
   // Dormant athletes float to the top for coach review.
   rows.sort((a, b) => Number(b.dormant) - Number(a.dormant));
+  return rows;
+}
+
+export async function getTeamDigest(
+  actorId: string,
+  teamId: string,
+  days: number,
+  ipAddress?: string,
+): Promise<TeamDigest> {
+  const membership = await activeMembership(actorId, teamId);
+  requireManager(membership);
+
+  const team = await db.team.findUniqueOrThrow({
+    where: { id: teamId },
+    select: { name: true },
+  });
+  const athletes = await db.teamMembership.findMany({
+    where: { teamId, status: "ACTIVE", role: "RUNNER" },
+    include: { user: { select: { displayName: true, lastLoginAt: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+
+  const rows = await digestRows(athletes, teamId, days);
 
   const coachCutoff = new Date(Date.now() - COACH_ACTIVE_DAYS * 24 * 60 * 60 * 1000);
   const coaches = await db.teamMembership.findMany({
@@ -533,4 +553,99 @@ function formatDurationS(totalS: number): string {
   const mm = h > 0 ? String(m).padStart(2, "0") : String(m);
   const ss = String(s).padStart(2, "0");
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}
+
+/**
+ * Coaching insights scoped to one training group — for assistant coaches.
+ * The group's leader or a team manager may view it. Returns the same
+ * athlete rows as the team digest but only for the group's runners.
+ */
+export async function getGroupDigest(
+  actorId: string,
+  groupId: string,
+  days: number,
+): Promise<TeamDigest> {
+  const group = await db.teamGroup.findUnique({
+    where: { id: groupId },
+    include: {
+      team: { select: { name: true } },
+      members: {
+        include: {
+          user: { select: { displayName: true, lastLoginAt: true } },
+        },
+      },
+    },
+  });
+  if (!group) throw notFound("Group not found");
+
+  const membership = await activeMembership(actorId, group.teamId);
+  const team = await db.team.findUniqueOrThrow({
+    where: { id: group.teamId },
+    select: { ownerId: true },
+  });
+  const isOwner = team.ownerId === actorId;
+  const leader = await isGroupLeaderOf(actorId, groupId);
+  let allowed = isOwner || leader;
+  if (!allowed && canManageTeam(membership)) {
+    // Full managers may view any group's digest; designated leaders are
+    // scoped to the groups they lead.
+    const ledCount = await db.teamGroup.count({
+      where: { teamId: group.teamId, leaderId: actorId },
+    });
+    allowed = ledCount === 0;
+  }
+  if (!allowed) {
+    throw forbidden("Only this group's leader or a team manager can view this");
+  }
+
+  // Only runners get digest rows.
+  const runnerIds = new Set(
+    (
+      await db.teamMembership.findMany({
+        where: {
+          teamId: group.teamId,
+          status: "ACTIVE",
+          role: "RUNNER",
+          userId: { in: group.members.map((m) => m.userId) },
+        },
+        select: { userId: true },
+      })
+    ).map((m) => m.userId),
+  );
+  const athletes = group.members
+    .filter((m) => runnerIds.has(m.userId))
+    .map((m) => ({ userId: m.userId, user: m.user }));
+
+  const rows = await digestRows(athletes, group.teamId, days);
+  const provider = selectProvider();
+  let summary: string;
+  try {
+    summary = await provider.teamSummary(`${group.team.name} — ${group.name}`, days, rows);
+  } catch {
+    const { LocalAnalyst } = await import("./providers.js");
+    summary = await new LocalAnalyst().teamSummary(
+      `${group.team.name} — ${group.name}`,
+      days,
+      rows,
+    );
+  }
+
+  await audit({
+    actorId,
+    action: "AI_DIGEST_GENERATED",
+    entityType: "TeamGroup",
+    entityId: groupId,
+    metadata: { days, provider: provider.name, athletes: rows.length },
+  });
+
+  return {
+    teamId: group.teamId,
+    teamName: `${group.team.name} — ${group.name}`,
+    periodDays: days,
+    athletes: rows,
+    summary,
+    provider: provider.name,
+    generatedAt: new Date().toISOString(),
+    coachHealth: { coachCount: 0, activeCoachCount: 0, noActiveCoach: false },
+  };
 }

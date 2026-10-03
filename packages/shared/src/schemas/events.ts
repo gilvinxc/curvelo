@@ -34,3 +34,12 @@ export type CreateTeamEventInput = z.infer<typeof createTeamEventSchema>;
 
 export const updateTeamEventSchema = createTeamEventSchema.partial();
 export type UpdateTeamEventInput = z.infer<typeof updateTeamEventSchema>;
+
+export const saveAttendanceSchema = z.object({
+  date: z.string().date(),
+  eventId: z.string().uuid().optional(),
+  records: z.record(z.string().uuid(), z.boolean()).refine((r) => Object.keys(r).length >= 1 && Object.keys(r).length <= 500, {
+    message: "Provide 1-500 attendance records",
+  }),
+});
+export type SaveAttendanceInput = z.infer<typeof saveAttendanceSchema>;

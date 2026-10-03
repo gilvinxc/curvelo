@@ -1,5 +1,6 @@
 import type { TeamMembership } from "@prisma/client";
 import type {
+  BulkMessageInput,
   ChatMessageDTO,
   ConversationDTO,
   SendMessageInput,
@@ -7,8 +8,8 @@ import type {
 import { db } from "../../db.js";
 import { mentionRefsFor, syncMentions } from "../../lib/mentions.js";
 import { audit } from "../../lib/audit.js";
-import { badRequest, forbidden, notFound } from "../../lib/errors.js";
-import { activeMembership } from "../../lib/permissions.js";
+import { AppError, badRequest, forbidden, notFound } from "../../lib/errors.js";
+import { activeMembership, groupLeaderIds } from "../../lib/permissions.js";
 import { consentRequiredFor } from "../guardians/service.js";
 
 type ConversationWithJoins = {
@@ -46,6 +47,20 @@ export async function ensureTeamConversations(
       update: {},
     });
   }
+}
+
+/** Fetch the group chat conversation (creating it if needed). */
+export async function getGroupConversation(
+  teamId: string,
+  groupId: string,
+  groupName: string,
+  creatorId: string,
+) {
+  await ensureGroupConversation(teamId, groupId, groupName, creatorId);
+  const conv = await db.conversation.findUniqueOrThrow({
+    where: { teamId_scopeKey: { teamId, scopeKey: scopeKey("GROUP_CHAT", groupId) } },
+  });
+  return conv;
 }
 
 /** Create the group chat for a newly created team group. */
@@ -750,4 +765,116 @@ export async function checkInStatus(
     hasVerifiedGuardian,
     guardianRequired: isMinor && !hasVerifiedGuardian,
   };
+}
+
+export interface BulkMessageResult {
+  sentToGroups: string[];
+  sentToAthletes: string[];
+  skipped: Array<{ targetId: string; reason: string }>;
+}
+
+/**
+ * Coach sends one message to many targets at once.
+ * - groupIds: posts into each group's conversation (Team Huddle channel).
+ * - athleteIds: posts into each athlete's check-in thread with the coach
+ *   (created if needed — guardian rules for minors apply per athlete).
+ * Managers may target anything; a designated group leader is scoped to the
+ * groups they lead. Blocked/failed targets are skipped and reported, never
+ * half-sent silently.
+ */
+export async function sendBulkMessage(
+  actorId: string,
+  teamId: string,
+  input: BulkMessageInput,
+  ipAddress?: string,
+): Promise<BulkMessageResult> {
+  const membership = await activeMembership(actorId, teamId);
+  const team = await db.team.findUniqueOrThrow({
+    where: { id: teamId },
+    select: { ownerId: true },
+  });
+  const isOwner = team.ownerId === actorId;
+  const isManager = isManagerRole(membership.role);
+  if (!isOwner && !isManager) {
+    throw forbidden("Requires coach or team admin role");
+  }
+  const ledGroupIds = new Set(
+    !isOwner && isManager ? await groupLeaderIds(actorId, teamId) : [],
+  );
+  const scoped = !isOwner && ledGroupIds.size > 0;
+
+  const sentToGroups: string[] = [];
+  const sentToAthletes: string[] = [];
+  const skipped: BulkMessageResult["skipped"] = [];
+
+  for (const groupId of [...new Set(input.groupIds)]) {
+    const group = await db.teamGroup.findUnique({ where: { id: groupId } });
+    if (!group || group.teamId !== teamId) {
+      skipped.push({ targetId: groupId, reason: "Group not found on this team" });
+      continue;
+    }
+    if (scoped && !ledGroupIds.has(groupId)) {
+      skipped.push({ targetId: groupId, reason: "Not your group" });
+      continue;
+    }
+    const conv = await getGroupConversation(teamId, groupId, group.name, actorId);
+    await postMessage(actorId, teamId, conv.id, { body: input.body }, ipAddress);
+    sentToGroups.push(groupId);
+  }
+
+  // Check-ins require the COACH role (guardians included for minors).
+  const canCheckIn = membership.role === "COACH";
+  let scopedAthleteIds: Set<string> | null = null;
+  if (scoped && input.athleteIds.length > 0) {
+    const members = await db.teamGroupMember.findMany({
+      where: { groupId: { in: [...ledGroupIds] } },
+      select: { userId: true },
+    });
+    scopedAthleteIds = new Set(members.map((m) => m.userId));
+  }
+
+  for (const athleteId of [...new Set(input.athleteIds)]) {
+    if (!canCheckIn) {
+      skipped.push({ targetId: athleteId, reason: "Check-ins require the coach role" });
+      continue;
+    }
+    const target = await db.teamMembership.findUnique({
+      where: { teamId_userId: { teamId, userId: athleteId } },
+    });
+    if (!target || target.status !== "ACTIVE" || target.role !== "RUNNER") {
+      skipped.push({ targetId: athleteId, reason: "Not an active runner on this team" });
+      continue;
+    }
+    if (scoped && !scopedAthleteIds!.has(athleteId)) {
+      skipped.push({ targetId: athleteId, reason: "Not in your groups" });
+      continue;
+    }
+    try {
+      const checkIn = await createCheckIn(actorId, teamId, actorId, athleteId, ipAddress);
+      await postMessage(actorId, teamId, checkIn.id, { body: input.body }, ipAddress);
+      sentToAthletes.push(athleteId);
+    } catch (e) {
+      skipped.push({
+        targetId: athleteId,
+        reason:
+          e instanceof AppError ? e.message : "Could not open a check-in thread",
+      });
+    }
+  }
+
+  await audit({
+    actorId,
+    action: "BULK_MESSAGE_SENT",
+    entityType: "Message",
+    entityId: teamId,
+    metadata: {
+      teamId,
+      groups: sentToGroups.length,
+      athletes: sentToAthletes.length,
+      skipped: skipped.length,
+    },
+    ipAddress,
+  });
+
+  return { sentToGroups, sentToAthletes, skipped };
 }

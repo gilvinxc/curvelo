@@ -59,6 +59,7 @@ import type {
   ActiveSeasonDTO,
   TeamRecordDTO,
   TeamGroupDTO,
+  AttendanceDTO,
   TeamRole,
   TrainingPlanDTO,
   UpdateProfileInput,
@@ -576,16 +577,49 @@ export const api = {
   removeGroupMember: (groupId: string, userId: string) =>
     del<{ group: TeamGroupDTO }>(`/groups/${groupId}/members/${userId}`),
   deleteGroup: (groupId: string) => del<{ ok: boolean }>(`/groups/${groupId}`),
+  setGroupLeader: (groupId: string, leaderId: string | null) =>
+    put<{ group: TeamGroupDTO }>(`/groups/${groupId}/leader`, { leaderId }),
+  postGroupAnnouncement: (groupId: string, body: string) =>
+    post<{ message: unknown }>(`/groups/${groupId}/announcements`, { body }),
+  getGroupDigest: (groupId: string, days = 28) =>
+    request<{ digest: TeamDigest }>(`/groups/${groupId}/digest?days=${days}`),
 
   // assignments + calendars
   createAssignment: (teamId: string, input: CreateAssignmentPayload) =>
     post<{ assignment: AssignmentDTO }>(`/teams/${teamId}/assignments`, input),
+  bulkAssign: (
+    teamId: string,
+    input: { workoutId: string; athleteIds: string[]; scheduledDate: string; notes?: string },
+  ) =>
+    post<{ created: number; skipped: Array<{ athleteId: string; reason: string }> }>(
+      `/teams/${teamId}/assignments/bulk`,
+      input,
+    ),
+  bulkMessage: (
+    teamId: string,
+    input: { groupIds?: string[]; athleteIds?: string[]; body: string },
+  ) =>
+    post<{
+      sentToGroups: string[];
+      sentToAthletes: string[];
+      skipped: Array<{ targetId: string; reason: string }>;
+    }>(`/teams/${teamId}/messages/bulk`, input),
   deleteAssignment: (assignmentId: string) =>
     del<{ ok: boolean }>(`/assignments/${assignmentId}`),
   createPracticePlan: (teamId: string, input: CreatePracticePlanInput) =>
     post<{ assignment: AssignmentDTO; postId: string | null }>(
       `/teams/${teamId}/practice-plans`,
       input,
+    ),
+  saveAttendance: (
+    teamId: string,
+    input: { date: string; eventId?: string; records: Record<string, boolean> },
+  ) => post<{ attendance: AttendanceDTO }>(`/teams/${teamId}/attendance`, input),
+  listAttendance: (teamId: string) =>
+    request<{ attendance: AttendanceDTO[] }>(`/teams/${teamId}/attendance`),
+  getAttendance: (teamId: string, attendanceId: string) =>
+    request<{ attendance: AttendanceDTO }>(
+      `/teams/${teamId}/attendance/${attendanceId}`,
     ),
   listTrainingPlans: (teamId: string) =>
     request<{ plans: TrainingPlanDTO[] }>(`/teams/${teamId}/training-plans`),

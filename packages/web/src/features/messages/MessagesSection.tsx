@@ -15,6 +15,8 @@ import {
   timeAgo,
 } from "./MessageThread";
 import { CheckInSection } from "./CheckInSection";
+import { BulkMessageDialog } from "./BulkMessageDialog";
+import { Button } from "../../components/ui";
 
 function ConversationIcon({ kind }: { kind: string }) {
   if (kind === "ANNOUNCEMENT") {
@@ -63,6 +65,7 @@ export function MessagesSection({
     enabled: !!teamId,
   });
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   const conversations = [...(conversationsQuery.data?.conversations ?? [])].sort(
     (a, b) =>
@@ -101,6 +104,7 @@ export function MessagesSection({
     (c) => c.id === selectedId,
   );
   const canModerate = !readOnly && !!myRole && CAN_MODERATE.has(myRole);
+  const canBulk = !readOnly && !!myRole && CAN_MODERATE.has(myRole);
 
   // Alumni don't get check-ins; guardians use the family view.
   const showCheckIns = !readOnly && myRole !== "ALUMNI";
@@ -136,6 +140,15 @@ export function MessagesSection({
           </button>
         ))}
       </div>
+
+      {canBulk && (
+        <div className="flex justify-end">
+          <Button variant="secondary" className="min-h-[44px]" onClick={() => setBulkOpen(true)}>
+            Message many…
+          </Button>
+        </div>
+      )}
+      <BulkMessageDialog teamId={teamId} open={bulkOpen} onClose={() => setBulkOpen(false)} />
 
       {selected ? (
         <MessageThread

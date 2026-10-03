@@ -1,8 +1,17 @@
-import type { AssignmentDTO, CreateAssignmentInput } from "@curvelo/shared";
+import type {
+  AssignmentDTO,
+  BulkAssignInput,
+  CreateAssignmentInput,
+} from "@curvelo/shared";
 import { db } from "../../db.js";
 import { audit } from "../../lib/audit.js";
 import { AppError, forbidden, notFound } from "../../lib/errors.js";
-import { activeMembership, requireManager } from "../../lib/permissions.js";
+import {
+  activeMembership,
+  canManageTeam,
+  groupLeaderIds,
+  requireManager,
+} from "../../lib/permissions.js";
 import { ageToday, evaluateWorkoutAssignment } from "../../lib/compliance.js";
 
 type AssignmentWithJoins = {
@@ -284,4 +293,132 @@ export async function createPracticePlan(
   }
 
   return { assignment, postId };
+}
+
+export interface BulkAssignResult {
+  created: number;
+  skipped: Array<{ athleteId: string; reason: string }>;
+}
+
+/**
+ * Assign one workout to many athletes at once. Validates every athlete ID
+ * first (active RUNNER on this team), then creates. Compliance is evaluated
+ * per athlete: blocked athletes are skipped and reported, never created.
+ * Managers may target anyone; a designated group leader may only target
+ * runners in the groups they lead.
+ */
+export async function createBulkAssignments(
+  actorId: string,
+  teamId: string,
+  input: BulkAssignInput,
+  ipAddress?: string,
+): Promise<BulkAssignResult> {
+  const membership = await activeMembership(actorId, teamId);
+  const team = await db.team.findUniqueOrThrow({
+    where: { id: teamId },
+    select: { ownerId: true },
+  });
+  const isOwner = team.ownerId === actorId;
+  const isManager = canManageTeam(membership);
+
+  let ledGroupIds: string[] = [];
+  if (!isOwner && isManager) {
+    ledGroupIds = await groupLeaderIds(actorId, teamId);
+  }
+  if (!isOwner && !isManager) {
+    throw forbidden("Requires coach or team admin role");
+  }
+  const scoped = !isOwner && ledGroupIds.length > 0;
+
+  const workout = await db.workout.findUnique({ where: { id: input.workoutId } });
+  if (!workout || workout.teamId !== teamId) {
+    throw notFound("Workout not found");
+  }
+
+  const uniqueIds = [...new Set(input.athleteIds)];
+  const targets = await db.teamMembership.findMany({
+    where: { teamId, userId: { in: uniqueIds } },
+    include: { user: { select: { dateOfBirth: true, displayName: true } } },
+  });
+  const byId = new Map(targets.map((t) => [t.userId, t]));
+
+  // If scoped (group leader), resolve which runners are in their groups.
+  let scopedRunnerIds: Set<string> | null = null;
+  if (scoped) {
+    const members = await db.teamGroupMember.findMany({
+      where: { groupId: { in: ledGroupIds } },
+      select: { userId: true },
+    });
+    scopedRunnerIds = new Set(members.map((m) => m.userId));
+  }
+
+  const scheduledDate = new Date(input.scheduledDate + "T00:00:00Z");
+  const valid: Array<{ target: (typeof targets)[number]; needsApproval: boolean }> = [];
+  const skipped: BulkAssignResult["skipped"] = [];
+
+  for (const id of uniqueIds) {
+    const t = byId.get(id);
+    if (!t || t.status !== "ACTIVE") {
+      skipped.push({ athleteId: id, reason: "Not an active team member" });
+      continue;
+    }
+    if (t.role !== "RUNNER") {
+      skipped.push({ athleteId: id, reason: "Only runners can be assigned workouts" });
+      continue;
+    }
+    if (scoped && !scopedRunnerIds!.has(id)) {
+      skipped.push({ athleteId: id, reason: "Not in your groups" });
+      continue;
+    }
+    // Compliance checkpoint per athlete (dead periods etc.).
+    const decision = await evaluateWorkoutAssignment({
+      teamId,
+      scheduledDate,
+      athleteAge: ageToday(t.user.dateOfBirth),
+      actorId,
+    });
+    if (decision.blocked) {
+      skipped.push({ athleteId: id, reason: "Blocked by an organizational policy" });
+      continue;
+    }
+    valid.push({ target: t, needsApproval: decision.needsApproval });
+  }
+  if (valid.length === 0 && skipped.length > 0) {
+    throw new AppError(422, "NO_VALID_ATHLETES", "No valid athletes to assign", {
+      skipped,
+    });
+  }
+
+  const rows = valid.map(({ target: t, needsApproval }) => ({
+    workoutId: input.workoutId,
+    teamId,
+    assignedToUserId: t.userId,
+    scheduledDate,
+    notes: input.notes?.trim() || null,
+    needsApproval,
+    createdById: actorId,
+  }));
+
+  await db.$transaction(async (tx) => {
+    for (const row of rows) {
+      await tx.workoutAssignment.create({ data: row });
+    }
+  });
+
+  await audit({
+    actorId,
+    action: "ASSIGNMENTS_BULK_CREATED",
+    entityType: "WorkoutAssignment",
+    entityId: teamId,
+    metadata: {
+      teamId,
+      workoutId: input.workoutId,
+      scheduledDate: input.scheduledDate,
+      created: rows.length,
+      skipped: skipped.length,
+    },
+    ipAddress,
+  });
+
+  return { created: rows.length, skipped };
 }

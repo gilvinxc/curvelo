@@ -10,6 +10,7 @@ import {
   Field,
   FullScreenLoader,
   Modal,
+  Select,
   TextInput,
 } from "../../components/ui";
 
@@ -20,13 +21,17 @@ function GroupRow({
   groupId,
   name,
   memberCount,
+  leaderName,
   canManage,
+  isOwner,
 }: {
   teamId: string;
   groupId: string;
   name: string;
   memberCount: number;
+  leaderName: string | null;
   canManage: boolean;
+  isOwner: boolean;
 }) {
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(false);
@@ -74,6 +79,7 @@ function GroupRow({
           <p className="truncate text-[16px] font-extrabold tracking-tight">{name}</p>
           <p className="text-[13px] text-mist">
             {memberCount} {memberCount === 1 ? "member" : "members"}
+            {leaderName ? ` · Led by ${leaderName}` : ""}
           </p>
         </div>
         <svg
@@ -134,6 +140,15 @@ function GroupRow({
           {canManage && (
             <div className="mt-4 flex gap-2">
               <AddMembersDialog teamId={teamId} groupId={groupId} groupName={name} onAdded={invalidate} />
+              {isOwner && (
+                <SetLeaderDialog
+                  teamId={teamId}
+                  groupId={groupId}
+                  groupName={name}
+                  currentLeaderName={detailQuery.data?.group.leaderName ?? leaderName}
+                  onChanged={invalidate}
+                />
+              )}
               {confirmingDelete ? (
                 <div className="flex flex-1 gap-2">
                   <Button
@@ -268,6 +283,91 @@ function AddMembersDialog({
   );
 }
 
+function SetLeaderDialog({
+  teamId,
+  groupId,
+  groupName,
+  currentLeaderName,
+  onChanged,
+}: {
+  teamId: string;
+  groupId: string;
+  groupName: string;
+  currentLeaderName: string | null;
+  onChanged: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [leaderId, setLeaderId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const rosterQuery = useQuery({
+    queryKey: ["roster", teamId],
+    queryFn: () => api.getRoster(teamId),
+    enabled: open,
+  });
+  const coaches = (rosterQuery.data?.roster ?? []).filter((m) =>
+    ["COACH", "TEAM_ADMIN"].includes(m.role),
+  );
+
+  const mutation = useMutation({
+    mutationFn: () => api.setGroupLeader(groupId, leaderId || null),
+    onSuccess: () => {
+      setOpen(false);
+      onChanged();
+    },
+    onError: (err) =>
+      setError(err instanceof Error ? err.message : "Couldn't set the leader."),
+  });
+
+  return (
+    <>
+      <Button
+        variant="secondary"
+        className="flex-1"
+        onClick={() => {
+          setError(null);
+          setLeaderId("");
+          setOpen(true);
+        }}
+      >
+        {currentLeaderName ? "Change leader" : "Set leader"}
+      </Button>
+      <Modal open={open} onClose={() => setOpen(false)} title={`Leader — ${groupName}`}>
+        {error && (
+          <div className="mb-4">
+            <ErrorBanner message={error} />
+          </div>
+        )}
+        <div className="flex flex-col gap-4">
+          <p className="text-[14px] text-mist">
+            The leader runs this subgroup: they manage its members, post its
+            announcements, and see its coaching insights. Only you can assign
+            leaders.
+            {currentLeaderName ? ` Current leader: ${currentLeaderName}.` : ""}
+          </p>
+          <Field label="Assistant coach">
+            <Select value={leaderId} onChange={(e) => setLeaderId(e.target.value)}>
+              <option value="">Remove leader</option>
+              {coaches.map((c) => (
+                <option key={c.userId} value={c.userId}>
+                  {c.displayName}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Button
+            className="w-full"
+            loading={mutation.isPending}
+            onClick={() => mutation.mutate()}
+          >
+            Save leader
+          </Button>
+        </div>
+      </Modal>
+    </>
+  );
+}
+
 function CreateGroupDialog({
   teamId,
   onCreated,
@@ -380,9 +480,11 @@ function CreateGroupDialog({
 export function GroupsSection({
   teamId,
   myRole,
+  isOwner,
 }: {
   teamId: string;
   myRole: string | null;
+  isOwner: boolean;
 }) {
   const queryClient = useQueryClient();
   const groupsQuery = useQuery({
@@ -431,7 +533,9 @@ export function GroupsSection({
               groupId={g.id}
               name={g.name}
               memberCount={g.memberCount}
+              leaderName={g.leaderName}
               canManage={canManage}
+              isOwner={isOwner}
             />
           ))}
         </div>

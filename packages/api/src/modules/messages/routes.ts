@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import {
+  bulkMessageSchema,
   checkInBodySchema,
   conversationParamsSchema,
   editMessageSchema,
@@ -17,6 +18,7 @@ import {
   listConversations,
   listMessages,
   postMessage,
+  sendBulkMessage,
 } from "./service.js";
 
 export async function messageRoutes(app: FastifyInstance): Promise<void> {
@@ -48,7 +50,24 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
-  app.get(
+    // Bulk: one message to many groups and/or athletes (check-in threads).
+  app.post(
+    "/teams/:id/messages/bulk",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { id } = teamConversationsParamsSchema.parse(request.params);
+      const body = bulkMessageSchema.parse(request.body);
+      const result = await sendBulkMessage(
+        request.user!.id,
+        id,
+        body,
+        request.ip,
+      );
+      return reply.status(201).send(result);
+    },
+  );
+
+app.get(
     "/teams/:id/check-ins",
     { preHandler: [app.authenticate] },
     async (request, reply) => {

@@ -55,10 +55,19 @@ function DigestSkeleton() {
   );
 }
 
-export function TeamDigestSection({ teamId }: { teamId: string }) {
+export function TeamDigestSection({
+  teamId,
+  groupId,
+  title,
+}: {
+  teamId: string;
+  groupId?: string;
+  title?: string;
+}) {
   const digestQuery = useQuery({
-    queryKey: ["team-digest", teamId],
-    queryFn: () => api.getTeamDigest(teamId),
+    queryKey: groupId ? ["group-digest", groupId] : ["team-digest", teamId],
+    queryFn: () =>
+      groupId ? api.getGroupDigest(groupId) : api.getTeamDigest(teamId),
     enabled: !!teamId,
   });
 
@@ -66,7 +75,7 @@ export function TeamDigestSection({ teamId }: { teamId: string }) {
     <div>
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-[13px] font-bold uppercase tracking-[0.18em] text-mist">
-          Coaching digest
+          {title ?? "Coaching digest"}
         </h2>
         <Button
           variant="secondary"

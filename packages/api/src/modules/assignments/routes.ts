@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import {
+  bulkAssignSchema,
   calendarQuerySchema,
   createAssignmentSchema,
   teamParamsSchema,
@@ -7,6 +8,7 @@ import {
 import { z } from "zod";
 import {
   createAssignment,
+  createBulkAssignments,
   deleteAssignment,
   myCalendar,
   teamCalendar,
@@ -32,6 +34,23 @@ export async function assignmentRoutes(app: FastifyInstance): Promise<void> {
         request.ip,
       );
       return reply.status(201).send({ assignment });
+    },
+  );
+
+  // Coach assigns one workout to many athletes at once.
+  app.post(
+    "/teams/:id/assignments/bulk",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { id } = teamParamsSchema.parse(request.params);
+      const body = bulkAssignSchema.parse(request.body);
+      const result = await createBulkAssignments(
+        request.user!.id,
+        id,
+        body,
+        request.ip,
+      );
+      return reply.status(201).send(result);
     },
   );
 
