@@ -14,6 +14,7 @@ import {
   MessageThread,
   timeAgo,
 } from "./MessageThread";
+import { CheckInSection } from "./CheckInSection";
 
 function ConversationIcon({ kind }: { kind: string }) {
   if (kind === "ANNOUNCEMENT") {
@@ -101,8 +102,14 @@ export function MessagesSection({
   );
   const canModerate = !readOnly && !!myRole && CAN_MODERATE.has(myRole);
 
+  // Alumni don't get check-ins; guardians use the family view.
+  const showCheckIns = !readOnly && myRole !== "ALUMNI";
+
   return (
     <div className="flex flex-col gap-4">
+      {showCheckIns && (
+        <CheckInSection teamId={teamId} myRole={myRole} mode="member" />
+      )}
       <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Conversations">
         {conversations.map((c) => (
           <button

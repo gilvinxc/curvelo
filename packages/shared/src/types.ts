@@ -549,6 +549,18 @@ export interface TeamDigest {
   };
 }
 
+export interface CheckInDTO {
+  id: string;
+  title: string;
+  coachId: string;
+  coachName: string;
+  runnerId: string;
+  runnerName: string;
+  guardianNames: string[];
+  lastMessageAt: string | null;
+  canPost: boolean;
+}
+
 export interface ConversationDTO {
   id: string;
   kind: string;

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import {
+  checkInBodySchema,
   conversationParamsSchema,
   editMessageSchema,
   messageParamsSchema,
@@ -8,8 +9,11 @@ import {
   teamConversationsParamsSchema,
 } from "@curvelo/shared";
 import {
+  checkInStatus,
+  createCheckIn,
   deleteMessage,
   editMessage,
+  listCheckIns,
   listConversations,
   listMessages,
   postMessage,
@@ -23,6 +27,44 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       const { id } = teamConversationsParamsSchema.parse(request.params);
       const conversations = await listConversations(request.user!.id, id);
       return reply.send({ conversations });
+    },
+  );
+
+  // Youth-safe check-ins: coach + runner + verified guardians. No DMs.
+  app.post(
+    "/teams/:id/check-ins",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { id } = teamConversationsParamsSchema.parse(request.params);
+      const { coachId, runnerId } = checkInBodySchema.parse(request.body);
+      const checkIn = await createCheckIn(
+        request.user!.id,
+        id,
+        coachId,
+        runnerId,
+        request.ip,
+      );
+      return reply.status(201).send({ checkIn });
+    },
+  );
+
+  app.get(
+    "/teams/:id/check-ins",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { id } = teamConversationsParamsSchema.parse(request.params);
+      const checkIns = await listCheckIns(request.user!.id, id);
+      return reply.send({ checkIns });
+    },
+  );
+
+  app.get(
+    "/teams/:id/check-ins/status",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { id } = teamConversationsParamsSchema.parse(request.params);
+      const status = await checkInStatus(request.user!.id, id);
+      return reply.send({ status });
     },
   );
 

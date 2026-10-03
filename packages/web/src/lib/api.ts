@@ -18,6 +18,7 @@ import type {
   AdminTeamDTO,
   AdminUserDTO,
   ConsentDTO,
+  CheckInDTO,
   ConversationDTO,
   CreateTeamInput,
   GuardianInviteDTO,
@@ -813,6 +814,14 @@ export const api = {
     request<{ conversations: ConversationDTO[] }>(
       `/teams/${teamId}/conversations`,
     ),
+  listCheckIns: (teamId: string) =>
+    request<{ checkIns: CheckInDTO[] }>(`/teams/${teamId}/check-ins`),
+  createCheckIn: (teamId: string, input: { coachId: string; runnerId: string }) =>
+    post<{ checkIn: CheckInDTO }>(`/teams/${teamId}/check-ins`, input),
+  checkInStatus: (teamId: string) =>
+    request<{
+      status: { isMinor: boolean; hasVerifiedGuardian: boolean; guardianRequired: boolean };
+    }>(`/teams/${teamId}/check-ins/status`),
   listMessages: (
     teamId: string,
     conversationId: string,

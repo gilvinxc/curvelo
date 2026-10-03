@@ -7,6 +7,7 @@ import {
   PageHeader,
 } from "../../components/ui";
 import { MessagesSection } from "./MessagesSection";
+import { CheckInSection } from "./CheckInSection";
 
 /** Guardian read-only view of one team's conversations for a linked athlete. */
 export function FamilyTeamMessagesPage() {
@@ -36,7 +37,10 @@ export function FamilyTeamMessagesPage() {
       {childrenQuery.isError || !child ? (
         <ErrorBanner message="Couldn't load this team's conversations." />
       ) : (
-        <MessagesSection teamId={child.teamId} readOnly />
+        <>
+          <CheckInSection teamId={child.teamId} mode="guardian" />
+          <MessagesSection teamId={child.teamId} readOnly />
+        </>
       )}
     </div>
   );

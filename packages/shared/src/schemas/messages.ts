@@ -4,7 +4,13 @@ export const CONVERSATION_KINDS = [
   "ANNOUNCEMENT",
   "TEAM_CHAT",
   "GROUP_CHAT",
+  "CHECK_IN",
 ] as const;
+
+export const checkInBodySchema = z.object({
+  coachId: z.string().uuid(),
+  runnerId: z.string().uuid(),
+});
 
 export const teamConversationsParamsSchema = z.object({
   id: z.string().uuid(), // team id

@@ -110,6 +110,7 @@ model User {
   consentsForAthlete        Consent[]            @relation("ConsentAthlete")
   consentsAsGuardian        Consent[]            @relation("ConsentGuardian")
   conversationsAuthored     Conversation[]       @relation("ConversationAuthor")
+  conversationParticipations  ConversationParticipant[]
   messagesAuthored          Message[]            @relation("MessageAuthor")
   createdJoinLinks          TeamJoinLink[]       @relation("JoinLinkCreator")
   personalGoals             Goal[]               @relation("PersonalGoals")
@@ -222,7 +223,7 @@ model Conversation {
   id          String     @id @default(uuid())
   teamId      String
   team        Team       @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  kind        String // ANNOUNCEMENT | TEAM_CHAT | GROUP_CHAT
+  kind        String // ANNOUNCEMENT | TEAM_CHAT | GROUP_CHAT | CHECK_IN
   groupId     String?
   group       TeamGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
   scopeKey    String // "ANNOUNCEMENT:-" | "TEAM_CHAT:-" | "GROUP_CHAT:<groupId>"
@@ -231,9 +232,25 @@ model Conversation {
   createdBy   User       @relation("ConversationAuthor", fields: [createdById], references: [id])
   createdAt   DateTime   @default(now())
   messages    Message[]
+  participants ConversationParticipant[]
 
   @@unique([teamId, scopeKey])
   @@index([teamId])
+}
+
+// Per-conversation membership for CHECK_IN channels (coach + runner +
+// the runner's verified guardians). Other conversation kinds use
+// team/group membership instead.
+model ConversationParticipant {
+  id             String       @id @default(uuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime     @default(now())
+
+  @@unique([conversationId, userId])
+  @@index([userId])
 }
 
 model Message {

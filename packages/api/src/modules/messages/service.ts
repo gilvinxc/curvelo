@@ -7,8 +7,9 @@ import type {
 import { db } from "../../db.js";
 import { mentionRefsFor, syncMentions } from "../../lib/mentions.js";
 import { audit } from "../../lib/audit.js";
-import { forbidden, notFound } from "../../lib/errors.js";
+import { badRequest, forbidden, notFound } from "../../lib/errors.js";
 import { activeMembership } from "../../lib/permissions.js";
+import { consentRequiredFor } from "../guardians/service.js";
 
 type ConversationWithJoins = {
   id: string;
@@ -111,10 +112,22 @@ function isManagerRole(role: string): boolean {
 
 async function canPost(
   access: TeamAccess,
-  conv: { kind: string; groupId: string | null },
+  conv: { id: string; kind: string; groupId: string | null },
   teamId: string,
   actorId: string,
 ): Promise<boolean> {
+  // CHECK_IN: only conversation participants may post — this covers the
+  // coach, the runner, and the runner's verified guardians.
+  if (conv.kind === "CHECK_IN") {
+    const participant = await db.conversationParticipant.findUnique({
+      where: {
+        conversationId_userId: { conversationId: conv.id, userId: actorId },
+      },
+    });
+    if (!participant) return false;
+    if (access.membership && access.membership.role === "ALUMNI") return false;
+    return true;
+  }
   if (access.guardian || !access.membership) return false;
   const role = access.membership.role;
   // Alumni are read-only everywhere.
@@ -167,6 +180,8 @@ export async function listConversations(
   const dtos: ConversationDTO[] = [];
   const isAlumni = !access.guardian && access.membership.role === "ALUMNI";
   for (const conv of convs) {
+    // Check-ins are member-scoped and served by the dedicated endpoint.
+    if (conv.kind === "CHECK_IN") continue;
     // Alumni (outer tier) see announcements only — no team chat, no groups.
     if (isAlumni && conv.kind !== "ANNOUNCEMENT") continue;
     // Guardians only see conversations their linked athlete could see.
@@ -240,8 +255,12 @@ export async function listMessages(
 ): Promise<{ messages: ChatMessageDTO[]; hasMore: boolean }> {
   const access = await resolveTeamAccess(actorId, teamId);
   const conv = await getConversation(teamId, convId);
+  if (conv.kind === "CHECK_IN") {
+    await requireCheckInParticipant(conv.id, actorId);
+  }
   // Alumni (outer tier) may only read announcements.
   if (
+    conv.kind !== "CHECK_IN" &&
     !access.guardian &&
     access.membership.role === "ALUMNI" &&
     conv.kind !== "ANNOUNCEMENT"
@@ -392,8 +411,15 @@ export async function deleteMessage(
   const message = await getMessage(messageId);
   const access = await resolveTeamAccess(actorId, message.conversation.teamId);
   const isAuthor = message.authorId === actorId;
+  // Check-ins are private to their participants — no outside moderation.
+  if (message.conversation.kind === "CHECK_IN") {
+    await requireCheckInParticipant(message.conversation.id, actorId);
+  }
   const isManager =
-    !access.guardian && access.membership && isManagerRole(access.membership.role);
+    message.conversation.kind !== "CHECK_IN" &&
+    !access.guardian &&
+    access.membership &&
+    isManagerRole(access.membership.role);
   if (!isAuthor && !isManager) {
     throw forbidden("You cannot delete this message");
   }
@@ -416,4 +442,285 @@ export async function deleteMessage(
     },
     ipAddress,
   });
+}
+
+// ─── Check-ins: youth-safe coach/runner channel ─────────────────────────
+// A check-in is a CHECK_IN conversation whose participants are the coach,
+// the runner, and — for minors — ALL of the runner's verified guardians.
+// No adult/minor private channel can exist without the guardian.
+
+async function requireCheckInParticipant(
+  conversationId: string,
+  userId: string,
+): Promise<void> {
+  const participant = await db.conversationParticipant.findUnique({
+    where: { conversationId_userId: { conversationId, userId } },
+  });
+  if (!participant) throw notFound("Conversation not found");
+}
+
+function checkInScopeKey(coachId: string, runnerId: string): string {
+  const [a, b] = [coachId, runnerId].sort();
+  return `CHECK_IN:${a}:${b}`;
+}
+
+export interface CheckInDTO {
+  id: string;
+  title: string;
+  coachId: string;
+  coachName: string;
+  runnerId: string;
+  runnerName: string;
+  guardianNames: string[];
+  lastMessageAt: string | null;
+  canPost: boolean;
+}
+
+async function toCheckInDTO(
+  conv: {
+    id: string;
+    title: string;
+    createdById: string;
+    participants: { userId: string; user: { displayName: string } }[];
+    messages: { createdAt: Date }[];
+  },
+  teamId: string,
+  actorId: string,
+  access: TeamAccess,
+): Promise<CheckInDTO> {
+  const roles = await authorRoles(
+    conv.participants.map((p) => p.userId),
+    teamId,
+  );
+  let coachId = "";
+  let coachName = "";
+  let runnerId = "";
+  let runnerName = "";
+  const guardianNames: string[] = [];
+  for (const p of conv.participants) {
+    const role = roles.get(p.userId);
+    if (role === "COACH" && !coachId) {
+      coachId = p.userId;
+      coachName = p.user.displayName;
+    } else if (role === "RUNNER" && !runnerId) {
+      runnerId = p.userId;
+      runnerName = p.user.displayName;
+    } else {
+      guardianNames.push(p.user.displayName);
+    }
+  }
+  return {
+    id: conv.id,
+    title: conv.title,
+    coachId,
+    coachName,
+    runnerId,
+    runnerName,
+    guardianNames,
+    lastMessageAt: conv.messages[0]?.createdAt.toISOString() ?? null,
+    canPost: await canPost(
+      access,
+      { kind: "CHECK_IN", groupId: null, id: conv.id },
+      teamId,
+      actorId,
+    ),
+  };
+}
+
+/**
+ * Open (or find) the check-in channel between a coach and a runner.
+ * Either side — or the runner's verified guardian — may initiate.
+ * Minors require at least one verified guardian, who is always included.
+ */
+export async function createCheckIn(
+  actorId: string,
+  teamId: string,
+  coachId: string,
+  runnerId: string,
+  ipAddress?: string,
+): Promise<CheckInDTO> {
+  const access = await resolveTeamAccess(actorId, teamId);
+
+  const [coachMembership, runnerMembership] = await Promise.all([
+    db.teamMembership.findUnique({
+      where: { teamId_userId: { teamId, userId: coachId } },
+    }),
+    db.teamMembership.findUnique({
+      where: { teamId_userId: { teamId, userId: runnerId } },
+    }),
+  ]);
+  if (
+    !coachMembership ||
+    coachMembership.status !== "ACTIVE" ||
+    coachMembership.role !== "COACH"
+  ) {
+    throw badRequest("Coach must be an active coach on this team");
+  }
+  if (!runnerMembership || runnerMembership.status !== "ACTIVE") {
+    throw badRequest("Runner must be an active member of this team");
+  }
+
+  // The initiator must be the coach, the runner, or the runner's guardian.
+  const isCoach = actorId === coachId;
+  const isRunner = actorId === runnerId;
+  let guardianLink: { id: string } | null = null;
+  if (!isCoach && !isRunner) {
+    guardianLink = await db.guardianLink.findFirst({
+      where: { guardianId: actorId, athleteId: runnerId, status: "VERIFIED" },
+      select: { id: true },
+    });
+    if (!guardianLink) throw forbidden("You cannot start this check-in");
+  }
+
+  const runner = await db.user.findUnique({
+    where: { id: runnerId },
+    select: { dateOfBirth: true, displayName: true },
+  });
+  if (!runner) throw notFound("Runner not found");
+  const minor = consentRequiredFor(runner.dateOfBirth);
+
+  // Minors: every verified guardian joins the channel. No exceptions.
+  let guardianIds: string[] = [];
+  if (minor) {
+    const links = await db.guardianLink.findMany({
+      where: { athleteId: runnerId, status: "VERIFIED" },
+      select: { guardianId: true },
+    });
+    if (links.length === 0) {
+      throw badRequest(
+        "A verified guardian is required before a minor can message a coach",
+      );
+    }
+    guardianIds = links.map((l) => l.guardianId);
+  }
+
+  const scopeKey = checkInScopeKey(coachId, runnerId);
+  const existing = await db.conversation.findFirst({
+    where: { teamId, scopeKey },
+    include: {
+      participants: { include: { user: { select: { displayName: true } } } },
+      messages: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { createdAt: true },
+      },
+    },
+  });
+  if (existing) {
+    // Fold in guardians verified since the channel was created.
+    const known = new Set(existing.participants.map((p) => p.userId));
+    const missing = [coachId, runnerId, ...guardianIds].filter(
+      (id) => !known.has(id),
+    );
+    if (missing.length > 0) {
+      await db.conversationParticipant.createMany({
+        data: missing.map((userId) => ({
+          conversationId: existing.id,
+          userId,
+        })),
+        skipDuplicates: true,
+      });
+      existing.participants.push(
+        ...(await db.conversationParticipant.findMany({
+          where: { conversationId: existing.id, userId: { in: missing } },
+          include: { user: { select: { displayName: true } } },
+        })),
+      );
+    }
+    await requireCheckInParticipant(existing.id, actorId);
+    return toCheckInDTO(existing, teamId, actorId, access);
+  }
+
+  const participantIds = [...new Set([coachId, runnerId, ...guardianIds])];
+  const conv = await db.conversation.create({
+    data: {
+      teamId,
+      kind: "CHECK_IN",
+      scopeKey,
+      title: `Check-in with ${runner.displayName}`,
+      createdById: actorId,
+      participants: {
+        create: participantIds.map((userId) => ({ userId })),
+      },
+    },
+    include: {
+      participants: { include: { user: { select: { displayName: true } } } },
+      messages: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { createdAt: true },
+      },
+    },
+  });
+
+  await audit({
+    actorId,
+    action: "CHECK_IN_CREATED",
+    entityType: "Conversation",
+    entityId: conv.id,
+    metadata: { teamId, coachId, runnerId, minor },
+    ipAddress,
+  });
+
+  return toCheckInDTO(conv, teamId, actorId, access);
+}
+
+/** Check-ins the caller participates in. */
+export async function listCheckIns(
+  actorId: string,
+  teamId: string,
+): Promise<CheckInDTO[]> {
+  const access = await resolveTeamAccess(actorId, teamId);
+  const convs = await db.conversation.findMany({
+    where: {
+      teamId,
+      kind: "CHECK_IN",
+      participants: { some: { userId: actorId } },
+    },
+    include: {
+      participants: { include: { user: { select: { displayName: true } } } },
+      messages: {
+        orderBy: { createdAt: "desc" },
+        take: 1,
+        select: { createdAt: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  return Promise.all(
+    convs.map((c) => toCheckInDTO(c, teamId, actorId, access)),
+  );
+}
+
+/**
+ * Whether the caller (as a runner) can open a check-in right now.
+ * Drives the "Talk to my coach" vs "Ask a parent to connect first" UI.
+ */
+export async function checkInStatus(
+  actorId: string,
+  teamId: string,
+): Promise<{
+  isMinor: boolean;
+  hasVerifiedGuardian: boolean;
+  guardianRequired: boolean;
+}> {
+  await resolveTeamAccess(actorId, teamId);
+  const user = await db.user.findUnique({
+    where: { id: actorId },
+    select: { dateOfBirth: true },
+  });
+  const isMinor = consentRequiredFor(user?.dateOfBirth ?? null);
+  let hasVerifiedGuardian = false;
+  if (isMinor) {
+    const link = await db.guardianLink.findFirst({
+      where: { athleteId: actorId, status: "VERIFIED" },
+      select: { id: true },
+    });
+    hasVerifiedGuardian = !!link;
+  }
+  return {
+    isMinor,
+    hasVerifiedGuardian,
+    guardianRequired: isMinor && !hasVerifiedGuardian,
+  };
 }
