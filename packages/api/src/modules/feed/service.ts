@@ -7,6 +7,7 @@ import type {
   ReactionSummaryDTO,
   ReportDTO,
 } from "@curvelo/shared";
+import { matchMentionedNames } from "@curvelo/shared";
 import { db } from "../../db.js";
 import { mentionRefsFor, syncMentions } from "../../lib/mentions.js";
 import { attachPhotosToPost } from "../photos/service.js";
@@ -17,6 +18,11 @@ import {
   activeMembership,
   requireManager,
 } from "../../lib/permissions.js";
+import {
+  assertPhotoConsentForShare,
+  checkPhotoConsents,
+  grantPhotoConsent,
+} from "../../lib/photoConsent.js";
 import {
   ACTIVITY_WITH_JOINS,
   toActivityDTO,
@@ -44,6 +50,7 @@ type PostWithJoins = {
     mimeType: string;
     caption: string | null;
     status: string;
+    subjects: Array<{ athleteId: string }>;
     createdAt: Date;
   }>;
 };
@@ -55,7 +62,10 @@ const POST_INCLUDE = {
   reactions: { select: { emoji: true, userId: true } },
   photos: {
     where: { status: "APPROVED" },
-    include: { uploader: { select: { displayName: true } } },
+    include: {
+      uploader: { select: { displayName: true } },
+      subjects: { select: { athleteId: true } },
+    },
     orderBy: { createdAt: "asc" },
   },
 } as const;
@@ -89,6 +99,7 @@ function toPhotoDTO(p: {
   mimeType: string;
   caption: string | null;
   status: string;
+  subjects: Array<{ athleteId: string }>;
   createdAt: Date;
 }): PhotoDTO {
   return {
@@ -101,6 +112,7 @@ function toPhotoDTO(p: {
     mimeType: p.mimeType,
     caption: p.caption,
     status: p.status,
+    picturedAthleteIds: p.subjects.map((sub) => sub.athleteId),
     createdAt: p.createdAt.toISOString(),
   };
 }
@@ -137,6 +149,53 @@ async function getPostOr404(postId: string) {
   return post;
 }
 
+/**
+ * Parents are real team members (PARENT role, granted via verified
+ * GuardianLink). They participate in the feed — view, comment, react, share
+ * photos — but never moderate and can only publish photo posts. Everything
+ * flows from the membership; there is no separate guardian-access path.
+ */
+function isParentRole(role: string): boolean {
+  return role === "PARENT";
+}
+
+function isManagerRole(role: string): boolean {
+  return role === "COACH" || role === "TEAM_ADMIN";
+}
+
+/**
+ * "No minor's name in the caption without consent": any @-mentioned athlete
+ * who is a minor must have photo consent before a photo post publishes.
+ */
+async function assertCaptionConsent(teamId: string, body: string | null | undefined) {
+  if (!body || !body.includes("@")) return;
+  const memberships = await db.teamMembership.findMany({
+    where: { teamId, status: "ACTIVE" },
+    include: { user: { select: { id: true, displayName: true } } },
+  });
+  const matched = matchMentionedNames(
+    body,
+    memberships.map((m) => m.user.displayName),
+  );
+  const ids: string[] = [];
+  for (const name of matched) {
+    const candidates = memberships.filter(
+      (m) => m.user.displayName.toLowerCase() === name.toLowerCase(),
+    );
+    if (candidates.length === 1) ids.push(candidates[0].user.id);
+  }
+  if (ids.length === 0) return;
+  const checks = await checkPhotoConsents([...new Set(ids)]);
+  const lacking = checks.filter((c) => c.isMinor && !c.hasConsent);
+  if (lacking.length > 0) {
+    throw new AppError(
+      422,
+      "PHOTO_CONSENT_MISSING",
+      `Can't share: photo consent is missing for ${lacking.map((c) => c.displayName).join(", ")}.`,
+    );
+  }
+}
+
 export async function createPost(
   actorId: string,
   teamId: string,
@@ -146,6 +205,11 @@ export async function createPost(
   const membership = await activeMembership(actorId, teamId);
   if (membership.role === "ALUMNI") {
     throw forbidden("Alumni can't post to the team wall");
+  }
+
+  const wantsPhotos = (input.photoIds?.length ?? 0) > 0;
+  if (isParentRole(membership.role) && (!wantsPhotos || input.activityId)) {
+    throw forbidden("Parents can share photos to the team feed");
   }
 
   let activityId: string | null = null;
@@ -172,9 +236,11 @@ export async function createPost(
 
   const kind = activityId
     ? "ACTIVITY_SHARE"
-    : input.kind === "SHOUTOUT"
-      ? "SHOUTOUT"
-      : "TEXT";
+    : wantsPhotos
+      ? "PHOTO"
+      : input.kind === "SHOUTOUT"
+        ? "SHOUTOUT"
+        : "TEXT";
   const post = await db.feedPost.create({
     data: {
       teamId,
@@ -188,7 +254,28 @@ export async function createPost(
 
   let fullPost = post;
   if (input.photoIds?.length) {
-    await attachPhotosToPost(actorId, teamId, post.id, input.photoIds);
+    // Tag pictured athletes at share time. Inline grants let a guardian
+    // consent for their own kid in the same share. The per-share consent
+    // gate itself runs inside attachPhotosToPost (never cached).
+    const pictured = [...new Set(input.picturedAthleteIds ?? [])];
+    if (pictured.length > 0) {
+      const photos = await db.photo.findMany({
+        where: { id: { in: input.photoIds } },
+        select: { id: true, teamId: true },
+      });
+      for (const photo of photos) {
+        if (photo.teamId !== teamId) continue;
+        await db.photoSubject.createMany({
+          data: pictured.map((athleteId) => ({ photoId: photo.id, athleteId })),
+          skipDuplicates: true,
+        });
+      }
+    }
+    for (const athleteId of input.grantPhotoConsentFor ?? []) {
+      await grantPhotoConsent(actorId, athleteId, ipAddress);
+    }
+    await assertCaptionConsent(teamId, input.body);
+    await attachPhotosToPost(actorId, teamId, post.id, input.photoIds, ipAddress);
     // Re-fetch so the attached photos are included in the response.
     fullPost = await db.feedPost.findUniqueOrThrow({
       where: { id: post.id },
@@ -285,7 +372,7 @@ export async function listFeed(
       teamId,
       ...(opts.before ? { createdAt: { lt: new Date(opts.before) } } : {}),
       // Alumni (outer tier) see only celebratory kinds — no workout logs,
-      // no training posts, no photos.
+      // no training posts, no photos. Parents see the full inner feed.
       ...(membership.role === "ALUMNI"
         ? { kind: { in: [...ALUMNI_VISIBLE_KINDS] } }
         : {}),
@@ -308,8 +395,7 @@ export async function deletePost(
 ): Promise<void> {
   const post = await getPostOr404(postId);
   const membership = await activeMembership(actorId, post.teamId);
-  const isManager =
-    membership.role === "COACH" || membership.role === "TEAM_ADMIN";
+  const isManager = isManagerRole(membership.role);
   if (post.authorId !== actorId && !isManager) {
     throw forbidden("You cannot delete this post");
   }
@@ -408,8 +494,7 @@ export async function deleteComment(
   });
   if (!comment) throw notFound("Comment not found");
   const membership = await activeMembership(actorId, comment.post.teamId);
-  const isManager =
-    membership.role === "COACH" || membership.role === "TEAM_ADMIN";
+  const isManager = isManagerRole(membership.role);
   if (comment.authorId !== actorId && !isManager) {
     throw forbidden("You cannot delete this comment");
   }

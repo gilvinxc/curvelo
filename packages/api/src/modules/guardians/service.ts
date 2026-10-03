@@ -224,6 +224,9 @@ export async function acceptInvite(
     ipAddress,
   });
 
+  // Verified link → PARENT membership on the athlete's teams.
+  await syncParentMemberships(actorId, invite.athleteId);
+
   const full = await db.guardianLink.findUniqueOrThrow({
     where: { id: link.id },
     include: {
@@ -350,6 +353,9 @@ export async function revokeLink(
     metadata: { athleteId: link.athleteId, byGuardian: isGuardian },
     ipAddress,
   });
+
+  // Revoked link → drop PARENT memberships that no longer have a link behind them.
+  await syncParentMemberships(link.guardianId, link.athleteId);
 }
 
 /** Parent view: every athlete this user is a verified guardian of. */
@@ -463,4 +469,382 @@ export async function myChildren(actorId: string): Promise<ChildSummaryDTO[]> {
     }
   }
   return summaries;
+}
+
+/** Verified guardian link or 403. Every guardian capability requires this. */
+async function verifiedLinkOrThrow(guardianId: string, athleteId: string) {
+  const link = await db.guardianLink.findUnique({
+    where: { guardianId_athleteId: { guardianId, athleteId } },
+    include: { athlete: { select: { displayName: true } } },
+  });
+  if (!link || link.status !== "VERIFIED") {
+    throw forbidden("You are not a verified guardian of this athlete");
+  }
+  return link;
+}
+
+export type LogForChildInput = {
+  teamId?: string;
+  kind: string;
+  title?: string;
+  startedAt: string;
+  distanceM?: number | null;
+  durationS?: number | null;
+  avgHrBpm?: number | null;
+  maxHrBpm?: number | null;
+  effortRpe?: number | null;
+  calories?: number | null;
+  steps?: number | null;
+  elevationGainM?: number | null;
+  avgCadenceSpm?: number | null;
+  city?: string;
+  terrain?: string;
+  visibility?: string;
+  notes?: string;
+  shoeId?: string | null;
+};
+
+/**
+ * A verified guardian logs an activity on behalf of their linked athlete.
+ * The run belongs to the child; loggedBy records the guardian. The athlete
+ * gets a notification to review it. Guardians can never log for athletes
+ * they aren't linked to.
+ */
+export async function logActivityForChild(
+  guardianId: string,
+  athleteId: string,
+  input: LogForChildInput,
+  ipAddress?: string,
+) {
+  const link = await verifiedLinkOrThrow(guardianId, athleteId);
+
+  // Team context must be one of the athlete's active teams — the guardian's
+  // own memberships are irrelevant (they have none).
+  let teamId: string | null = null;
+  if (input.teamId) {
+    const membership = await db.teamMembership.findUnique({
+      where: { teamId_userId: { teamId: input.teamId, userId: athleteId } },
+    });
+    if (!membership || membership.status !== "ACTIVE") {
+      throw new AppError(422, "INVALID_TEAM", "That team isn't one of this athlete's teams.");
+    }
+    teamId = input.teamId;
+  }
+
+  const { createActivity } = await import("../activities/service.js");
+  const activity = await createActivity(
+    guardianId,
+    {
+      ...input,
+      teamId: teamId ?? undefined,
+      // Guardians log TEAM-visible or PRIVATE runs for their kid — never
+      // anything the visibility rules don't already allow.
+      visibility: input.visibility === "PRIVATE" ? "PRIVATE" : "TEAM",
+    } as Parameters<typeof createActivity>[1],
+    ipAddress,
+    undefined,
+    { userId: athleteId, loggedByUserId: guardianId },
+  );
+
+  const guardian = await db.user.findUnique({
+    where: { id: guardianId },
+    select: { displayName: true },
+  });
+  await db.notification.create({
+    data: {
+      userId: athleteId,
+      type: "ACTIVITY_LOGGED_BY_GUARDIAN",
+      title: `${guardian?.displayName ?? "Your parent"} logged a run for you`,
+      body: "Review it in your activity history — it's your log.",
+      link: `/activities/${activity.id}`,
+    },
+  });
+
+  await audit({
+    actorId: guardianId,
+    action: "ACTIVITY_LOGGED_FOR_CHILD",
+    entityType: "Activity",
+    entityId: activity.id,
+    metadata: { athleteId, athleteName: link.athlete.displayName },
+    ipAddress,
+  });
+  return activity;
+}
+
+/**
+ * Merged family calendar: every linked athlete's upcoming assignments, their
+ * teams' events, and their personal training-plan days — each item labeled
+ * with the kid it belongs to.
+ */
+export async function familyCalendar(
+  guardianId: string,
+  from: string,
+  to: string,
+): Promise<import("@curvelo/shared").FamilyCalendarItemDTO[]> {
+  const links = await db.guardianLink.findMany({
+    where: { guardianId, status: "VERIFIED" },
+    include: {
+      athlete: {
+        select: {
+          id: true,
+          displayName: true,
+          memberships: {
+            where: { status: "ACTIVE" },
+            select: {
+              teamId: true,
+              team: { select: { id: true, name: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  const fromDate = new Date(from + "T00:00:00Z");
+  const toDate = new Date(to + "T23:59:59Z");
+  const dayOf = (d: Date) => d.toISOString().slice(0, 10);
+  const items: import("@curvelo/shared").FamilyCalendarItemDTO[] = [];
+  const seenTeams = new Map<string, { id: string; name: string }>();
+
+  for (const link of links) {
+    const athlete = link.athlete;
+    for (const m of athlete.memberships) {
+      seenTeams.set(m.teamId, m.team);
+      const assignments = await db.workoutAssignment.findMany({
+        where: {
+          teamId: m.teamId,
+          scheduledDate: { gte: fromDate, lte: toDate },
+          OR: [
+            { assignedToUserId: athlete.id },
+            { assignedToUserId: null, groupId: null },
+            { group: { members: { some: { userId: athlete.id } } } },
+          ],
+        },
+        include: { workout: { select: { title: true } } },
+        orderBy: { scheduledDate: "asc" },
+      });
+      for (const a of assignments) {
+        items.push({
+          kind: "assignment",
+          date: dayOf(a.scheduledDate),
+          title: a.workout.title,
+          detail: a.notes,
+          teamId: m.teamId,
+          teamName: m.team.name,
+          athleteId: athlete.id,
+          athleteName: athlete.displayName,
+        });
+      }
+    }
+
+    // Personal training-plan days (applied plans only).
+    const { appliedPlanDays } = await import("../personal-plans/service.js");
+    const planDays = await appliedPlanDays(athlete.id, from, to);
+    for (const d of planDays) {
+      items.push({
+        kind: "plan",
+        date: d.date.slice(0, 10),
+        title: d.planName,
+        detail: d.title ?? null,
+        teamId: null,
+        teamName: null,
+        athleteId: athlete.id,
+        athleteName: athlete.displayName,
+      });
+    }
+  }
+
+  // Team events for every team with a linked athlete (deduped across kids).
+  for (const team of seenTeams.values()) {
+    const events = await db.teamEvent.findMany({
+      where: { teamId: team.id },
+      orderBy: { startAt: "asc" },
+    });
+    for (const e of events) {
+      const start = new Date(e.startAt);
+      if (start < fromDate || start > toDate) continue;
+      // Attribute to each linked athlete on this team.
+      for (const link of links) {
+        if (!link.athlete.memberships.some((m) => m.teamId === team.id)) continue;
+        items.push({
+          kind: "event",
+          date: dayOf(start),
+          title: e.title,
+          detail: e.description,
+          teamId: team.id,
+          teamName: team.name,
+          athleteId: link.athlete.id,
+          athleteName: link.athlete.displayName,
+        });
+      }
+    }
+  }
+
+  return items.sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
+}
+
+/** Teams where the guardian holds a PARENT membership (feed access). */
+export async function guardianTeams(guardianId: string) {
+  const memberships = await db.teamMembership.findMany({
+    where: { userId: guardianId, role: "PARENT", status: "ACTIVE" },
+    include: { team: { select: { id: true, name: true } } },
+  });
+  const teams = new Map<string, { id: string; name: string; athletes: string[] }>();
+  for (const m of memberships) {
+    if (!teams.has(m.team.id)) {
+      teams.set(m.team.id, { ...m.team, athletes: [] });
+    }
+  }
+  // Athlete names per team, from verified links.
+  const links = await db.guardianLink.findMany({
+    where: { guardianId, status: "VERIFIED" },
+    include: {
+      athlete: {
+        select: {
+          displayName: true,
+          memberships: {
+            where: { status: "ACTIVE" },
+            select: { teamId: true },
+          },
+        },
+      },
+    },
+  });
+  for (const link of links) {
+    for (const m of link.athlete.memberships) {
+      const t = teams.get(m.teamId);
+      if (t && !t.athletes.includes(link.athlete.displayName)) {
+        t.athletes.push(link.athlete.displayName);
+      }
+    }
+  }
+  return [...teams.values()];
+}
+
+/** Grant or revoke photo-sharing consent for a linked athlete. */
+export async function setPhotoConsent(
+  guardianId: string,
+  athleteId: string,
+  granted: boolean,
+  ipAddress?: string,
+): Promise<{ granted: boolean }> {
+  await verifiedLinkOrThrow(guardianId, athleteId);
+  const { grantPhotoConsent, revokePhotoConsent } = await import("../../lib/photoConsent.js");
+  if (granted) await grantPhotoConsent(guardianId, athleteId, ipAddress);
+  else await revokePhotoConsent(guardianId, athleteId, ipAddress);
+  return { granted };
+}
+
+/** Photo-consent status for each linked athlete (for the family page). */
+export async function photoConsentStatus(guardianId: string) {
+  const links = await db.guardianLink.findMany({
+    where: { guardianId, status: "VERIFIED" },
+    select: { athleteId: true },
+  });
+  const { hasPhotoConsent } = await import("../../lib/photoConsent.js");
+  const out: Array<{ athleteId: string; granted: boolean }> = [];
+  for (const link of links) {
+    out.push({ athleteId: link.athleteId, granted: await hasPhotoConsent(link.athleteId) });
+  }
+  return out;
+}
+
+/**
+ * Parent team memberships.
+ *
+ * When a GuardianLink is verified, the guardian gets an ACTIVE PARENT
+ * membership on every team where the athlete is an active member. Feed
+ * access, commenting, reactions, and photo sharing all flow from that
+ * membership — there is no separate guardian-access path.
+ *
+ * Reconciles in both directions:
+ * - ensure PARENT membership for every team where the athlete is active
+ *   (never touches a real COACH/RUNNER/etc. membership the guardian holds)
+ * - remove PARENT memberships for teams where the athlete is no longer
+ *   active, unless the guardian has another verified-linked athlete there
+ *
+ * Call after: link verified, link revoked, athlete joins/leaves a team.
+ */
+export async function syncParentMemberships(guardianId: string, athleteId: string) {
+  // The link is the authority: no verified link, no parent memberships.
+  const verifiedLink = await db.guardianLink.findUnique({
+    where: { guardianId_athleteId: { guardianId, athleteId } },
+    select: { status: true },
+  });
+  const hasLink = verifiedLink?.status === "VERIFIED";
+
+  const athleteTeams = hasLink
+    ? await db.teamMembership.findMany({
+        where: { userId: athleteId, status: "ACTIVE" },
+        select: { teamId: true },
+      })
+    : [];
+  const athleteTeamIds = new Set(athleteTeams.map((t) => t.teamId));
+
+  for (const teamId of athleteTeamIds) {
+    const existing = await db.teamMembership.findUnique({
+      where: { teamId_userId: { teamId, userId: guardianId } },
+    });
+    if (!existing) {
+      await db.teamMembership.create({
+        data: { teamId, userId: guardianId, role: "PARENT", status: "ACTIVE" },
+      });
+      await audit({
+        actorId: guardianId,
+        action: "PARENT_MEMBERSHIP_GRANTED",
+        entityType: "Team",
+        entityId: teamId,
+        metadata: { athleteId, via: "guardian-link" },
+      });
+    } else if (existing.role === "PARENT" && existing.status !== "ACTIVE") {
+      await db.teamMembership.update({
+        where: { id: existing.id },
+        data: { status: "ACTIVE" },
+      });
+    }
+    // A guardian who is also a coach/runner/etc. keeps their real role.
+  }
+
+  const parentMemberships = await db.teamMembership.findMany({
+    where: { userId: guardianId, role: "PARENT", status: "ACTIVE" },
+    select: { id: true, teamId: true },
+  });
+  for (const pm of parentMemberships) {
+    if (athleteTeamIds.has(pm.teamId)) continue;
+    const otherLink = await db.guardianLink.findFirst({
+      where: {
+        guardianId,
+        status: "VERIFIED",
+        NOT: { athleteId },
+        athlete: {
+          memberships: { some: { teamId: pm.teamId, status: "ACTIVE" } },
+        },
+      },
+      select: { id: true },
+    });
+    if (!otherLink) {
+      await db.teamMembership.update({
+        where: { id: pm.id },
+        data: { status: "REMOVED" },
+      });
+      await audit({
+        actorId: guardianId,
+        action: "PARENT_MEMBERSHIP_REMOVED",
+        entityType: "Team",
+        entityId: pm.teamId,
+        metadata: { athleteId, via: "guardian-link" },
+      });
+    }
+  }
+}
+
+/** Sync parent memberships for every verified guardian of an athlete. */
+export async function syncAthleteGuardians(athleteId: string) {
+  const links = await db.guardianLink.findMany({
+    where: { athleteId, status: "VERIFIED" },
+    select: { guardianId: true },
+  });
+  for (const link of links) {
+    await syncParentMemberships(link.guardianId, athleteId);
+  }
 }

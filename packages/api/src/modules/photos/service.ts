@@ -1,8 +1,12 @@
 import { db } from "../../db.js";
-import { activeMembership, requireManager } from "../../lib/permissions.js";
+import {
+  activeMembership,
+  requireManager,
+} from "../../lib/permissions.js";
 import { newStorageKey, storage, MAX_UPLOAD_BYTES } from "../../lib/storage.js";
 import { audit } from "../../lib/audit.js";
 import { AppError, forbidden } from "../../lib/errors.js";
+import { assertPhotoConsentForShare } from "../../lib/photoConsent.js";
 
 export const PHOTO_MIME = new Set([
   "image/jpeg",
@@ -46,6 +50,7 @@ export interface PhotoDTO {
   mimeType: string;
   caption: string | null;
   status: string;
+  picturedAthleteIds: string[];
   createdAt: string;
 }
 
@@ -59,6 +64,7 @@ function toPhotoDTO(p: {
   mimeType: string;
   caption: string | null;
   status: string;
+  subjects: Array<{ athleteId: string }>;
   createdAt: Date;
 }): PhotoDTO {
   return {
@@ -71,11 +77,15 @@ function toPhotoDTO(p: {
     mimeType: p.mimeType,
     caption: p.caption,
     status: p.status,
+    picturedAthleteIds: p.subjects.map((sub) => sub.athleteId),
     createdAt: p.createdAt.toISOString(),
   };
 }
 
-const PHOTO_INCLUDE = { uploader: { select: { displayName: true } } } as const;
+const PHOTO_INCLUDE = {
+  uploader: { select: { displayName: true } },
+  subjects: { select: { athleteId: true } },
+} as const;
 
 export interface AlbumDTO {
   id: string;
@@ -164,6 +174,7 @@ export async function uploadPhoto(
     mimeType: string;
     caption?: string;
     albumId?: string;
+    picturedAthleteIds?: string[];
   },
   ipAddress?: string,
 ): Promise<PhotoDTO> {
@@ -175,6 +186,24 @@ export async function uploadPhoto(
     if (!album || album.teamId !== teamId) {
       throw new AppError(422, "INVALID_ALBUM", "That album doesn't belong to this team.");
     }
+  }
+
+  // Pictured athletes must be active members of this team.
+  const pictured = [...new Set(input.picturedAthleteIds ?? [])];
+  if (pictured.length > 0) {
+    const members = await db.teamMembership.findMany({
+      where: { teamId, userId: { in: pictured }, status: "ACTIVE" },
+      select: { userId: true },
+    });
+    if (members.length !== pictured.length) {
+      throw new AppError(
+        422,
+        "INVALID_ATHLETE",
+        "Pictured athletes must be active members of this team.",
+      );
+    }
+    // Fail fast: no point uploading a share that can't publish.
+    await assertPhotoConsentForShare(actorId, pictured, { ipAddress });
   }
 
   const key = photoKey(input.fileName);
@@ -190,6 +219,10 @@ export async function uploadPhoto(
       sizeBytes: input.buffer.length,
       caption: input.caption?.trim() || null,
       status: "PENDING",
+      subjects:
+        pictured.length > 0
+          ? { create: pictured.map((athleteId) => ({ athleteId })) }
+          : undefined,
     },
     include: PHOTO_INCLUDE,
   });
@@ -199,7 +232,7 @@ export async function uploadPhoto(
     action: "PHOTO_UPLOADED",
     entityType: "Photo",
     entityId: photo.id,
-    metadata: { teamId, albumId: input.albumId ?? null },
+    metadata: { teamId, albumId: input.albumId ?? null, pictured: pictured.length },
     ipAddress,
   });
   return toPhotoDTO(photo);
@@ -310,16 +343,23 @@ export async function getPhotoFile(
 
 /** Attach approved team photos to a newly created post. */
 export async function attachPhotosToPost(
-  _actorId: string,
+  actorId: string,
   teamId: string,
   postId: string,
   photoIds: string[],
+  ipAddress?: string,
 ): Promise<void> {
   if (photoIds.length === 0) return;
   if (photoIds.length > MAX_PHOTOS_PER_POST) {
     throw new AppError(422, "TOO_MANY_PHOTOS", `At most ${MAX_PHOTOS_PER_POST} photos per post.`);
   }
-  const photos = await db.photo.findMany({ where: { id: { in: photoIds } } });
+  const membership = await activeMembership(actorId, teamId);
+  const isManager =
+    membership.role === "COACH" || membership.role === "TEAM_ADMIN";
+  const photos = await db.photo.findMany({
+    where: { id: { in: photoIds } },
+    include: { subjects: { select: { athleteId: true } } },
+  });
   if (photos.length !== photoIds.length) {
     throw new AppError(422, "INVALID_PHOTO", "One of those photos doesn't exist.");
   }
@@ -331,7 +371,16 @@ export async function attachPhotosToPost(
         "Photos must be approved, from this team, and not already shared.",
       );
     }
+    // You can only share photos you uploaded (managers may share any).
+    if (!isManager && p.uploaderId !== actorId) {
+      throw forbidden("You can only share photos you uploaded");
+    }
   }
+  // THE per-share gate, never cached: every pictured minor must currently
+  // hold a GRANTED photo consent from a verified guardian. Revocation blocks
+  // future shares immediately; already-published photos stay published.
+  const pictured = [...new Set(photos.flatMap((p) => p.subjects.map((sub) => sub.athleteId)))];
+  await assertPhotoConsentForShare(actorId, pictured, { ipAddress });
   await db.photo.updateMany({
     where: { id: { in: photoIds } },
     data: { postId },

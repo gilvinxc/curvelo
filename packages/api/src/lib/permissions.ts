@@ -43,8 +43,9 @@ export function canSeeEmails(membership: TeamMembership): boolean {
 }
 
 /**
- * Verified guardian of an active member on the team. Guardians aren't team
- * members themselves, but they may act for their athlete (uploads, docs).
+ * Verified guardian of an active member on the team. Verified guardians also
+ * hold PARENT memberships (provisioned by syncParentMemberships), so this is
+ * now a fallback for the window before provisioning runs.
  * A removed athlete's guardian keeps access — removing a member never
  * breaks the parent/child association.
  */

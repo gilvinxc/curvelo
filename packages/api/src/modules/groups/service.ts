@@ -76,7 +76,12 @@ export async function createGroup(
 
   // Every member must be an ACTIVE team member.
   const members = await db.teamMembership.findMany({
-    where: { teamId, userId: { in: input.memberIds }, status: "ACTIVE" },
+    where: {
+      teamId,
+      userId: { in: input.memberIds },
+      status: "ACTIVE",
+      role: { not: "PARENT" },
+    },
     select: { userId: true },
   });
   const validIds = new Set(members.map((m) => m.userId));
@@ -157,7 +162,12 @@ export async function addGroupMembers(
   }
 
   const members = await db.teamMembership.findMany({
-    where: { teamId: group.teamId, userId: { in: input.memberIds }, status: "ACTIVE" },
+    where: {
+      teamId: group.teamId,
+      userId: { in: input.memberIds },
+      status: "ACTIVE",
+      role: { not: "PARENT" },
+    },
     select: { userId: true },
   });
   const validIds = new Set(members.map((m) => m.userId));

@@ -337,7 +337,7 @@ export async function createBulkAssignments(
 
   const uniqueIds = [...new Set(input.athleteIds)];
   const targets = await db.teamMembership.findMany({
-    where: { teamId, userId: { in: uniqueIds } },
+    where: { teamId, userId: { in: uniqueIds }, status: "ACTIVE", role: { not: "PARENT" } },
     include: { user: { select: { dateOfBirth: true, displayName: true } } },
   });
   const byId = new Map(targets.map((t) => [t.userId, t]));

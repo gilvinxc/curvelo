@@ -1,19 +1,33 @@
 import type { FastifyInstance } from "fastify";
+import { z } from "zod";
 import {
   acceptGuardianInviteSchema,
   athleteGuardianParamsSchema,
+  createActivitySchema,
   guardianInviteParamsSchema,
   guardianLinkParamsSchema,
   inviteGuardianSchema,
 } from "@curvelo/shared";
 import {
   acceptInvite,
+  familyCalendar,
+  guardianTeams,
   inviteGuardian,
   listAthleteGuardians,
+  logActivityForChild,
   myChildren,
+  photoConsentStatus,
   previewInvite,
   revokeLink,
+  setPhotoConsent,
 } from "./service.js";
+
+const childParamsSchema = z.object({ athleteId: z.string().uuid() });
+const calendarQuerySchema = z.object({
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+});
+const photoConsentSchema = z.object({ granted: z.boolean() });
 
 export async function guardianRoutes(app: FastifyInstance): Promise<void> {
   // Coach invites a parent/guardian for an athlete.
@@ -85,6 +99,60 @@ export async function guardianRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const children = await myChildren(request.user!.id);
       return reply.send({ children });
+    },
+  );
+
+  // Guardian logs an activity on behalf of a linked athlete.
+  app.post(
+    "/guardian/children/:athleteId/activities",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { athleteId } = childParamsSchema.parse(request.params);
+      const body = createActivitySchema.parse(request.body);
+      const activity = await logActivityForChild(
+        request.user!.id,
+        athleteId,
+        body,
+        request.ip,
+      );
+      return reply.status(201).send({ activity });
+    },
+  );
+
+  // Guardian's merged family calendar.
+  app.get(
+    "/guardian/calendar",
+    { preHandler: [app.authenticate] },
+    async (request) => {
+      const { from, to } = calendarQuerySchema.parse(request.query);
+      return { items: await familyCalendar(request.user!.id, from, to) };
+    },
+  );
+
+  // Teams the guardian follows via linked athletes (feed access).
+  app.get(
+    "/guardian/teams",
+    { preHandler: [app.authenticate] },
+    async (request) => {
+      return { teams: await guardianTeams(request.user!.id) };
+    },
+  );
+
+  // Photo-sharing consent for a linked athlete.
+  app.get(
+    "/guardian/photo-consent",
+    { preHandler: [app.authenticate] },
+    async (request) => {
+      return { consents: await photoConsentStatus(request.user!.id) };
+    },
+  );
+  app.post(
+    "/guardian/children/:athleteId/photo-consent",
+    { preHandler: [app.authenticate] },
+    async (request) => {
+      const { athleteId } = childParamsSchema.parse(request.params);
+      const { granted } = photoConsentSchema.parse(request.body);
+      return setPhotoConsent(request.user!.id, athleteId, granted, request.ip);
     },
   );
 }

@@ -184,7 +184,8 @@ export async function getRoster(
   const showEmails = canSeeEmails(membership);
 
   const members = await db.teamMembership.findMany({
-    where: { teamId, status: "ACTIVE" },
+    // PARENT memberships are not on the athletic roster.
+    where: { teamId, status: "ACTIVE", role: { not: "PARENT" } },
     include: {
       user: {
         select: {
@@ -327,6 +328,10 @@ export async function removeMember(
     ipAddress,
   });
 
+  // Athlete left the team → drop their guardians' PARENT memberships here.
+  const { syncAthleteGuardians } = await import("../guardians/service.js");
+  await syncAthleteGuardians(targetUserId);
+
   return { ok: true as const };
 }
 
@@ -372,6 +377,9 @@ export async function leaveTeam(
     entityId: teamId,
     ipAddress,
   });
+
+  const { syncAthleteGuardians } = await import("../guardians/service.js");
+  await syncAthleteGuardians(actorId);
 }
 
 export async function transferTeam(

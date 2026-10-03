@@ -74,7 +74,7 @@ describe("guardian documents", () => {
     const otherList = await request(app.server)
       .get(`/api/v1/teams/${teamId}/documents/athlete/${other.id}`)
       .set(cookieHeader(parent));
-    expect(otherList.status).toBe(404);
+    expect(otherList.status).toBe(403); // member now, but not this athlete's guardian
 
     // Parent cannot upload for an athlete they are not linked to.
     const bad = await uploadDoc(app, parent, {

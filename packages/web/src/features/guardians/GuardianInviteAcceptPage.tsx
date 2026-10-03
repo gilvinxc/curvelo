@@ -24,6 +24,10 @@ const CONSENT_COPY: Record<string, { title: string; body: string }> = {
     title: "Data sharing consent",
     body: "I consent to this athlete's training data being visible to the coaching staff.",
   },
+  PHOTO_SHARING: {
+    title: "Team photo sharing",
+    body: "I allow photos of this athlete to be shared to the team's private feed. I can revoke this any time from the family page.",
+  },
 };
 
 function relationshipLabel(relationship: string): string {

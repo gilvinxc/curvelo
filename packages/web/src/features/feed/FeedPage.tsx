@@ -12,6 +12,7 @@ import {
 import { Composer } from "./Composer";
 import { ShoutoutDialog } from "./ShoutoutDialog";
 import { PostCard } from "./PostCard";
+import { PhotoShareComposer } from "./PhotoShare";
 
 const PAGE_SIZE = 20;
 const CAN_MODERATE = new Set(["COACH", "TEAM_ADMIN"]);
@@ -30,6 +31,9 @@ export function FeedPage({
   const canModerate = myRole !== null && CAN_MODERATE.has(myRole);
   // Alumni (outer tier) are read-only: no composer, no shoutouts.
   const isAlumni = myRole === "ALUMNI";
+  // Parents are team members for photos, comments, and reactions — they get
+  // a photo-only composer instead of the full one.
+  const isParent = myRole === "PARENT";
 
   const feedQuery = useInfiniteQuery({
     queryKey: ["feed", teamId],
@@ -52,7 +56,7 @@ export function FeedPage({
 
   return (
     <div className="flex flex-col gap-4">
-      {!isAlumni && (
+      {!isAlumni && !isParent && (
         <>
           <Composer
             teamId={teamId}
@@ -66,6 +70,12 @@ export function FeedPage({
             💛 Give a teammate a shoutout
           </button>
         </>
+      )}
+      {isParent && (
+        <PhotoShareComposer
+          teamId={teamId}
+          onPosted={(post) => setOptimisticPosts((prev) => [post, ...prev])}
+        />
       )}
       <ShoutoutDialog
         teamId={teamId}

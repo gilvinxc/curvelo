@@ -11,6 +11,7 @@ import { audit } from "../../lib/audit.js";
 import { AppError, conflict, forbidden, notFound } from "../../lib/errors.js";
 import { activeMembership, requireManager } from "../../lib/permissions.js";
 import { createSystemPost } from "../feed/service.js";
+import { syncAthleteGuardians } from "../guardians/service.js";
 
 function toDTO(
   inv: {
@@ -216,6 +217,9 @@ export async function acceptInvitation(
   } catch {
     // Welcome failed; membership stands.
   }
+
+  // Athlete joined a new team → their verified guardians get PARENT memberships.
+  await syncAthleteGuardians(userId);
 
   return result;
 }

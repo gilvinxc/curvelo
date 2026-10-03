@@ -24,6 +24,7 @@ import type {
   CheckInDTO,
   ConversationDTO,
   CreateTeamInput,
+  FamilyCalendarItemDTO,
   GuardianInviteDTO,
   GoalDTO,
   GuardianLinkDTO,
@@ -833,7 +834,14 @@ export const api = {
   // team feed
   createPost: (
     teamId: string,
-    input: { body?: string; activityId?: string; photoIds?: string[]; kind?: "TEXT" | "SHOUTOUT" },
+    input: {
+      body?: string;
+      activityId?: string;
+      photoIds?: string[];
+      kind?: "TEXT" | "SHOUTOUT";
+      picturedAthleteIds?: string[];
+      grantPhotoConsentFor?: string[];
+    },
   ) => post<{ post: PostDTO }>(`/teams/${teamId}/feed`, input),
   listFeed: (teamId: string, before?: string, limit = 20) =>
     request<{ posts: PostDTO[] }>(
@@ -888,6 +896,28 @@ export const api = {
     post<{ link: GuardianLinkDTO }>(`/guardian-invites/${token}/accept`, input),
   revokeGuardianLink: (id: string) => del<{ ok: boolean }>(`/guardian-links/${id}`),
   myChildren: () => request<{ children: ChildSummaryDTO[] }>("/users/me/children"),
+  logActivityForChild: (athleteId: string, input: CreateActivityPayload) =>
+    post<{ activity: ActivityDTO }>(`/guardian/children/${athleteId}/activities`, input),
+  familyCalendar: (from: string, to: string) =>
+    request<{ items: FamilyCalendarItemDTO[] }>(
+      `/guardian/calendar?from=${from}&to=${to}`,
+    ),
+  guardianTeams: () =>
+    request<{ teams: { id: string; name: string; athletes: string[] }[] }>(
+      "/guardian/teams",
+    ),
+  guardianPhotoConsentStatus: () =>
+    request<{ consents: { athleteId: string; granted: boolean }[] }>(
+      "/guardian/photo-consent",
+    ),
+  setPhotoConsent: (athleteId: string, granted: boolean) =>
+    post<{ granted: boolean }>(`/guardian/children/${athleteId}/photo-consent`, {
+      granted,
+    }),
+  teamPhotoConsentStatus: (teamId: string, athleteIds: string[]) =>
+    post<{
+      checks: { athleteId: string; displayName: string; hasConsent: boolean }[];
+    }>(`/teams/${teamId}/photo-consent-status`, { athleteIds }),
 
   // team messaging
   listConversations: (teamId: string) =>

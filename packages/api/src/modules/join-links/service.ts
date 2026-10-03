@@ -9,6 +9,7 @@ import { audit } from "../../lib/audit.js";
 import { AppError, conflict, forbidden, notFound } from "../../lib/errors.js";
 import { activeMembership, requireManager } from "../../lib/permissions.js";
 import { createSystemPost } from "../feed/service.js";
+import { syncAthleteGuardians } from "../guardians/service.js";
 
 type JoinLinkRow = {
   id: string;
@@ -283,6 +284,9 @@ export async function decideJoinRequest(
     metadata: { requestId, userId: joinRequest.userId, role: input.role },
     ipAddress,
   });
+
+  // New member → their verified guardians get PARENT memberships.
+  await syncAthleteGuardians(joinRequest.userId);
 
   // Welcome the new member on the team feed (best-effort).
   try {

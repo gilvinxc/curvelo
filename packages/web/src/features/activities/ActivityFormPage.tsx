@@ -314,6 +314,37 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
   });
   const teams = teamsQuery.data?.teams ?? [];
 
+  // Guardians can log on behalf of a linked athlete.
+  const forChildParam = mode === "new" ? searchParams.get("forChild") : null;
+  const childrenQuery = useQuery({
+    queryKey: ["children"],
+    queryFn: () => api.myChildren(),
+    enabled: mode === "new",
+  });
+  const linkedKids = childrenQuery.data?.children ?? [];
+  const kidIds = [...new Set(linkedKids.map((c) => c.athleteId))];
+  const kidNames = new Map(linkedKids.map((c) => [c.athleteId, c.athleteName]));
+  const [logForAthleteId, setLogForAthleteId] = useState<string | null>(null);
+  useEffect(() => {
+    if (forChildParam && kidIds.includes(forChildParam)) {
+      setLogForAthleteId(forChildParam);
+    }
+  }, [forChildParam, childrenQuery.dataUpdatedAt]);
+  const loggingForKid = logForAthleteId !== null;
+  // When logging for a kid, team options are the kid's active teams.
+  const effectiveTeams = loggingForKid
+    ? linkedKids
+        .filter((c) => c.athleteId === logForAthleteId && c.teamActive)
+        .map((c) => ({ id: c.teamId, name: c.teamName }))
+    : teams;
+  useEffect(() => {
+    if (!loggingForKid) return;
+    setForm((f) => {
+      if (f.teamId !== "" && effectiveTeams.some((t) => t.id === f.teamId)) return f;
+      return { ...f, teamId: effectiveTeams[0]?.id ?? "" };
+    });
+  }, [loggingForKid, logForAthleteId]);
+
   // Default the team: last-used team if still a member, else first team.
   // The user can change it or clear it, and adjust visibility after.
   useEffect(() => {
@@ -525,6 +556,10 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
         const res = await api.updateActivity(id, payload);
         return res.activity.id;
       }
+      if (loggingForKid && logForAthleteId) {
+        const res = await api.logActivityForChild(logForAthleteId, payload);
+        return res.activity.id;
+      }
       const res = await api.createActivity(payload);
       return res.activity.id;
     },
@@ -658,6 +693,27 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
         }}
         noValidate
       >
+        {mode === "new" && kidIds.length > 0 && (
+          <Field label="Logging for">
+            <Select
+              value={logForAthleteId ?? ""}
+              onChange={(e) => setLogForAthleteId(e.target.value || null)}
+            >
+              <option value="">Me</option>
+              {kidIds.map((kidId) => (
+                <option key={kidId} value={kidId}>
+                  {kidNames.get(kidId)} (my athlete)
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
+        {loggingForKid && (
+          <p className="-mt-2 rounded-xl border border-sky-400/25 bg-sky-400/10 p-3 text-[13px] text-sky-200">
+            This run will be logged on {kidNames.get(logForAthleteId ?? "")}'s log.
+            They'll get a notification to review it.
+          </p>
+        )}
         <Field label="Activity type">
           <Select
             value={form.kind}
@@ -992,7 +1048,7 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
             onChange={(e) => set("teamId", e.target.value)}
           >
             <option value="">No team</option>
-            {teams.map((t) => (
+            {effectiveTeams.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}
               </option>

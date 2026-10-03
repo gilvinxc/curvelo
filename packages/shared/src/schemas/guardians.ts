@@ -8,7 +8,7 @@ export const GUARDIAN_RELATIONSHIPS = [
   "other",
 ] as const;
 
-export const CONSENT_TYPES = ["PARTICIPATION", "DATA_SHARING"] as const;
+export const CONSENT_TYPES = ["PARTICIPATION", "DATA_SHARING", "PHOTO_SHARING"] as const;
 
 export const inviteGuardianSchema = z.object({
   email: z.string().email().max(255),

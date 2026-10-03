@@ -348,6 +348,7 @@ export interface PhotoDTO {
   mimeType: string;
   caption: string | null;
   status: string;
+  picturedAthleteIds: string[];
   createdAt: string;
 }
 
@@ -658,6 +659,18 @@ export interface ChildSummaryDTO {
   consents: ConsentDTO[];
   upcomingAssignments: AssignmentDTO[];
   recentActivities: ActivityDTO[];
+}
+
+/** One item in a guardian's merged family calendar. */
+export interface FamilyCalendarItemDTO {
+  kind: "assignment" | "event" | "plan";
+  date: string; // YYYY-MM-DD
+  title: string;
+  detail: string | null;
+  teamId: string | null;
+  teamName: string | null;
+  athleteId: string;
+  athleteName: string;
 }
 
 export interface DocumentDTO {

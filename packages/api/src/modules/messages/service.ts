@@ -145,8 +145,8 @@ async function canPost(
   }
   if (access.guardian || !access.membership) return false;
   const role = access.membership.role;
-  // Alumni are read-only everywhere.
-  if (role === "ALUMNI") return false;
+  // Alumni and parents are read-only everywhere.
+  if (role === "ALUMNI" || role === "PARENT") return false;
   if (conv.kind === "ANNOUNCEMENT") return isManagerRole(role);
   if (conv.kind === "TEAM_CHAT") return true;
   // GROUP_CHAT: coaches/admins or group members only.
@@ -199,8 +199,10 @@ export async function listConversations(
     if (conv.kind === "CHECK_IN") continue;
     // Alumni (outer tier) see announcements only — no team chat, no groups.
     if (isAlumni && conv.kind !== "ANNOUNCEMENT") continue;
-    // Guardians only see conversations their linked athlete could see.
-    if (access.guardian && conv.kind === "GROUP_CHAT" && conv.groupId) {
+    // Guardians — and parent members — only see group chats their linked
+    // athlete could see.
+    const isParentMember = access.membership?.role === "PARENT";
+    if ((access.guardian || isParentMember) && conv.kind === "GROUP_CHAT" && conv.groupId) {
       const linked = await db.guardianLink.findFirst({
         where: {
           guardianId: actorId,

@@ -202,7 +202,14 @@ function UploadDialog({
   const [caption, setCaption] = useState("");
   const [albumId, setAlbumId] = useState(defaultAlbumId ?? "");
   const [uploading, setUploading] = useState(false);
+  const [pictured, setPictured] = useState<string[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const rosterQuery = useQuery({
+    queryKey: ["roster", teamId],
+    queryFn: () => api.getRoster(teamId),
+  });
+  const roster = (rosterQuery.data?.roster ?? []).filter((m) => m.role !== "PARENT");
 
   async function submit() {
     const file = fileRef.current?.files?.[0];
@@ -213,6 +220,7 @@ function UploadDialog({
       form.append("file", file);
       if (caption.trim()) form.append("caption", caption.trim());
       if (albumId) form.append("albumId", albumId);
+      if (pictured.length > 0) form.append("picturedAthleteIds", JSON.stringify(pictured));
       await api.uploadPhoto(teamId, form);
       onDone();
     } catch (err) {
@@ -242,6 +250,34 @@ function UploadDialog({
             onChange={(e) => setCaption(e.target.value)}
             placeholder="Race day finish line…"
           />
+        </Field>
+        <Field label="Who's in this photo?" hint="Tag pictured athletes — minors need guardian photo consent before sharing">
+          <div className="flex max-h-36 flex-wrap gap-2 overflow-y-auto">
+            {roster.map((m) => {
+              const on = pictured.includes(m.userId);
+              return (
+                <button
+                  key={m.userId}
+                  type="button"
+                  onClick={() =>
+                    setPictured((prev) =>
+                      prev.includes(m.userId)
+                        ? prev.filter((x) => x !== m.userId)
+                        : [...prev, m.userId],
+                    )
+                  }
+                  aria-pressed={on}
+                  className={`min-h-[36px] rounded-full border px-3 text-[13px] font-semibold transition ${
+                    on
+                      ? "border-volt-400 bg-volt-400/15 text-ink-50"
+                      : "border-white/15 bg-white/5 text-mist hover:text-ink-50"
+                  }`}
+                >
+                  {m.displayName}
+                </button>
+              );
+            })}
+          </div>
         </Field>
         {albums.length > 0 && (
           <Field label="Album" hint="Optional">

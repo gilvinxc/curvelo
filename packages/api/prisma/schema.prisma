@@ -104,6 +104,7 @@ model User {
   authoredPosts             FeedPost[]           @relation("PostAuthor")
   authoredComments          PostComment[]        @relation("CommentAuthor")
   authoredReactions         PostReaction[]       @relation("ReactionAuthor")
+  photoSubjects             PhotoSubject[]        @relation("PhotoSubject")
   authoredReports           PostReport[]         @relation("ReportAuthor")
   injuriesAsAthlete         Injury[]               @relation("InjuryAthlete")
   feedback                Feedback[]
@@ -642,6 +643,7 @@ enum PostKind {
   MILESTONE
   SHOUTOUT
   WELCOME
+  PHOTO
 }
 
 model FeedPost {
@@ -1104,6 +1106,7 @@ model Photo {
 
   @@index([teamId, status, createdAt])
   @@index([albumId, createdAt])
+  subjects PhotoSubject[]
 }
 
 model TrackerConnection {
@@ -1244,4 +1247,18 @@ model Attendance {
   updatedAt   DateTime @updatedAt
 
   @@index([teamId, date])
+}
+
+// Athletes tagged as pictured in a photo. Drives the per-share photo-consent
+// check: every pictured minor must have a GRANTED PHOTO_SHARING consent from
+// one of their verified guardians before the photo can be published to a feed.
+model PhotoSubject {
+  id        String @id @default(uuid())
+  photoId   String
+  photo     Photo  @relation(fields: [photoId], references: [id], onDelete: Cascade)
+  athleteId String
+  athlete   User   @relation("PhotoSubject", fields: [athleteId], references: [id], onDelete: Cascade)
+
+  @@unique([photoId, athleteId])
+  @@index([athleteId])
 }

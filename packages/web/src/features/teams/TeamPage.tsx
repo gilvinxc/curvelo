@@ -402,10 +402,15 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
   const canInvite = team.myRole !== null && CAN_INVITE.has(team.myRole);
   // Alumni (outer tier): no photos, no manage tab.
   const isAlumni = team.myRole === "ALUMNI";
+  // Parents are team members for feed/photos/messages; the athletic and
+  // coaching tools stay out of their view.
+  const isParent = team.myRole === "PARENT";
+  const PARENT_HIDDEN: TeamTab[] = ["health", "workouts", "coaching", "goals", "documents", "manage"];
   const tabs = TABS.filter(
     (t) =>
       (!t.coachOnly || canInvite) &&
-      !(isAlumni && (t.id === "photos" || t.id === "health" || t.id === "season")),
+      !(isAlumni && (t.id === "photos" || t.id === "health" || t.id === "season")) &&
+      !(isParent && (PARENT_HIDDEN as string[]).includes(t.id)),
   );
 
   return (

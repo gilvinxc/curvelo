@@ -157,6 +157,7 @@ export async function logTeamRaceResults(
       teamId: input.teamId,
       userId: { in: input.entries.map((e) => e.userId) },
       status: "ACTIVE",
+      role: { not: "PARENT" },
     },
     select: { userId: true },
   });

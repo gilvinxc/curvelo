@@ -203,7 +203,9 @@ export async function createActivity(
 
   let teamId: string | null = null;
   if (input.teamId) {
-    await activeMembership(actorId, input.teamId);
+    // On-behalf-of logging (guardian for child): the team must be the
+    // athlete's, not the logger's.
+    await activeMembership(ownerId, input.teamId);
     teamId = input.teamId;
   }
 
@@ -839,6 +841,7 @@ export async function logTeamRun(
         teamId: input.teamId,
         userId: { in: input.userIds },
         status: "ACTIVE",
+        role: { not: "PARENT" },
       },
       select: { userId: true },
     });

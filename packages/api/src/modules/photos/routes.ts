@@ -11,6 +11,8 @@ import {
   reviewPhoto,
   uploadPhoto,
 } from "./service.js";
+import { checkPhotoConsents } from "../../lib/photoConsent.js";
+import { activeMembership } from "../../lib/permissions.js";
 
 const teamParamsSchema = z.object({ id: z.string().uuid() });
 const photoParamsSchema = z.object({ photoId: z.string().uuid() });
@@ -69,6 +71,23 @@ export async function photoRoutes(app: FastifyInstance): Promise<void> {
         else if (typeof value === "string") fields[key] = value;
       }
       const buffer = await file.toBuffer();
+      let picturedAthleteIds: string[] | undefined;
+      if (fields.picturedAthleteIds) {
+        try {
+          const parsed: unknown = JSON.parse(fields.picturedAthleteIds);
+          if (!Array.isArray(parsed) || !parsed.every((x) => typeof x === "string")) {
+            throw new Error("bad shape");
+          }
+          picturedAthleteIds = parsed;
+        } catch {
+          return reply.status(400).send({
+            error: {
+              code: "BAD_REQUEST",
+              message: "picturedAthleteIds must be a JSON array of user IDs.",
+            },
+          });
+        }
+      }
       const photo = await uploadPhoto(
         request.user!.id,
         id,
@@ -78,6 +97,7 @@ export async function photoRoutes(app: FastifyInstance): Promise<void> {
           mimeType: file.mimetype,
           caption: fields.caption,
           albumId: fields.albumId || undefined,
+          picturedAthleteIds,
         },
         request.ip,
       );
@@ -97,6 +117,30 @@ export async function photoRoutes(app: FastifyInstance): Promise<void> {
           albumId: q.albumId,
           includePending: q.includePending,
         }),
+      };
+    },
+  );
+
+  // Photo-consent status for athletes (drives the share dialog).
+  app.post(
+    "/teams/:id/photo-consent-status",
+    { preHandler: [app.authenticate] },
+    async (request) => {
+      const { id } = teamParamsSchema.parse(request.params);
+      const body = z
+        .object({ athleteIds: z.array(z.string().uuid()).max(20) })
+        .parse(request.body);
+      await activeMembership(request.user!.id, id);
+      // Only minors are reported; adults never need consent.
+      const checks = await checkPhotoConsents(body.athleteIds);
+      return {
+        checks: checks
+          .filter((c) => c.isMinor)
+          .map((c) => ({
+            athleteId: c.athleteId,
+            displayName: c.displayName,
+            hasConsent: c.hasConsent,
+          })),
       };
     },
   );
