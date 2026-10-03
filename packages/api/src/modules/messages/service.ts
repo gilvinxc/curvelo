@@ -339,6 +339,33 @@ export async function postMessage(
     link: `/teams/${teamId}/messages`,
   });
 
+  // Check-ins: every new message notifies the other participants (coach,
+  // runner, guardians) — never the author, never on edit. Anyone already
+  // notified via @mention keeps just that one notification.
+  if (conv.kind === "CHECK_IN") {
+    const mentioned = await db.mention.findMany({
+      where: { targetType: "MESSAGE", targetId: message.id },
+      select: { mentionedUserId: true },
+    });
+    const skip = new Set([actorId, ...mentioned.map((m) => m.mentionedUserId)]);
+    const participants = await db.conversationParticipant.findMany({
+      where: { conversationId: conv.id, userId: { notIn: [...skip] } },
+      select: { userId: true },
+    });
+    const snippet = message.body.trim().replace(/\s+/g, " ").slice(0, 140);
+    for (const p of participants) {
+      await db.notification.create({
+        data: {
+          userId: p.userId,
+          type: "CHECK_IN_MESSAGE",
+          title: `New check-in message from ${message.author.displayName}`,
+          body: snippet || null,
+          link: `/teams/${teamId}/messages`,
+        },
+      });
+    }
+  }
+
   const roles = await authorRoles([actorId], teamId);
   const mentions = await mentionRefsFor("MESSAGE", [message.id]);
   return toMessageDTO(message, roles.get(actorId) ?? "RUNNER", mentions);

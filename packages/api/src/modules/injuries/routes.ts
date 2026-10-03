@@ -142,6 +142,24 @@ export async function injuryRoutes(app: FastifyInstance): Promise<void> {
         metadata: { athleteId: body.athleteId },
         ipAddress: request.ip,
       });
+      // Notify the team's coaches — they can all see team injuries
+      // (team admins cannot, so they are excluded). Never the reporter.
+      const coaches = await db.teamMembership.findMany({
+        where: { teamId: id, status: "ACTIVE", role: "COACH" },
+        select: { userId: true },
+      });
+      for (const c of coaches) {
+        if (c.userId === request.user!.id) continue;
+        await db.notification.create({
+          data: {
+            userId: c.userId,
+            type: "INJURY_REPORTED",
+            title: `Injury reported: ${injury.athlete.displayName}`,
+            body: injury.title,
+            link: `/teams/${id}/coaching`,
+          },
+        });
+      }
       return reply.status(201).send({ injury: toDTO(injury) });
     },
   );
