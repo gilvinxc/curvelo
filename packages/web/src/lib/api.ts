@@ -483,6 +483,7 @@ export const api = {
       toTeamId,
     }),
   deleteAccount: () => del<{ ok: boolean }>(`/users/me`),
+  deleteUser: (userId: string) => del<{ ok: boolean }>(`/users/${userId}`),
   transferTeam: (teamId: string, newOwnerId: string) =>
     post<{ ok: boolean; newOwnerId: string }>(`/teams/${teamId}/transfer`, {
       newOwnerId,

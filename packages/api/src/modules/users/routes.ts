@@ -229,6 +229,30 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
     },
   );
 
+  // A verified guardian can delete their athlete's account (COPPA deletion right).
+  app.delete(
+    "/:id",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { id } = idParams.parse(request.params);
+      if (id === request.user!.id) {
+        await deleteAccount(id, request.ip);
+        return reply.send({ ok: true });
+      }
+      const link = await db.guardianLink.findUnique({
+        where: {
+          guardianId_athleteId: { guardianId: request.user!.id, athleteId: id },
+        },
+      });
+      if (!link || link.status !== "VERIFIED") {
+        const { forbidden } = await import("../../lib/errors.js");
+        throw forbidden("Not allowed");
+      }
+      await deleteAccount(id, request.ip);
+      return reply.send({ ok: true });
+    },
+  );
+
   app.get("/:id/avatar", { preHandler: [app.authenticate] }, async (request, reply) => {
     const { id } = idParams.parse(request.params);
     const user = await db.user.findUnique({

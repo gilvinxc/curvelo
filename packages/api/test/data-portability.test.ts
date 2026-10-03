@@ -104,3 +104,52 @@ describe("data portability", () => {
     expect(me.status).toBe(401);
   });
 });
+
+describe("guardian deletion", () => {
+  beforeEach(truncate);
+
+  async function setupGuardian() {
+    const app = await getApp();
+    const coach = await registerUser("COACH", "gd1");
+    const athlete = await registerUser("RUNNER", "gd2");
+    const parent = await registerUser("PARENT", "gd3");
+    const r = await request(app.server)
+      .post("/api/v1/teams")
+      .set("Cookie", cookieHeader(coach).Cookie)
+      .send({ name: "GD Team", slug: "gd-team" });
+    const teamId = r.body.team.id as string;
+    await addRunnerToTeam(coach, teamId, athlete);
+
+    const invite = await request(app.server)
+      .post(`/api/v1/teams/${teamId}/athletes/${athlete.id}/guardians/invite`)
+      .set("Cookie", cookieHeader(coach).Cookie)
+      .send({ email: parent.email, relationship: "parent" });
+    const accept = await request(app.server)
+      .post(`/api/v1/guardian-invites/${invite.body.invite.token}/accept`)
+      .set("Cookie", cookieHeader(parent).Cookie)
+      .send({ consents: ["PARTICIPATION", "DATA_SHARING"] });
+    expect(accept.body.link.status).toBe("VERIFIED");
+    return { app, coach, athlete, parent };
+  }
+
+  it("verified guardian can delete athlete account", async () => {
+    const { app, parent, athlete } = await setupGuardian();
+    const res = await request(app.server)
+      .delete(`/api/v1/users/${athlete.id}`)
+      .set("Cookie", cookieHeader(parent).Cookie);
+    expect(res.status).toBe(200);
+    const me = await request(app.server)
+      .get("/api/v1/users/me")
+      .set("Cookie", cookieHeader(athlete).Cookie);
+    expect(me.status).toBe(401);
+  });
+
+  it("stranger cannot delete another user's account", async () => {
+    const { app, athlete } = await setupGuardian();
+    const stranger = await registerUser("RUNNER", "gd9");
+    const res = await request(app.server)
+      .delete(`/api/v1/users/${athlete.id}`)
+      .set("Cookie", cookieHeader(stranger).Cookie);
+    expect(res.status).toBe(403);
+  });
+});
