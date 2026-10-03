@@ -19,19 +19,21 @@ function Tile({
   sub,
   to,
   onClick,
+  accent = "text-volt-400",
 }: {
   label: string;
   value: string;
   sub: string;
   to?: string;
   onClick?: () => void;
+  accent?: string;
 }) {
   const inner = (
     <div className="flex h-full flex-col">
       <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-mist">
         {label}
       </p>
-      <p className="mt-1 text-[22px] font-black tracking-tight text-ink-50">
+      <p className={`mt-1 text-[22px] font-black tracking-tight ${accent}`}>
         {value}
       </p>
       <p className="mt-auto pt-1 text-[12px] font-medium text-mist">{sub}</p>
@@ -92,24 +94,28 @@ export function HealthTab({
           value={formatDistanceM(h.milesWeekM, units)}
           sub={trendSub(h.milesWeekM, h.milesPrevWeekM, units)}
           to={`/teams/${teamId}/feed`}
+          accent="text-volt-400"
         />
         <Tile
           label="Pace"
           value={h.avgPaceS != null ? formatPaceSec(h.avgPaceS, units) : "—"}
           sub="28-day team avg"
           to={`/teams/${teamId}/feed`}
+          accent="text-sky-400"
         />
         <Tile
           label="Effort"
           value={h.avgRpe != null ? `${h.avgRpe}/10` : "—"}
           sub="avg RPE · 28d"
           to={`/teams/${teamId}/feed`}
+          accent="text-ember-400"
         />
         <Tile
           label="Races"
           value={`${races.prs30d} PR${races.prs30d === 1 ? "" : "s"}`}
           sub={`${races.races30d} races · ${races.results30d} results · 30d`}
           onClick={() => setRacesOpen((v) => !v)}
+          accent="text-volt-300"
         />
         <Tile
           label="Participation"
@@ -122,6 +128,7 @@ export function HealthTab({
               : "no runners yet"
           }
           to={`/teams/${teamId}`}
+          accent="text-mint-400"
         />
         {isCoach && (
           <Tile
@@ -129,6 +136,7 @@ export function HealthTab({
             value={h.activeInjuries != null ? String(h.activeInjuries) : "—"}
             sub="active · coach only"
             to={`/teams/${teamId}/coaching`}
+            accent="text-rose-400"
           />
         )}
       </div>

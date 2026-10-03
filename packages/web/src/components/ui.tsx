@@ -197,10 +197,10 @@ export function SegmentedControl<T extends string>({
 
 const roleStyles: Record<string, string> = {
   COACH: "bg-volt-400/15 text-volt-300 border-volt-400/30",
-  TEAM_ADMIN: "bg-amber-400/15 text-amber-300 border-amber-400/30",
+  TEAM_ADMIN: "bg-ember-400/15 text-ember-300 border-ember-400/30",
   RUNNER: "bg-sky-400/15 text-sky-300 border-sky-400/30",
-  PARENT: "bg-violet-400/15 text-violet-300 border-violet-400/30",
-  ALUMNI: "bg-zinc-400/15 text-zinc-300 border-zinc-400/30",
+  PARENT: "bg-mint-400/15 text-mint-300 border-mint-400/30",
+  ALUMNI: "bg-white/5 text-mist border-white/15",
 };
 
 export function RoleBadge({ role }: { role: string }) {

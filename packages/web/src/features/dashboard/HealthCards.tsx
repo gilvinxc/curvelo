@@ -50,7 +50,7 @@ export function MyHealthCard() {
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-mist">
               Week
             </p>
-            <p className="mt-1 text-[20px] font-black text-ink-50">
+            <p className="mt-1 text-[20px] font-black text-volt-400">
               {week ? formatDistanceM(week.totalDistanceM, units) : "—"}
             </p>
           </div>
@@ -58,7 +58,7 @@ export function MyHealthCard() {
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-mist">
               Pace · 28d
             </p>
-            <p className="mt-1 text-[20px] font-black text-ink-50">
+            <p className="mt-1 text-[20px] font-black text-sky-400">
               {pace?.avgPaceS != null
                 ? formatPaceSec(pace.avgPaceS, units)
                 : "—"}
@@ -68,7 +68,7 @@ export function MyHealthCard() {
             <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-mist">
               Streak
             </p>
-            <p className="mt-1 text-[20px] font-black text-ink-50">
+            <p className="mt-1 text-[20px] font-black text-ember-400">
               {streak != null ? `${streak}d` : "—"}
             </p>
           </div>

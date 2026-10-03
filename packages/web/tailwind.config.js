@@ -21,6 +21,24 @@ export default {
           500: "#a8d92e",
           600: "#84b31f",
         },
+        // Supporting accents, tuned for dark backgrounds. Volt stays the
+        // brand primary; these add variety to stats and statuses.
+        sky: {
+          300: "#a8d8ff",
+          400: "#7cc4ff",
+        },
+        ember: {
+          300: "#ffc79c",
+          400: "#ffa25e",
+        },
+        mint: {
+          300: "#a7f0cd",
+          400: "#6fe3ae",
+        },
+        rose: {
+          300: "#ffb3c0",
+          400: "#fb7f95",
+        },
         mist: "#a7ae97",
       },
       fontFamily: {
