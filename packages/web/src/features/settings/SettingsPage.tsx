@@ -28,6 +28,7 @@ import {
 } from "../../components/ui";
 import { CityInput } from "../../components/CityInput";
 import { TrackerSection } from "./TrackerSection";
+import { BRAND_NAME, BRAND_TAGLINE } from "../../brand";
 
 const SHARE_LEVELS = [
   { value: "FULL", label: "Full details" },
@@ -404,7 +405,7 @@ export function SettingsPage() {
       <FeedbackSection />
 
       <p className="mt-6 text-center text-[12px] text-mist/60">
-        Curvelo v0.1.0 — Empower Your Run
+        {BRAND_NAME} v0.1.0 — {BRAND_TAGLINE}
       </p>
     </div>
   );
@@ -523,7 +524,7 @@ function FeedbackSection() {
       <h3 className="text-[15px] font-extrabold">Send feedback</h3>
       <p className="mt-1 text-[14px] text-mist">
         Found a bug or want a feature? Tell us — it goes straight to the team
-        building Curvelo.
+        building {BRAND_NAME}.
       </p>
       {error && (
         <div className="mb-3 mt-2">

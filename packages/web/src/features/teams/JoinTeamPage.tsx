@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { BRAND_NAME } from "../../brand";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "../../lib/api";
@@ -84,7 +85,7 @@ export function JoinTeamPage() {
               <p className="mt-3 text-[14px] text-mist">{link.teamDescription}</p>
             )}
             <p className="mt-4 text-[14px] text-mist">
-              Sign in or create a Curvelo account to request to join. A coach
+              Sign in or create a {BRAND_NAME} account to request to join. A coach
               will approve your request.
             </p>
             <div className="mt-5 flex w-full flex-col gap-2">

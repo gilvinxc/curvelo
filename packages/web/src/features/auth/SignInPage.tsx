@@ -10,6 +10,7 @@ import {
   Logo,
   TextInput,
 } from "../../components/ui";
+import { BRAND_NAME } from "../../brand";
 
 export function SignInPage() {
   const { login } = useAuth();
@@ -88,7 +89,7 @@ export function SignInPage() {
         </form>
       </Card>
       <p className="mt-6 text-center text-[14px] text-mist">
-        New to Curvelo?{" "}
+        New to {BRAND_NAME}?{" "}
         <Link
           to={`/register${next !== "/dashboard" ? `?next=${encodeURIComponent(next)}` : ""}`}
           className="font-bold text-volt-300 hover:text-volt-400"

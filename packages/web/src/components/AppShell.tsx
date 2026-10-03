@@ -6,6 +6,7 @@ import { api } from "../lib/api";
 import { Avatar, Logo } from "./ui";
 
 import { HelpGuide } from "./HelpGuide";
+import { BRAND_NAME } from "../brand";
 
 /** Slide-out navigation drawer. */
 function NavDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -101,7 +102,7 @@ export function AppShell() {
                 <path d="M4 7h16M4 12h16M4 17h16" />
               </svg>
             </button>
-            <Link to="/dashboard" aria-label="Curvelo home">
+            <Link to="/dashboard" aria-label={`${BRAND_NAME} home`}>
               <Logo />
             </Link>
           </div>

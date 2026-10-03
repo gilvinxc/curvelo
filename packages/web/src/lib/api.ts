@@ -132,7 +132,7 @@ async function doRequest<T>(
     });
   } catch {
     throw new ApiError(
-      "Couldn't reach the Curvelo API. Make sure it's running on port 4000.",
+      "Couldn't reach the Stride Sense API. Make sure it's running on port 4000.",
       "NETWORK_ERROR",
       0,
     );

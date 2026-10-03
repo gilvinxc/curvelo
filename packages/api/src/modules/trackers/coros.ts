@@ -84,7 +84,7 @@ export async function getOAuthClientId(redirectUri: string): Promise<string> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       redirect_uris: [redirectUri],
-      client_name: "Curvelo",
+      client_name: "Stride Sense",
       grant_types: ["authorization_code", "refresh_token"],
       response_types: ["code"],
       token_endpoint_auth_method: "none",

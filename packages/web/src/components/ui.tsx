@@ -10,14 +10,15 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "./cx";
+import { BRAND_LOGO_SRC, BRAND_NAME } from "../brand";
 
 /* ---------------------------------- logo --------------------------------- */
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <img
-      src="/logo.png"
-      alt="Curvelo"
+      src={BRAND_LOGO_SRC}
+      alt={BRAND_NAME}
       className={compact ? "h-9 w-auto" : "h-12 w-auto"}
     />
   );

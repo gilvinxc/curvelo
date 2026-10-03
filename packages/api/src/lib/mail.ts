@@ -53,7 +53,7 @@ export function takeOutbox(): OutgoingMail[] {
 
 export function passwordResetMail(to: string, resetUrl: string, ttlMinutes: number): OutgoingMail {
   const text = [
-    "Someone requested a password reset for your Curvelo account.",
+    "Someone requested a password reset for your Stride Sense account.",
     "",
     `Reset your password here (valid for ${ttlMinutes} minutes, one-time use):`,
     resetUrl,
@@ -62,9 +62,9 @@ export function passwordResetMail(to: string, resetUrl: string, ttlMinutes: numb
   ].join("\n");
   return {
     to,
-    subject: "Reset your Curvelo password",
+    subject: "Reset your Stride Sense password",
     text,
-    html: `<p>Someone requested a password reset for your Curvelo account.</p>
+    html: `<p>Someone requested a password reset for your Stride Sense account.</p>
 <p><a href="${resetUrl}">Reset your password</a> (valid for ${ttlMinutes} minutes, one-time use).</p>
 <p>If you didn't request this, you can ignore this email — your password stays the same.</p>`,
   };

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { BRAND_NAME } from "../../brand";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "../../lib/api";
@@ -96,7 +97,7 @@ export function InviteAcceptPage() {
               {" · "}expires {formatDate(invitation.expiresAt)}
             </p>
             <p className="mt-4 text-[14px] text-mist">
-              Sign in or create a Curvelo account to accept this invitation.
+              Sign in or create a {BRAND_NAME} account to accept this invitation.
             </p>
             <div className="mt-5 flex w-full flex-col gap-2">
               <Link

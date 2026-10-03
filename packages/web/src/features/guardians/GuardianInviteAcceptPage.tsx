@@ -13,6 +13,7 @@ import {
   Logo,
   formatDate,
 } from "../../components/ui";
+import { BRAND_NAME } from "../../brand";
 
 const CONSENT_COPY: Record<string, { title: string; body: string }> = {
   PARTICIPATION: {
@@ -140,7 +141,7 @@ export function GuardianInviteAcceptPage() {
               Expires {formatDate(invite.expiresAt)}
             </p>
             <p className="mt-4 text-[14px] text-mist">
-              Sign in or create a Curvelo account to accept this invitation.
+              Sign in or create a {BRAND_NAME} account to accept this invitation.
             </p>
             <div className="mt-5 flex w-full flex-col gap-2">
               <Link to={`/signin?next=${nextParam}`} className="w-full">

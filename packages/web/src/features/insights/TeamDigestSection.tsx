@@ -10,6 +10,7 @@ import {
   ErrorBanner,
 } from "../../components/ui";
 import { cn } from "../../components/cx";
+import { BRAND_NAME } from "../../brand";
 
 const STATUS_STYLE: Record<TeamDigestAthlete["status"], { label: string; className: string }> = {
   "on-track": {
@@ -115,7 +116,7 @@ export function TeamDigestSection({ teamId }: { teamId: string }) {
                         : "border-volt-400/40 bg-volt-400/10 text-volt-300",
                     )}
                   >
-                    {digest.provider === "llm" ? "AI digest" : "Curvelo analyst"}
+                    {digest.provider === "llm" ? "AI digest" : `${BRAND_NAME} analyst`}
                   </span>
                   <span className="text-[12px] font-semibold text-mist">
                     {digest.periodDays}-day window

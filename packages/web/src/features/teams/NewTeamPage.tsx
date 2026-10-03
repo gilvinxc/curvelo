@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { BRAND_NAME } from "../../brand";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import type { TeamVisibility } from "@curvelo/shared";
@@ -109,7 +110,7 @@ export function NewTeamPage() {
           {similarTeams.length > 0 && (
             <div className="rounded-xl border border-volt-400/30 bg-volt-400/5 p-4">
               <p className="text-[14px] font-bold text-ink-50">
-                Already on Curvelo?
+                Already on {BRAND_NAME}?
               </p>
               <p className="mt-0.5 text-[13px] text-mist">
                 These teams have a similar name. You can request to join

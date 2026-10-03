@@ -4,6 +4,7 @@ import { api, ApiError } from "../../lib/api";
 import { Button, Card, ErrorBanner } from "../../components/ui";
 import { formatDistanceM, formatPaceSec } from "../../lib/workoutFormat";
 import { cn } from "../../components/cx";
+import { BRAND_NAME } from "../../brand";
 
 function ProviderBadge({ provider }: { provider: AthleteInsight["provider"] }) {
   const isLlm = provider === "llm";
@@ -26,7 +27,7 @@ function ProviderBadge({ provider }: { provider: AthleteInsight["provider"] }) {
         <path d="M6 12H3" />
         <path d="M7.7 7.7 5.6 5.6" />
       </svg>
-      {isLlm ? "AI insights" : "Curvelo analyst"}
+      {isLlm ? "AI insights" : `${BRAND_NAME} analyst`}
     </span>
   );
 }
