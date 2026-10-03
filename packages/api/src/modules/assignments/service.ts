@@ -69,6 +69,14 @@ export async function createAssignment(
     if (!target || target.status !== "ACTIVE") {
       throw new AppError(422, "INVALID_ASSIGNEE", "That athlete is not on this team");
     }
+    // Only runners train: parents and alumni can't be assigned workouts.
+    if (target.role !== "RUNNER") {
+      throw new AppError(
+        422,
+        "INVALID_ASSIGNEE",
+        "Only runners can be assigned workouts",
+      );
+    }
   }
 
   if (input.groupId) {
