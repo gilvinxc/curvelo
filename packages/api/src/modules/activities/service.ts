@@ -332,6 +332,16 @@ export async function createActivity(
   return await toActivityDTO(activity);
 }
 
+/**
+ * Exclusive upper bound for a "to" date: the start of the day after `to`,
+ * so activities on the `to` date itself are included.
+ */
+function endOfDayExclusive(to: string): Date {
+  const d = new Date(to + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d;
+}
+
 export async function listMyActivities(
   actorId: string,
   from: string,
@@ -343,7 +353,7 @@ export async function listMyActivities(
       userId: actorId,
       startedAt: {
         gte: new Date(from + "T00:00:00Z"),
-        lt: new Date(to + "T00:00:00Z"),
+        lt: endOfDayExclusive(to),
       },
       ...(teamId ? { teamId } : {}),
     },
@@ -681,7 +691,7 @@ export async function myStats(
       userId: actorId,
       startedAt: {
         gte: new Date(from + "T00:00:00Z"),
-        lt: new Date(to + "T00:00:00Z"),
+        lt: endOfDayExclusive(to),
       },
     },
     _count: true,
