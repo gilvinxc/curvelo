@@ -321,6 +321,16 @@ export const api = {
     userId: string,
     input: { status?: "ACTIVE" | "SUSPENDED"; systemRole?: "SYSTEM_ADMIN" | null },
   ) => patch<{ user: AdminUserDTO }>(`/admin/users/${userId}`, input),
+  /** "View as": switch cookies to an impersonated session of the target user. */
+  adminImpersonate: (userId: string) =>
+    post<{ user: SessionUser; impersonated: boolean }>(
+      `/admin/users/${userId}/impersonate`,
+    ),
+  /** Exit impersonation: cookies are switched back to the admin's session. */
+  adminExitImpersonation: () =>
+    post<{ user: SessionUser; impersonated: boolean }>(
+      "/admin/impersonate/exit",
+    ),
   adminTeams: () => request<{ teams: AdminTeamDTO[] }>("/admin/teams"),
   adminAudit: (action?: string) =>
     request<{ events: AdminAuditDTO[]; total: number }>(
@@ -384,7 +394,7 @@ export const api = {
   login: (input: { email: string; password: string }) =>
     post<{ user: SessionUser }>("/auth/login", input),
   logout: () => post<{ ok: boolean }>("/auth/logout"),
-  me: () => request<{ user: SessionUser }>("/auth/me"),
+  me: () => request<{ user: SessionUser; impersonated: boolean }>("/auth/me"),
 
   // users
   getProfile: () => request<{ user: FullUser }>("/users/me"),

@@ -9,6 +9,8 @@ export interface RequestUser {
   email: string;
   displayName: string;
   systemRole: string | null;
+  /** Set when this request runs inside a "View as" impersonated session. */
+  impersonatedByAdminId: string | null;
 }
 
 declare module "fastify" {
@@ -66,6 +68,7 @@ export const authPlugin = fp(async function authPlugin(
         email: user.email,
         displayName: user.displayName,
         systemRole: user.systemRole,
+        impersonatedByAdminId: claims.imp,
       };
     },
   );

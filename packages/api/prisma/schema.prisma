@@ -141,6 +141,10 @@ model RefreshToken {
   familyId  String
   createdAt DateTime  @default(now())
 
+  // Set when this session was opened by a site admin via "View as".
+  // Exit restores the admin's own session; audit-logged on start and end.
+  impersonatedByAdminId String?
+
   @@index([userId])
   @@index([familyId])
 }

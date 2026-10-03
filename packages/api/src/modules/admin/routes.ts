@@ -10,11 +10,14 @@ import {
 import {
   adminStats,
   auditLog,
+  exitImpersonation,
+  impersonateUser,
   listTeams,
   listUsers,
   requireSystemAdmin,
   updateUser,
 } from "./service.js";
+import { setSessionCookies } from "../auth/routes.js";
 
 export async function adminRoutes(app: FastifyInstance) {
   const sysAdmin = async (request: import("fastify").FastifyRequest) => {
@@ -45,6 +48,41 @@ export async function adminRoutes(app: FastifyInstance) {
       return {
         user: await updateUser(request.user!.id, userId, input, request.ip),
       };
+    },
+  );
+
+  // "View as": open a session as another user. The cookies are switched to
+  // the target's session (marked as impersonated); the admin exits back via
+  // POST /admin/impersonate/exit. Both start and end are audit-logged.
+  app.post(
+    "/admin/users/:userId/impersonate",
+    { preHandler: [app.authenticate, sysAdmin] },
+    async (request, reply) => {
+      const { userId } = adminUserParamsSchema.parse(request.params);
+      const { user, tokens } = await impersonateUser(
+        request.user!.id,
+        userId,
+        request.ip,
+      );
+      setSessionCookies(reply, tokens);
+      return reply.send({ user, impersonated: true });
+    },
+  );
+
+  // Exit impersonation. Deliberately NOT sysAdmin-gated: the caller is the
+  // impersonated user. The service verifies the signed session claim and
+  // restores the originating admin.
+  app.post(
+    "/admin/impersonate/exit",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { user, tokens } = await exitImpersonation(
+        request.user!.id,
+        request.user!.impersonatedByAdminId,
+        request.ip,
+      );
+      setSessionCookies(reply, tokens);
+      return reply.send({ user, impersonated: false });
     },
   );
 

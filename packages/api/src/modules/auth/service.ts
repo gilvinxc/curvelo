@@ -85,9 +85,12 @@ async function stampLogin(userId: string): Promise<void> {
 }
 
 /** Issues a new token pair and persists the refresh token hash. */
-async function issueSession(userId: string): Promise<SessionTokens> {
+export async function issueSession(
+  userId: string,
+  opts?: { impersonatedByAdminId?: string },
+): Promise<SessionTokens> {
   const familyId = newTokenFamily();
-  const accessToken = signAccessToken(userId);
+  const accessToken = signAccessToken(userId, opts);
   const refreshToken = signRefreshToken(userId, familyId);
   await stampLogin(userId);
   await db.refreshToken.create({
@@ -95,6 +98,7 @@ async function issueSession(userId: string): Promise<SessionTokens> {
       userId,
       tokenHash: hashToken(refreshToken),
       familyId,
+      impersonatedByAdminId: opts?.impersonatedByAdminId ?? null,
       expiresAt: new Date(Date.now() + config.refreshTtlSec * 1000),
     },
   });
@@ -214,7 +218,12 @@ export async function refresh(
   }
 
   const newRefreshToken = signRefreshToken(stored.userId, stored.familyId);
-  const accessToken = signAccessToken(stored.userId);
+  const accessToken = signAccessToken(
+    stored.userId,
+    stored.impersonatedByAdminId
+      ? { impersonatedByAdminId: stored.impersonatedByAdminId }
+      : undefined,
+  );
   await db.$transaction([
     db.refreshToken.update({
       where: { id: stored.id },
@@ -225,6 +234,9 @@ export async function refresh(
         userId: stored.userId,
         tokenHash: hashToken(newRefreshToken),
         familyId: stored.familyId,
+        // An impersonated session stays impersonated across rotation so the
+        // admin can always exit back to their own session.
+        impersonatedByAdminId: stored.impersonatedByAdminId,
         expiresAt: new Date(Date.now() + config.refreshTtlSec * 1000),
       },
     }),

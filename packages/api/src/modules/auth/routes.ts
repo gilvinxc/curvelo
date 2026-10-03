@@ -20,7 +20,7 @@ import {
 const ACCESS_COOKIE = "cv_access";
 const REFRESH_COOKIE = "cv_refresh";
 
-function setSessionCookies(
+export function setSessionCookies(
   reply: import("fastify").FastifyReply,
   tokens: { accessToken: string; refreshToken: string },
 ): void {
@@ -107,7 +107,10 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [app.authenticate] },
     async (request, reply) => {
       const user = await getSession(request.user!.id);
-      return reply.send({ user });
+      return reply.send({
+        user,
+        impersonated: request.user!.impersonatedByAdminId != null,
+      });
     },
   );
 }

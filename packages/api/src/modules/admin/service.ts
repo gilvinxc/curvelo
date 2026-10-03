@@ -1,11 +1,17 @@
 import { db } from "../../db.js";
 import { audit } from "../../lib/audit.js";
 import { badRequest, forbidden, notFound } from "../../lib/errors.js";
+import {
+  getSession,
+  issueSession,
+  type SessionTokens,
+} from "../auth/service.js";
 import type {
   AdminAuditDTO,
   AdminStatsDTO,
   AdminTeamDTO,
   AdminUserDTO,
+  SessionUser,
 } from "@curvelo/shared";
 
 export async function requireSystemAdmin(actorId: string): Promise<void> {
@@ -210,4 +216,98 @@ export async function auditLog(
       createdAt: e.createdAt.toISOString(),
     })),
   };
+}
+
+/**
+ * "View as": a site admin opens a session as another user to see exactly
+ * what they see (roles, teams, visibility) — for validating UX without
+ * juggling logins.
+ *
+ * The issued session's tokens carry the TARGET user's id, so every
+ * permission check in the app reads the impersonated identity: no admin
+ * powers leak through. The refresh-token row is marked with the admin's id
+ * so the session can be exited back to the admin, and both start and end
+ * are audit-logged.
+ */
+export async function impersonateUser(
+  adminId: string,
+  targetId: string,
+  ipAddress?: string,
+): Promise<{ user: SessionUser; tokens: SessionTokens }> {
+  await requireSystemAdmin(adminId);
+  if (adminId === targetId) {
+    throw badRequest("Cannot impersonate yourself.");
+  }
+  const target = await db.user.findUnique({
+    where: { id: targetId },
+    select: { id: true, status: true, systemRole: true },
+  });
+  if (!target) throw notFound("User not found.");
+  if (target.systemRole === "SYSTEM_ADMIN") {
+    throw forbidden("Cannot impersonate another site admin.");
+  }
+  if (target.status !== "ACTIVE") {
+    throw badRequest("Cannot impersonate a suspended account.");
+  }
+
+  await audit({
+    actorId: adminId,
+    action: "IMPERSONATION_STARTED",
+    entityType: "User",
+    entityId: targetId,
+    ipAddress,
+  });
+
+  const tokens = await issueSession(targetId, {
+    impersonatedByAdminId: adminId,
+  });
+  return { user: await getSession(targetId), tokens };
+}
+
+/**
+ * Exit an impersonated session: kills the impersonated tokens and issues a
+ * fresh session for the originating admin. Callable only from a session that
+ * is currently marked as impersonated (the `imp` access-token claim, which
+ * is signed and survives token rotation); the admin must still hold the role.
+ */
+export async function exitImpersonation(
+  currentUserId: string,
+  impersonatedByAdminId: string | null,
+  ipAddress?: string,
+): Promise<{ user: SessionUser; tokens: SessionTokens }> {
+  const adminId = impersonatedByAdminId;
+  if (!adminId) {
+    throw forbidden("Not in an impersonated session.");
+  }
+
+  // The admin must still be an admin — a demotion in the meantime must not
+  // be bypassed by exiting into admin powers.
+  const admin = await db.user.findUnique({
+    where: { id: adminId },
+    select: { status: true, systemRole: true },
+  });
+  if (!admin || admin.status !== "ACTIVE" || admin.systemRole !== "SYSTEM_ADMIN") {
+    throw forbidden("Impersonation source is no longer a site admin.");
+  }
+
+  // Kill every live impersonated session row for this user/admin pair.
+  await db.refreshToken.updateMany({
+    where: {
+      userId: currentUserId,
+      impersonatedByAdminId: adminId,
+      revokedAt: null,
+    },
+    data: { revokedAt: new Date() },
+  });
+
+  await audit({
+    actorId: adminId,
+    action: "IMPERSONATION_ENDED",
+    entityType: "User",
+    entityId: currentUserId,
+    ipAddress,
+  });
+
+  const tokens = await issueSession(adminId);
+  return { user: await getSession(adminId), tokens };
 }

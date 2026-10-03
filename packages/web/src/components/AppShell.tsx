@@ -67,10 +67,12 @@ function NavDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
 }
 
 export function AppShell() {
-  const { user, loading } = useAuth();
+  const { user, loading, impersonating, exitImpersonation } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [exiting, setExiting] = useState(false);
+  const [exitError, setExitError] = useState(false);
   const { data: unread } = useQuery({
     queryKey: ["unread-count"],
     queryFn: () => api.unreadCount(),
@@ -81,7 +83,43 @@ export function AppShell() {
 
   return (
     <div className="min-h-dvh">
-      <header className="sticky top-0 z-40 border-b border-white/10 bg-ink-950/90 backdrop-blur">
+      <div className="sticky top-0 z-40">
+      {impersonating && (
+        <div
+          role="alert"
+          className="flex items-center justify-center gap-3 bg-amber-400 px-4 py-2 text-center"
+        >
+          <span className="text-[13px] font-bold text-ink-950">
+            Viewing as {user?.displayName ?? "user"}
+          </span>
+          <button
+            type="button"
+            disabled={exiting}
+            onClick={() => {
+              setExiting(true);
+              setExitError(false);
+              exitImpersonation()
+                .then(() => {
+                  // Full reload: drops every cached query and re-boots as the admin.
+                  window.location.assign("/admin");
+                })
+                .catch(() => {
+                  setExitError(true);
+                  setExiting(false);
+                });
+            }}
+            className="rounded-full bg-ink-950 px-4 py-1.5 text-[13px] font-bold text-amber-300 transition hover:bg-ink-900 disabled:opacity-60"
+          >
+            {exiting ? "Exiting…" : "Exit view"}
+          </button>
+          {exitError && (
+            <span className="text-[12px] font-semibold text-ink-950">
+              Couldn't exit — try again.
+            </span>
+          )}
+        </div>
+      )}
+      <header className="border-b border-white/10 bg-ink-950/90 backdrop-blur">
         <div className="relative mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <button
@@ -158,6 +196,7 @@ export function AppShell() {
           )}
         </div>
       </header>
+      </div>
       <NavDrawer open={menuOpen} onClose={() => setMenuOpen(false)} />
       {helpOpen && <HelpGuide onClose={() => setHelpOpen(false)} />}
       <main className="hero-glow mx-auto w-full max-w-3xl px-4 pb-16 pt-6">

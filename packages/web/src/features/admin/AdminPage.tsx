@@ -50,7 +50,8 @@ function Overview() {
 
 function UserRow({ user }: { user: AdminUserDTO }) {
   const queryClient = useQueryClient();
-  const [confirming, setConfirming] = useState<null | "suspend" | "activate" | "admin" | "unadmin">(null);
+  const { user: me, startImpersonation } = useAuth();
+  const [confirming, setConfirming] = useState<null | "suspend" | "activate" | "admin" | "unadmin" | "view">(null);
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["admin", "users"] });
 
   const mut = useMutation({
@@ -62,8 +63,17 @@ function UserRow({ user }: { user: AdminUserDTO }) {
     },
   });
 
+  const impersonate = useMutation({
+    mutationFn: () => startImpersonation(user.id),
+    onSuccess: () => {
+      // Full reload: drops every cached query and re-boots as the target user.
+      window.location.assign("/dashboard");
+    },
+  });
+
   const isAdmin = user.systemRole === "SYSTEM_ADMIN";
   const suspended = user.status === "SUSPENDED";
+  const isSelf = me?.id === user.id;
 
   return (
     <li className="py-2.5">
@@ -88,6 +98,15 @@ function UserRow({ user }: { user: AdminUserDTO }) {
           </span>
         </span>
         <div className="flex shrink-0 gap-2">
+          {!isAdmin && !isSelf && !suspended && (
+            <button
+              type="button"
+              onClick={() => setConfirming("view")}
+              className="text-[13px] font-semibold text-volt-300 hover:text-volt-200"
+            >
+              View as
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setConfirming(suspended ? "activate" : "suspend")}
@@ -113,6 +132,8 @@ function UserRow({ user }: { user: AdminUserDTO }) {
             {confirming === "admin" &&
               `Grant site admin to ${user.displayName}? Admins can manage all users, teams, and see the full audit log.`}
             {confirming === "unadmin" && `Remove site admin from ${user.displayName}?`}
+            {confirming === "view" &&
+              `View the app as ${user.displayName}? You'll see exactly what they see. Exit anytime from the banner to return to your admin session. This is audit-logged.`}
           </p>
           <div className="flex gap-2">
             <Button
@@ -120,12 +141,13 @@ function UserRow({ user }: { user: AdminUserDTO }) {
                 if (confirming === "suspend") mut.mutate({ status: "SUSPENDED" });
                 else if (confirming === "activate") mut.mutate({ status: "ACTIVE" });
                 else if (confirming === "admin") mut.mutate({ systemRole: "SYSTEM_ADMIN" });
-                else mut.mutate({ systemRole: null });
+                else if (confirming === "unadmin") mut.mutate({ systemRole: null });
+                else if (confirming === "view") impersonate.mutate();
               }}
-              disabled={mut.isPending}
+              disabled={mut.isPending || impersonate.isPending}
               className="min-h-[44px] px-4 text-[13px]"
             >
-              {mut.isPending ? "…" : "Confirm"}
+              {mut.isPending || impersonate.isPending ? "…" : "Confirm"}
             </Button>
             <Button
               variant="secondary"
@@ -139,6 +161,15 @@ function UserRow({ user }: { user: AdminUserDTO }) {
             <ErrorBanner
               message={
                 mut.error instanceof ApiError ? mut.error.message : "Couldn't update."
+              }
+            />
+          )}
+          {impersonate.isError && (
+            <ErrorBanner
+              message={
+                impersonate.error instanceof ApiError
+                  ? impersonate.error.message
+                  : "Couldn't start impersonation."
               }
             />
           )}
