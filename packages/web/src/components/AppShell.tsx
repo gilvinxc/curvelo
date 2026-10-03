@@ -5,6 +5,8 @@ import { useAuth } from "../lib/auth";
 import { api } from "../lib/api";
 import { Avatar, Logo } from "./ui";
 
+import { HelpGuide } from "./HelpGuide";
+
 /** Slide-out navigation drawer. */
 function NavDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user } = useAuth();
@@ -67,6 +69,7 @@ export function AppShell() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const { data: unread } = useQuery({
     queryKey: ["unread-count"],
     queryFn: () => api.unreadCount(),
@@ -80,6 +83,15 @@ export function AppShell() {
       <header className="sticky top-0 z-40 border-b border-white/10 bg-ink-950/90 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setHelpOpen(true)}
+              aria-label="Help"
+              className="rounded-full border border-white/10 bg-ink-900 p-2.5 transition hover:border-white/25"
+            >
+              <span className="flex h-[18px] w-[18px] items-center justify-center text-[15px] font-black text-white/80">
+                ?
+              </span>
+            </button>
             <button
               onClick={() => setMenuOpen(true)}
               aria-label="Open menu"
@@ -139,6 +151,7 @@ export function AppShell() {
         </div>
       </header>
       <NavDrawer open={menuOpen} onClose={() => setMenuOpen(false)} />
+      {helpOpen && <HelpGuide onClose={() => setHelpOpen(false)} />}
       <main className="hero-glow mx-auto w-full max-w-3xl px-4 pb-16 pt-6">
         <Outlet />
       </main>
