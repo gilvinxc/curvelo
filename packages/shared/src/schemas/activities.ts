@@ -29,6 +29,7 @@ const metrics = {
   calories: z.number().int().positive().max(50_000).optional(),
   steps: z.number().int().positive().max(200_000).optional(),
   elevationGainM: z.number().min(0).max(100_000).optional(),
+  avgCadenceSpm: z.number().int().min(0).max(300).optional(),
   shareToFeed: z.boolean().optional(),
   city: z.string().trim().max(120).optional(),
   cityLat: z.number().min(-90).max(90).optional(),
@@ -40,6 +41,17 @@ const metrics = {
 
 const notFuture = (startedAt: string) =>
   new Date(startedAt).getTime() <= Date.now() + 5 * 60 * 1000;
+
+/** One lap split: at least one of distance or duration required. */
+export const activitySplitSchema = z
+  .object({
+    distanceM: z.number().positive().max(500_000).optional(),
+    durationS: z.number().int().positive().max(86400).optional(),
+  })
+  .refine((s) => s.distanceM !== undefined || s.durationS !== undefined, {
+    message: "Split needs a distance or a duration",
+  });
+export type ActivitySplitInput = z.infer<typeof activitySplitSchema>;
 
 export const createActivitySchema = z
   .object({
@@ -54,6 +66,7 @@ export const createActivitySchema = z
     shoeId: z.string().uuid().optional().nullable(),
     // Current body weight; when provided it also updates the profile.
     weightKg: z.number().min(25).max(350).optional(),
+    splits: z.array(activitySplitSchema).max(200).optional(),
   })
   .refine((a) => a.distanceM !== undefined || a.durationS !== undefined, {
     message: "Log at least a distance or a duration",
@@ -128,6 +141,8 @@ export const updateActivitySchema = z
     shoeId: z.string().uuid().optional().nullable(),
     // Current body weight; when provided it also updates the profile.
     weightKg: z.number().min(25).max(350).optional(),
+    // Replace-all: providing splits replaces the activity's splits.
+    splits: z.array(activitySplitSchema).max(200).optional(),
   })
   .refine(
     (a) => a.startedAt === undefined || notFuture(a.startedAt),

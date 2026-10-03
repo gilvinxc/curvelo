@@ -64,6 +64,11 @@ const KIND_LABELS: Record<string, string> = {
   OTHER: "Other",
 };
 
+interface SplitRow {
+  distance: string;
+  duration: string;
+}
+
 interface FormState {
   kind: string;
   title: string;
@@ -77,6 +82,9 @@ interface FormState {
   calories: string;
   steps: string;
   elevation: string;
+  cadence: string;
+  splits: SplitRow[];
+  splitsOpen: boolean;
   city: string;
   cityLat: number | null;
   cityLon: number | null;
@@ -111,6 +119,9 @@ function blankForm(): FormState {  return {
     calories: "",
     steps: "",
     elevation: "",
+    cadence: "",
+    splits: [],
+    splitsOpen: false,
     city: "",
     cityLat: null,
     cityLon: null,
@@ -230,6 +241,12 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       steps: a.steps != null ? String(a.steps) : "",
       elevation:
         a.elevationGainM != null ? trimNum(fromMetersElev(a.elevationGainM, units)) : "",
+      cadence: a.avgCadenceSpm != null ? String(a.avgCadenceSpm) : "",
+      splits: (a.splits ?? []).map((sp) => ({
+        distance: sp.distanceM != null ? trimNum(fromMeters(sp.distanceM, units)) : "",
+        duration: sp.durationS != null ? formatDurationS(sp.durationS) : "",
+      })),
+      splitsOpen: (a.splits ?? []).length > 0,
       city: a.city ?? "",
       cityLat: a.cityLat ?? null,
       cityLon: a.cityLon ?? null,
@@ -332,6 +349,19 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
     if (form.elevation.trim() !== "" && (Number.isNaN(elev) || elev < 0)) {
       errs.elevation = "Elevation gain can't be negative.";
     }
+    const cad = parseInt(form.cadence, 10);
+    if (form.cadence.trim() !== "" && (Number.isNaN(cad) || cad < 0 || cad > 300)) {
+      errs.cadence = "Cadence must be 0–300 spm.";
+    }
+    form.splits.forEach((row, i) => {
+      const d = parseFloat(row.distance);
+      const t = parseDurationInput(row.duration);
+      const hasD = row.distance.trim() !== "" && !Number.isNaN(d) && d > 0;
+      const hasT = row.duration.trim() !== "" && t !== undefined && !Number.isNaN(t);
+      if (!hasD && !hasT) {
+        errs.splits = `Split ${i + 1} needs a distance or a time.`;
+      }
+    });
     const started = new Date(form.startedAt).getTime();
     if (Number.isNaN(started)) {
       errs.startedAt = "Pick a valid date and time";
@@ -380,6 +410,26 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       const elevM = parseFloat(form.elevation);
       if (form.elevation.trim() !== "" && !Number.isNaN(elevM) && elevM >= 0)
         payload.elevationGainM = Math.round(toMetersElev(elevM, units) * 10) / 10;
+      const cadV = parseInt(form.cadence, 10);
+      if (form.cadence.trim() !== "" && !Number.isNaN(cadV) && cadV >= 0 && cadV <= 300)
+        payload.avgCadenceSpm = cadV;
+      const splitRows = form.splits
+        .map((row) => {
+          const d = parseFloat(row.distance);
+          const t = parseDurationInput(row.duration);
+          return {
+            distanceM:
+              row.distance.trim() !== "" && !Number.isNaN(d) && d > 0
+                ? Math.round(toMeters(d, units))
+                : undefined,
+            durationS:
+              row.duration.trim() !== "" && t !== undefined && !Number.isNaN(t)
+                ? t
+                : undefined,
+          };
+        })
+        .filter((r) => r.distanceM !== undefined || r.durationS !== undefined);
+      if (splitRows.length > 0) payload.splits = splitRows;
       if (form.terrain) payload.terrain = form.terrain;
       if (form.city.trim()) {
         payload.city = form.city.trim();
@@ -694,6 +744,103 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
             placeholder={units === "metric" ? "46" : "150"}
           />
         </Field>
+
+        <Field label="Cadence (spm)" hint="Optional" error={errors.cadence}>
+          <TextInput
+            type="number"
+            inputMode="numeric"
+            min="0"
+            max="300"
+            value={form.cadence}
+            onChange={(e) => set("cadence", e.target.value)}
+            placeholder="170"
+          />
+        </Field>
+
+        <div className="rounded-xl border border-white/10 bg-ink-900">
+          <button
+            type="button"
+            onClick={() => setForm((f) => ({ ...f, splitsOpen: !f.splitsOpen }))}
+            aria-expanded={form.splitsOpen}
+            className="flex w-full items-center justify-between px-4 py-3 text-left"
+          >
+            <span className="text-[14px] font-bold text-white">
+              Lap splits{" "}
+              <span className="font-normal text-mist">
+                {form.splits.length > 0 ? `(${form.splits.length})` : "· optional"}
+              </span>
+            </span>
+            <span className="text-mist">{form.splitsOpen ? "▾" : "▸"}</span>
+          </button>
+          {form.splitsOpen && (
+            <div className="flex flex-col gap-2 px-4 pb-4">
+              {errors.splits && (
+                <p className="text-[13px] font-semibold text-red-400">{errors.splits}</p>
+              )}
+              {form.splits.map((row, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="w-8 shrink-0 text-[13px] font-bold text-mist">
+                    {i + 1}
+                  </span>
+                  <TextInput
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    value={row.distance}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        splits: f.splits.map((r, j) =>
+                          j === i ? { ...r, distance: e.target.value } : r,
+                        ),
+                      }))
+                    }
+                    placeholder={`Dist (${distanceUnitLabel(units)})`}
+                    aria-label={`Split ${i + 1} distance`}
+                  />
+                  <TextInput
+                    value={row.duration}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        splits: f.splits.map((r, j) =>
+                          j === i ? { ...r, duration: e.target.value } : r,
+                        ),
+                      }))
+                    }
+                    placeholder="Time (m:ss)"
+                    aria-label={`Split ${i + 1} time`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((f) => ({
+                        ...f,
+                        splits: f.splits.filter((_, j) => j !== i),
+                      }))
+                    }
+                    aria-label={`Remove split ${i + 1}`}
+                    className="shrink-0 rounded-full border border-white/10 px-2.5 py-1.5 text-[14px] text-mist hover:border-white/25 hover:text-white"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() =>
+                  setForm((f) => ({
+                    ...f,
+                    splits: [...f.splits, { distance: "", duration: "" }],
+                  }))
+                }
+                className="mt-1 self-start rounded-full border border-volt-400/40 px-4 py-2 text-[13px] font-bold text-volt-300 hover:bg-volt-400/10"
+              >
+                + Add split
+              </button>
+            </div>
+          )}
+        </div>
 
         <Field
           label="City"

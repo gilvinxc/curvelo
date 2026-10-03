@@ -544,6 +544,7 @@ model Activity {
   distanceM        Float?
   durationS        Int?
   elevationGainM   Float?
+  avgCadenceSpm  Int?
   avgPaceS         Float?
   avgHrBpm         Int?
   maxHrBpm         Int?
@@ -573,10 +574,24 @@ model Activity {
   updatedAt DateTime @updatedAt
 
   sharedInPosts FeedPost[] @relation("SharedInPosts")
+  splits        ActivitySplit[]
 
   @@unique([source, externalId])
   @@index([userId, startedAt])
   @@index([teamId, startedAt])
+}
+
+// ─── Lap splits: per-lap distance/duration for an activity ────────────────
+
+model ActivitySplit {
+  id         String   @id @default(uuid())
+  activityId String
+  activity   Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  position   Int
+  distanceM  Float?
+  durationS  Int?
+
+  @@index([activityId, position])
 }
 
 // ─── Slice 4: private team social feed ───────────────────────────────────

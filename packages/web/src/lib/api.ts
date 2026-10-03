@@ -263,6 +263,8 @@ export interface CreateActivityPayload {
   weightKg?: number;
   steps?: number;
   elevationGainM?: number;
+  avgCadenceSpm?: number;
+  splits?: { distanceM?: number; durationS?: number }[];
   shareToFeed?: boolean;
   city?: string;
   cityLat?: number;
@@ -289,6 +291,9 @@ export interface UpdateActivityPayload {
   shoeId?: string | null;
   weightKg?: number;
   steps?: number;
+  elevationGainM?: number;
+  avgCadenceSpm?: number;
+  splits?: { distanceM?: number; durationS?: number }[];
   shareToFeed?: boolean;
   city?: string;
   cityLat?: number | null;

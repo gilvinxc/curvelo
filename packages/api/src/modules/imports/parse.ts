@@ -3,6 +3,11 @@ import FitParser from "fit-file-parser";
 
 export type ImportFormat = "FIT" | "GPX" | "TCX";
 
+export interface ParsedSplit {
+  distanceM: number | null;
+  durationS: number | null;
+}
+
 export interface ParsedWorkout {
   format: ImportFormat;
   kind: string; // ActivityKind
@@ -14,6 +19,8 @@ export interface ParsedWorkout {
   calories: number | null;
   steps: number | null;
   elevationGainM: number | null;
+  avgCadenceSpm: number | null;
+  splits: ParsedSplit[];
 }
 
 export const MAX_IMPORT_BYTES = 10 * 1024 * 1024;
@@ -39,6 +46,13 @@ function mapSport(sport: string | undefined | null): string {
     return "CROSS_TRAINING";
   if (["strengthtraining", "fitnessequipment", "yoga", "pilates"].includes(s)) return "STRENGTH";
   return "OTHER";
+}
+
+/** Average of per-point cadence values (steps/min), rounded. */
+function avgCadenceSpm(cads: (number | null)[]): number | null {
+  const vals = cads.filter((c): c is number => c !== null && Number.isFinite(c) && c > 0 && c <= 300);
+  if (vals.length === 0) return null;
+  return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
 }
 
 /** Total ascent: sum of positive elevation diffs between consecutive points. */
@@ -89,6 +103,7 @@ function parseGpx(buf: Buffer): ParsedWorkout {
   let prev: { lat: number; lon: number } | null = null;
   const eles: (number | null)[] = [];
 
+  const cads: (number | null)[] = [];
   for (const trk of trks) {
     for (const seg of asArray(trk?.trkseg)) {
       for (const pt of asArray(seg?.trkpt)) {
@@ -96,6 +111,7 @@ function parseGpx(buf: Buffer): ParsedWorkout {
         const lon = parseFloat(pt["@lon"]);
         const t = pt?.time ? new Date(pt.time) : null;
         eles.push(num(pt?.ele));
+        cads.push(gpxCadence(pt));
         if (Number.isFinite(lat) && Number.isFinite(lon)) {
           if (prev) distanceM += haversineM(prev.lat, prev.lon, lat, lon);
           prev = { lat, lon };
@@ -120,7 +136,26 @@ function parseGpx(buf: Buffer): ParsedWorkout {
     calories: null,
     steps: null,
     elevationGainM: elevationGainM(eles),
+    avgCadenceSpm: avgCadenceSpm(cads),
+    splits: [],
   };
+}
+
+/** Cadence from GPX trackpoint extensions (gpxtpx:cad et al). */
+function gpxCadence(pt: Record<string, unknown>): number | null {
+  const ext = pt?.extensions as Record<string, unknown> | undefined;
+  if (!ext || typeof ext !== "object") return null;
+  for (const key of Object.keys(ext)) {
+    const tpe = (ext as Record<string, unknown>)[key] as Record<string, unknown>;
+    if (!tpe || typeof tpe !== "object") continue;
+    for (const ck of Object.keys(tpe)) {
+      if (ck.toLowerCase().endsWith("cad")) {
+        const c = num(tpe[ck]);
+        if (c !== null && c > 0 && c <= 300) return c;
+      }
+    }
+  }
+  return null;
 }
 
 function num(v: unknown): number | null {
@@ -150,12 +185,20 @@ function parseTcx(buf: Buffer): ParsedWorkout {
   let start: Date | null = act?.Id ? new Date(act.Id) : null;
   if (start && Number.isNaN(start.getTime())) start = null;
   const eles: (number | null)[] = [];
+  const cads: (number | null)[] = [];
+  const splits: ParsedSplit[] = [];
 
   for (const lap of laps) {
     const d = num(lap?.DistanceMeters);
     const t = num(lap?.TotalTimeSeconds);
     if (d) distanceM += d;
     if (t) durationS += t;
+    if ((d && d > 0) || (t && t > 0)) {
+      splits.push({
+        distanceM: d && d > 0 ? Math.round(d) : null,
+        durationS: t && t > 0 ? Math.round(t) : null,
+      });
+    }
     const c = num(lap?.Calories);
     if (c) calories = (calories ?? 0) + c;
     const a = hr(lap?.AverageHeartRateBpm);
@@ -167,6 +210,8 @@ function parseTcx(buf: Buffer): ParsedWorkout {
     for (const track of asArray(lap?.Track)) {
       for (const tp of asArray(track?.Trackpoint)) {
         eles.push(num(tp?.AltitudeMeters));
+        const c = num(tp?.Cadence);
+        cads.push(c !== null && c > 0 && c <= 300 ? Math.round(c) : null);
       }
     }
   }
@@ -183,7 +228,15 @@ function parseTcx(buf: Buffer): ParsedWorkout {
     calories: calories ? Math.round(calories) : null,
     steps: null,
     elevationGainM: elevationGainM(eles),
+    avgCadenceSpm: avgCadenceSpm(cads),
+    splits,
   };
+}
+
+interface FitLap {
+  total_distance?: unknown;
+  total_timer_time?: unknown;
+  total_elapsed_time?: unknown;
 }
 
 interface FitSession {
@@ -197,6 +250,7 @@ interface FitSession {
   max_heart_rate?: unknown;
   total_calories?: unknown;
   total_ascent?: unknown;
+  avg_cadence?: unknown;
 }
 
 function parseFit(buf: Buffer): Promise<ParsedWorkout> {
@@ -205,7 +259,7 @@ function parseFit(buf: Buffer): Promise<ParsedWorkout> {
     // fit-file-parser's bundled types predate generic Buffers; at runtime it
     // accepts a Node Buffer as it always has.
     const input = buf as unknown as ArrayBuffer;
-    parser.parse(input, (error: unknown, data: { sessions?: FitSession | FitSession[] } | undefined) => {
+    parser.parse(input, (error: unknown, data: { sessions?: FitSession | FitSession[]; laps?: FitLap[] } | undefined) => {
       if (error) return reject(new Error("Could not parse FIT file."));
       try {
         const raw = data?.sessions;
@@ -236,6 +290,21 @@ function parseFit(buf: Buffer): Promise<ParsedWorkout> {
             num(s.total_ascent) && num(s.total_ascent)! > 0
               ? Math.round(num(s.total_ascent)! * 10) / 10
               : null,
+          // FIT running cadence is strides/min; spm ≈ 2 per stride.
+          avgCadenceSpm:
+            num(s.avg_cadence) && num(s.avg_cadence)! > 0 && num(s.avg_cadence)! <= 150
+              ? Math.round(num(s.avg_cadence)!) * 2
+              : null,
+          splits: (data?.laps ?? [])
+            .map((lap) => {
+              const d = num(lap.total_distance);
+              const t = num(lap.total_timer_time) ?? num(lap.total_elapsed_time);
+              return {
+                distanceM: d && d > 0 ? Math.round(d) : null,
+                durationS: t && t > 0 ? Math.round(t) : null,
+              };
+            })
+            .filter((sp) => sp.distanceM !== null || sp.durationS !== null),
         });
       } catch (e) {
         reject(e instanceof Error ? e : new Error("Could not parse FIT file."));

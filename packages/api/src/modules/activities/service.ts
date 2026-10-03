@@ -38,6 +38,8 @@ export type ActivityWithJoins = {
   calories: number | null;
   steps: number | null;
   elevationGainM: number | null;
+  avgCadenceSpm: number | null;
+  splits: { id: string; position: number; distanceM: number | null; durationS: number | null }[];
   city: string | null;
   cityLat: number | null;
   cityLon: number | null;
@@ -60,6 +62,7 @@ const WITH_JOINS = {
   loggedBy: { select: { displayName: true } },
   team: { select: { name: true } },
   shoe: { select: { name: true } },
+  splits: { orderBy: { position: "asc" as const } },
 } as const;
 
 export const ACTIVITY_WITH_JOINS = WITH_JOINS;
@@ -85,6 +88,13 @@ export async function toActivityDTO(a: ActivityWithJoins): Promise<ActivityDTO> 
     calories: a.calories,
     steps: a.steps,
     elevationGainM: a.elevationGainM,
+    avgCadenceSpm: a.avgCadenceSpm,
+    splits: a.splits.map((sp) => ({
+      id: sp.id,
+      position: sp.position,
+      distanceM: sp.distanceM,
+      durationS: sp.durationS,
+    })),
     city: a.city,
     cityLat: a.cityLat,
     cityLon: a.cityLon,
@@ -223,6 +233,17 @@ export async function createActivity(
       calories: input.calories ?? undefined,
       steps: input.steps ?? undefined,
       elevationGainM: input.elevationGainM ?? undefined,
+      avgCadenceSpm: input.avgCadenceSpm ?? undefined,
+      splits:
+        input.splits && input.splits.length > 0
+          ? {
+              create: input.splits.map((sp, i) => ({
+                position: i,
+                distanceM: sp.distanceM ?? undefined,
+                durationS: sp.durationS ?? undefined,
+              })),
+            }
+          : undefined,
       city: activityCity,
       cityLat: input.cityLat ?? undefined,
       cityLon: input.cityLon ?? undefined,
@@ -450,6 +471,18 @@ export async function updateActivity(
       effortRpe: input.effortRpe,
       calories: input.calories,
       elevationGainM: input.elevationGainM,
+      avgCadenceSpm: input.avgCadenceSpm,
+      splits:
+        input.splits === undefined
+          ? undefined
+          : {
+              deleteMany: {},
+              create: input.splits.map((sp, i) => ({
+                position: i,
+                distanceM: sp.distanceM ?? undefined,
+                durationS: sp.durationS ?? undefined,
+              })),
+            },
       notes:
         input.notes === undefined ? undefined : input.notes?.trim() || null,
       teamId,
@@ -664,6 +697,7 @@ export async function logTeamRun(
         effortRpe: input.effortRpe,
         calories: input.calories,
         elevationGainM: input.elevationGainM,
+        avgCadenceSpm: input.avgCadenceSpm,
         notes: input.notes,
         teamId: input.teamId,
         visibility: input.visibility,

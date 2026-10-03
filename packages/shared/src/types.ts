@@ -354,6 +354,13 @@ export interface NotificationDTO {
   createdAt: string;
 }
 
+export interface ActivitySplitDTO {
+  id: string;
+  position: number;
+  distanceM: number | null;
+  durationS: number | null;
+}
+
 export interface ActivityDTO {  id: string;
   userId: string;
   userName: string;
@@ -372,6 +379,8 @@ export interface ActivityDTO {  id: string;
   calories: number | null;
   steps: number | null;
   elevationGainM: number | null;
+  avgCadenceSpm: number | null;
+  splits: ActivitySplitDTO[];
   city: string | null;
   cityLat: number | null;
   cityLon: number | null;
@@ -531,6 +540,8 @@ export interface ImportedActivitySummary {
   calories: number | null;
   steps: number | null;
   elevationGainM: number | null;
+  avgCadenceSpm: number | null;
+  splitCount: number;
   alreadyImported: boolean;
 }
 

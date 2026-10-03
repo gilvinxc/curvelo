@@ -39,6 +39,8 @@ function toSummary(
     calories: parsed.calories,
     steps: parsed.steps,
     elevationGainM: parsed.elevationGainM,
+    avgCadenceSpm: parsed.avgCadenceSpm,
+    splitCount: parsed.splits.length,
     alreadyImported,
   };
 }
@@ -98,6 +100,8 @@ export async function confirmImport(
     calories: parsed.calories ?? undefined,
     steps: parsed.steps ?? undefined,
     elevationGainM: parsed.elevationGainM ?? undefined,
+    avgCadenceSpm: parsed.avgCadenceSpm ?? undefined,
+    splits: parsed.splits.length > 0 ? parsed.splits : undefined,
     teamId: input.teamId,
     visibility: input.visibility,
     notes: `Imported from ${parsed.format} file ${fileName}`,

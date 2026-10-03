@@ -67,6 +67,8 @@ export async function syncCorosForUser(userId: string): Promise<CorosSyncResult>
         calories: parsed.calories ?? undefined,
         steps: parsed.steps ?? undefined,
         elevationGainM: parsed.elevationGainM ?? undefined,
+        avgCadenceSpm: parsed.avgCadenceSpm ?? undefined,
+        splits: parsed.splits.length > 0 ? parsed.splits : undefined,
         visibility: "TEAM",
         notes: "Synced from COROS",
       });

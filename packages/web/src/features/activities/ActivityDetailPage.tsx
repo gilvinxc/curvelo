@@ -124,6 +124,8 @@ export function ActivityDetailPage() {
     metrics.push({ label: "Calories", value: `${activity.calories}` });
   if (activity.elevationGainM != null)
     metrics.push({ label: "Elev gain", value: formatElevation(activity.elevationGainM, units) });
+  if (activity.avgCadenceSpm != null)
+    metrics.push({ label: "Cadence", value: `${activity.avgCadenceSpm} spm` });
 
   return (
     <div>
@@ -279,6 +281,40 @@ export function ActivityDetailPage() {
         </div>
       ) : (
         <EmptyState title="No metrics" body="This activity has no recorded metrics." />
+      )}
+
+      {activity.splits && activity.splits.length > 0 && (
+        <Card className="mt-5">
+          <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.15em] text-mist">
+            Lap splits
+          </p>
+          <div className="flex flex-col gap-1.5">
+            {activity.splits.map((sp) => {
+              const pace =
+                sp.distanceM != null && sp.durationS != null && sp.distanceM > 0 && sp.durationS > 0
+                  ? formatPaceSec((sp.durationS / sp.distanceM) * 1000, units)
+                  : "—";
+              return (
+                <div
+                  key={sp.id}
+                  className="flex items-center justify-between rounded-lg bg-white/5 px-3 py-2"
+                >
+                  <span className="text-[13px] font-bold text-mist">
+                    Lap {sp.position + 1}
+                  </span>
+                  <span className="text-[14px] font-semibold text-white">
+                    {sp.distanceM != null ? formatDistanceM(sp.distanceM, units) : "—"}
+                    {" · "}
+                    {sp.durationS != null ? formatDurationS(sp.durationS) : "—"}
+                  </span>
+                  <span className="w-20 text-right text-[13px] font-bold text-volt-300">
+                    {pace}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
       )}
 
       {activity.notes && (

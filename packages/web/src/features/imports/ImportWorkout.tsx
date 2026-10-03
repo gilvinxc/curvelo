@@ -295,6 +295,14 @@ export function ImportWorkoutPage() {
                     : "—"
                 }
               />
+              <Stat
+                label="Cadence"
+                value={summary.avgCadenceSpm != null ? `${summary.avgCadenceSpm} spm` : "—"}
+              />
+              <Stat
+                label="Lap splits"
+                value={summary.splitCount > 0 ? `${summary.splitCount}` : "—"}
+              />
             </div>
           </Card>
 
