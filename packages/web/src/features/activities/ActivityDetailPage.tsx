@@ -13,6 +13,7 @@ import {
 } from "../../components/ui";
 import { cn } from "../../components/cx";
 import { ShareToFeedDialog } from "../feed/ShareToFeedDialog";
+import { downloadIcs } from "../../lib/ics";
 import { RichText } from "../../components/RichText";
 import { AddRaceResultDialog } from "../records/RecordsSection";
 import { useUnits } from "../../lib/units";
@@ -138,6 +139,27 @@ export function ActivityDetailPage() {
                   className="min-h-[44px] px-4 text-[14px]"
                 >
                   Share
+                </Button>
+              )}
+              {activity && (
+                <Button
+                  variant="secondary"
+                  onClick={() =>
+                    downloadIcs({
+                      title: activityTitle(activity),
+                      description: activity.notes,
+                      startAt: activity.startedAt,
+                      endAt: new Date(
+                        new Date(activity.startedAt).getTime() +
+                          (activity.durationS ?? 0) * 1000,
+                      ).toISOString(),
+                      location: activity.city,
+                    })
+                  }
+                  className="min-h-[44px] px-4 text-[14px]"
+                  title="Download a calendar file to add this to your phone's calendar"
+                >
+                  📅 Add
                 </Button>
               )}
               {isOwner && (

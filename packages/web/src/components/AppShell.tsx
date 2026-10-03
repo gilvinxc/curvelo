@@ -54,7 +54,11 @@ export function AppShell() {
                 aria-label="Settings"
                 className="flex items-center gap-2 rounded-full border border-white/10 bg-ink-900 py-1 pl-1 pr-3 transition hover:border-white/25"
               >
-                <Avatar name={user.displayName} size="sm" />
+                <Avatar
+                  name={user.displayName}
+                  size="sm"
+                  imageUrl={user.hasAvatar ? api.avatarUrl(user.id) : undefined}
+                />
                 <span className="max-w-[120px] truncate text-[14px] font-semibold">
                   {user.displayName}
                 </span>

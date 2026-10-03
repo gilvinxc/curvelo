@@ -9,6 +9,7 @@ export interface SessionUser {
   email: string;
   displayName: string;
   systemRole: string | null;
+  hasAvatar: boolean;
   memberships: Array<{
     teamId: string;
     teamName: string;

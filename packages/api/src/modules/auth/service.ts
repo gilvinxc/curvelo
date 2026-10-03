@@ -24,6 +24,7 @@ const PUBLIC_USER_SELECT = {
   email: true,
   displayName: true,
   systemRole: true,
+  avatarImage: true,
 } as const;
 
 function toSessionUser(
@@ -32,6 +33,7 @@ function toSessionUser(
     email: string;
     displayName: string;
     systemRole: string | null;
+    avatarImage: Buffer | null;
     memberships: Array<{
       role: string;
       status: string;
@@ -44,6 +46,7 @@ function toSessionUser(
     email: user.email,
     displayName: user.displayName,
     systemRole: user.systemRole,
+    hasAvatar: user.avatarImage != null,
     memberships: user.memberships.map((m) => ({
       teamId: m.team.id,
       teamName: m.team.name,

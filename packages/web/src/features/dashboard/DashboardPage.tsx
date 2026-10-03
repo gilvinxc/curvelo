@@ -11,6 +11,7 @@ import {
   FullScreenLoader,
   RoleBadge,
 } from "../../components/ui";
+import { TeamLogo } from "../teams/TeamLogo";
 import { UpcomingWorkouts } from "../calendar/PersonalCalendar";
 import { TrainingLog } from "../activities/TrainingLog";
 
@@ -142,7 +143,7 @@ export function DashboardPage() {
             <Link key={team.id} to={`/teams/${team.id}`} className="block">
               <Card className="transition hover:border-volt-400/40">
                 <div className="flex items-center gap-3">
-                  <Avatar name={team.name} />
+                  <TeamLogo teamId={team.id} teamName={team.name} hasLogo={team.hasLogo ?? false} size={44} />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <h3 className="truncate text-[17px] font-extrabold tracking-tight">

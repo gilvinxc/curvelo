@@ -673,6 +673,10 @@ export const api = {
     put<{ ok: boolean }>(`/teams/${teamId}/logo`, { image }),
   removeTeamLogo: (teamId: string) => del<{ ok: boolean }>(`/teams/${teamId}/logo`),
   teamLogoUrl: (teamId: string) => `${BASE_URL}/teams/${teamId}/logo`,
+  setAvatar: (image: string) =>
+    put<{ ok: boolean; hasAvatar: boolean }>("/users/me/avatar", { image }),
+  removeAvatar: () => del<{ ok: boolean; hasAvatar: boolean }>("/users/me/avatar"),
+  avatarUrl: (userId: string) => `${BASE_URL}/users/${userId}/avatar`,
 
   // coach athlete view
   getAthlete: (teamId: string, userId: string) =>

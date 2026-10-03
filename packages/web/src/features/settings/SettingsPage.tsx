@@ -1,8 +1,9 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { ApiError, api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
+import { resizeImageFile } from "../teams/TeamLogo";
 import {
   formatHeight,
   formatWeight,
@@ -36,6 +37,97 @@ const SHARE_LEVELS = [
 ] as const;
 
 type ShareLevel = (typeof SHARE_LEVELS)[number]["value"];
+
+/** Profile picture upload with preview. */
+function AvatarCard() {
+  const { user, refresh } = useAuth();
+  const queryClient = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const onPick = async (file: File | undefined) => {
+    if (!file) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const dataUrl = await resizeImageFile(file, 256);
+      await api.setAvatar(dataUrl);
+      await refresh();
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't upload the photo.");
+    } finally {
+      setBusy(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const remove = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await api.removeAvatar();
+      await refresh();
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't remove the photo.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!user) return null;
+  return (
+    <Card className="mb-4">
+      <div className="flex items-center gap-4">
+        <Avatar
+          name={user.displayName}
+          size="lg"
+          imageUrl={user.hasAvatar ? api.avatarUrl(user.id) : undefined}
+        />
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-xl font-extrabold tracking-tight">
+            {user.displayName}
+          </h2>
+          <p className="truncate text-[14px] text-mist">{user.email}</p>
+        </div>
+      </div>
+      {error && (
+        <div className="mt-3">
+          <ErrorBanner message={error} />
+        </div>
+      )}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => void onPick(e.target.files?.[0])}
+        />
+        <Button
+          variant="secondary"
+          className="min-h-[44px] px-4 text-[14px]"
+          disabled={busy}
+          onClick={() => fileRef.current?.click()}
+        >
+          {busy ? "Uploading…" : user.hasAvatar ? "Change photo" : "Add profile photo"}
+        </Button>
+        {user.hasAvatar && (
+          <Button
+            variant="secondary"
+            className="min-h-[44px] px-4 text-[14px]"
+            disabled={busy}
+            onClick={() => void remove()}
+          >
+            Remove
+          </Button>
+        )}
+      </div>
+    </Card>
+  );
+}
 
 export function SettingsPage() {
   const { user, logout } = useAuth();
@@ -173,17 +265,7 @@ export function SettingsPage() {
     <div className="mx-auto w-full max-w-xl">
       <PageHeader title="Settings" backTo="/dashboard" />
 
-      <Card className="mb-4">
-        <div className="flex items-center gap-4">
-          <Avatar name={profile.displayName} size="lg" />
-          <div className="min-w-0">
-            <h2 className="truncate text-xl font-extrabold tracking-tight">
-              {profile.displayName}
-            </h2>
-            <p className="truncate text-[14px] text-mist">{profile.email}</p>
-          </div>
-        </div>
-      </Card>
+      <AvatarCard />
 
       <Card>
         <form onSubmit={submit} className="flex flex-col gap-5">

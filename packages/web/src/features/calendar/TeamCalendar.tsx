@@ -10,6 +10,7 @@ import {
 import { AssignmentRow, CalendarMonth, monthRange } from "./CalendarBits";
 import { ActivityRow } from "../activities/ActivityRow";
 import { EventDialog } from "./EventDialog";
+import { downloadIcs } from "../../lib/ics";
 import type { TeamEventDTO } from "@curvelo/shared";
 import { activityYMD } from "../../lib/activityFormat";
 import { formatYMDLong, toYMD } from "../../lib/workoutFormat";
@@ -74,25 +75,43 @@ function EventRow({
             {event.location && ` · ${event.location}`}
           </p>
         </div>
-        {canManage && (
-          <div className="flex shrink-0 gap-1">
-            <button
-              type="button"
-              onClick={onEdit}
-              className="rounded-lg px-3 py-2 text-[13px] font-semibold text-mist hover:text-ink-50"
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              onClick={onDelete}
-              disabled={deleting}
-              className="rounded-lg px-3 py-2 text-[13px] font-semibold text-mist hover:text-red-300"
-            >
-              Delete
-            </button>
-          </div>
-        )}
+        <div className="flex shrink-0 gap-1">
+          <button
+            type="button"
+            onClick={() =>
+              downloadIcs({
+                title: event.title,
+                description: [event.description, event.itinerary].filter(Boolean).join("\n\n"),
+                startAt: event.startAt,
+                endAt: event.endAt,
+                location: event.location,
+              })
+            }
+            className="rounded-lg px-3 py-2 text-[13px] font-semibold text-mist hover:text-ink-50"
+            title="Download a calendar file to add this to your phone's calendar"
+          >
+            📅 Add
+          </button>
+          {canManage && (
+            <>
+              <button
+                type="button"
+                onClick={onEdit}
+                className="rounded-lg px-3 py-2 text-[13px] font-semibold text-mist hover:text-ink-50"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={onDelete}
+                disabled={deleting}
+                className="rounded-lg px-3 py-2 text-[13px] font-semibold text-mist hover:text-red-300"
+              >
+                Delete
+              </button>
+            </>
+          )}
+        </div>
       </div>
       {hasDetails && (
         <button

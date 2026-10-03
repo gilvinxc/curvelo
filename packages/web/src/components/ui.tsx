@@ -234,11 +234,31 @@ export function Avatar({
   name,
   size = "md",
   className,
+  imageUrl,
 }: {
   name: string;
   size?: "sm" | "md" | "lg";
   className?: string;
+  imageUrl?: string;
 }) {
+  const sizes = {
+    sm: "h-9 w-9 text-[13px]",
+    md: "h-11 w-11 text-[15px]",
+    lg: "h-16 w-16 text-xl",
+  };
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt={name}
+        className={cn(
+          "inline-flex shrink-0 rounded-full object-cover",
+          sizes[size],
+          className,
+        )}
+      />
+    );
+  }
   const initials = name
     .split(/\s+/)
     .map((w) => w[0])
@@ -249,11 +269,6 @@ export function Avatar({
     avatarHues[
       [...name].reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % avatarHues.length
     ];
-  const sizes = {
-    sm: "h-9 w-9 text-[13px]",
-    md: "h-11 w-11 text-[15px]",
-    lg: "h-16 w-16 text-xl",
-  };
   return (
     <span
       aria-hidden
