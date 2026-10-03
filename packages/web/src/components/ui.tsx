@@ -10,16 +10,16 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "./cx";
-import { BRAND_LOGO_SRC, BRAND_NAME } from "../brand";
+import { BRAND_ICON_SRC, BRAND_LOGO_SRC, BRAND_NAME } from "../brand";
 
 /* ---------------------------------- logo --------------------------------- */
 
 export function Logo({ compact = false }: { compact?: boolean }) {
   return (
     <img
-      src={BRAND_LOGO_SRC}
+      src={compact ? BRAND_ICON_SRC : BRAND_LOGO_SRC}
       alt={BRAND_NAME}
-      className={compact ? "h-9 w-auto" : "h-12 w-auto"}
+      className={compact ? "h-9 w-9" : "h-12 w-auto"}
     />
   );
 }

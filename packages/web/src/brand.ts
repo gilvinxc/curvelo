@@ -7,3 +7,4 @@
 export const BRAND_NAME = "Stride Sense";
 export const BRAND_TAGLINE = "Empower Your Run";
 export const BRAND_LOGO_SRC = "/stride-sense-logo.png";
+export const BRAND_ICON_SRC = "/stride-sense-icon.png";

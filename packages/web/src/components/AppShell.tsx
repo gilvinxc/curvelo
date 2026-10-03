@@ -103,7 +103,7 @@ export function AppShell() {
               </svg>
             </button>
             <Link to="/dashboard" aria-label={`${BRAND_NAME} home`}>
-              <Logo />
+              <Logo compact />
             </Link>
           </div>
           {!loading && user && (
