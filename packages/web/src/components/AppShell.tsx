@@ -3,10 +3,10 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../lib/auth";
 import { api } from "../lib/api";
-import { Avatar, Logo } from "./ui";
+import { Avatar } from "./ui";
 
 import { HelpGuide } from "./HelpGuide";
-import { BRAND_NAME } from "../brand";
+import { BRAND_ICON_SRC, BRAND_NAME } from "../brand";
 
 /** Slide-out navigation drawer. */
 function NavDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -82,7 +82,7 @@ export function AppShell() {
   return (
     <div className="min-h-dvh">
       <header className="sticky top-0 z-40 border-b border-white/10 bg-ink-950/90 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
+        <div className="relative mx-auto flex h-16 max-w-3xl items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setHelpOpen(true)}
@@ -102,10 +102,17 @@ export function AppShell() {
                 <path d="M4 7h16M4 12h16M4 17h16" />
               </svg>
             </button>
-            <Link to="/dashboard" aria-label={`${BRAND_NAME} home`}>
-              <Logo compact />
-            </Link>
           </div>
+          <Link
+            to="/dashboard"
+            aria-label={`${BRAND_NAME} home`}
+            className="absolute left-1/2 flex -translate-x-1/2 items-center gap-2.5"
+          >
+            <img src={BRAND_ICON_SRC} alt="" className="h-10 w-10" />
+            <span className="text-xl font-black tracking-tight text-white">
+              Stride <span className="text-volt-400">Sense</span>
+            </span>
+          </Link>
           {!loading && user && (
             <div className="flex items-center gap-2">
               <button
