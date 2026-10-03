@@ -1,5 +1,6 @@
 import type {
   ActivityDTO,
+  ActivityTagDTO,
   ActivityStatsDTO,
   AssignmentDTO,
   AthleteViewDTO,
@@ -15,7 +16,7 @@ import { mentionRefsFor, syncMentions } from "../../lib/mentions.js";
 import { checkGoalCompletions } from "../goals/service.js";
 import { assertOwnShoe, getDefaultShoeId } from "../records/service.js";
 import { audit } from "../../lib/audit.js";
-import { AppError, forbidden, notFound } from "../../lib/errors.js";
+import { AppError, badRequest, forbidden, notFound } from "../../lib/errors.js";
 import {
   activeMembership,
   requireManager,
@@ -215,6 +216,8 @@ export async function createActivity(
   });
   const activityCity = input.city?.trim() || ownerProfile?.city?.trim() || null;
 
+  const effectiveVisibility = input.visibility ?? (await defaultVisibility(ownerId));
+
   const activity = await db.activity.create({
     data: {
       userId: ownerId,
@@ -251,7 +254,7 @@ export async function createActivity(
       weatherTempC: input.weatherTempC ?? undefined,
       weatherCondition: input.weatherCondition?.trim() || null,
       notes: input.notes?.trim() || null,
-      visibility: input.visibility ?? (await defaultVisibility(ownerId)),
+      visibility: effectiveVisibility,
       shoeId,
       source: provenance?.source ?? "MANUAL",
       externalId: provenance?.externalId ?? null,
@@ -338,6 +341,20 @@ export async function createActivity(
       create: { userId: ownerId, weightKg: input.weightKg },
       update: { weightKg: input.weightKg },
     });
+  }
+
+  // Teammate tags: notify each tagged runner ("add it to your log?").
+  // Tags only make sense on team-visible activities.
+  if (input.taggedUserIds && input.taggedUserIds.length > 0) {
+    if (!teamId || effectiveVisibility !== "TEAM") {
+      throw badRequest("Teammate tags require a team-visible activity");
+    }
+    await tagTeammates(activity.id, actorId, teamId, input.taggedUserIds);
+  }
+
+  // Accepting a tag: this new activity is the tagged user's own log.
+  if (input.fromTagId) {
+    await acceptActivityTag(ownerId, input.fromTagId);
   }
 
   await audit({
@@ -565,6 +582,14 @@ export async function updateActivity(
     });
   }
 
+  // A run that goes private invalidates its pending teammate tags.
+  if (input.visibility === "PRIVATE" && activity.visibility === "PRIVATE") {
+    await db.activityTag.updateMany({
+      where: { activityId, status: "PENDING" },
+      data: { status: "INVALIDATED", respondedAt: new Date() },
+    });
+  }
+
   await audit({
     actorId,
     action: "ACTIVITY_UPDATED",
@@ -599,6 +624,174 @@ export async function deleteActivity(
     entityId: activityId,
     ipAddress,
   });
+}
+
+/**
+ * Tag teammates in a run: each tagged user gets a PENDING tag plus a
+ * RUN_TAGGED notification linking to a prefilled log form. Nothing is
+ * auto-logged — the tagged user approves (and edits) before saving.
+ * Like @-mentions, tags stay inside the trusted same-team circle.
+ */
+async function tagTeammates(
+  activityId: string,
+  taggerId: string,
+  teamId: string,
+  taggedUserIds: string[],
+): Promise<void> {
+  const tagger = await db.user.findUnique({
+    where: { id: taggerId },
+    select: { displayName: true },
+  });
+  const seen = new Set<string>();
+  for (const taggedUserId of taggedUserIds) {
+    if (taggedUserId === taggerId) {
+      throw badRequest("You can't tag yourself");
+    }
+    if (seen.has(taggedUserId)) continue;
+    seen.add(taggedUserId);
+    // Tags only for active members of the run's team.
+    const membership = await activeMembership(taggedUserId, teamId).catch(
+      () => null,
+    );
+    if (!membership) {
+      throw forbidden("Tagged users must be active members of the team");
+    }
+    const tag = await db.activityTag.create({
+      data: { activityId, taggedUserId, status: "PENDING" },
+    });
+    await db.notification.create({
+      data: {
+        userId: taggedUserId,
+        type: "RUN_TAGGED",
+        title: `${tagger?.displayName ?? "A teammate"} tagged you in their run`,
+        body: "Review it and add it to your log — your numbers, your call.",
+        link: `/activities/new?fromTag=${tag.id}`,
+      },
+    });
+  }
+  await audit({
+    actorId: taggerId,
+    action: "ACTIVITY_TAGGED",
+    entityType: "Activity",
+    entityId: activityId,
+    metadata: { taggedUserIds: [...seen] },
+  });
+}
+
+/**
+ * Accept a teammate tag while saving the tagged user's own activity.
+ * The tag must be PENDING and the source run still team-visible.
+ */
+async function acceptActivityTag(ownerId: string, tagId: string): Promise<void> {
+  const tag = await db.activityTag.findUnique({
+    where: { id: tagId },
+    include: { activity: { select: { visibility: true } } },
+  });
+  if (!tag || tag.taggedUserId !== ownerId) {
+    throw notFound("Tag not found");
+  }
+  if (tag.status !== "PENDING") {
+    throw badRequest("This tag was already handled");
+  }
+  if (tag.activity.visibility !== "TEAM") {
+    await db.activityTag.update({
+      where: { id: tagId },
+      data: { status: "INVALIDATED", respondedAt: new Date() },
+    });
+    throw new AppError(
+      410,
+      "TAG_INVALID",
+      "The tagged run is no longer shared with the team",
+    );
+  }
+  await db.activityTag.update({
+    where: { id: tagId },
+    data: { status: "ACCEPTED", respondedAt: new Date() },
+  });
+}
+
+/**
+ * Load a tag for the prefilled "add it to your log" form. Only the tagged
+ * user can read their own tag; a tag whose source run went private is
+ * invalidated on sight.
+ */
+export async function getActivityTag(
+  actorId: string,
+  tagId: string,
+): Promise<ActivityTagDTO> {
+  const tag = await db.activityTag.findUnique({
+    where: { id: tagId },
+    include: {
+      activity: {
+        include: {
+          user: { select: { displayName: true } },
+          team: { select: { name: true } },
+        },
+      },
+    },
+  });
+  if (!tag || tag.taggedUserId !== actorId) {
+    throw notFound("Tag not found");
+  }
+  if (tag.status === "INVALIDATED") {
+    throw new AppError(410, "TAG_INVALID", "This tag is no longer valid");
+  }
+  if (tag.activity.visibility !== "TEAM") {
+    await db.activityTag.update({
+      where: { id: tag.id },
+      data: { status: "INVALIDATED", respondedAt: new Date() },
+    });
+    throw new AppError(
+      410,
+      "TAG_INVALID",
+      "The tagged run is no longer shared with the team",
+    );
+  }
+  const a = tag.activity;
+  return {
+    id: tag.id,
+    status: tag.status,
+    taggerId: a.userId,
+    taggerName: a.user.displayName,
+    teamId: a.teamId,
+    teamName: a.team?.name ?? null,
+    createdAt: tag.createdAt.toISOString(),
+    prefill: {
+      title: a.title,
+      startedAt: a.startedAt.toISOString(),
+      distanceM: a.distanceM,
+      durationS: a.durationS,
+      avgHrBpm: a.avgHrBpm,
+      maxHrBpm: a.maxHrBpm,
+      effortRpe: a.effortRpe,
+      calories: a.calories,
+      steps: a.steps,
+      elevationGainM: a.elevationGainM,
+      avgCadenceSpm: a.avgCadenceSpm,
+      city: a.city,
+      terrain: a.terrain,
+      notes: a.notes,
+    },
+  };
+}
+
+/** Decline a tag: no activity is created. Only the tagged user. */
+export async function declineActivityTag(
+  actorId: string,
+  tagId: string,
+): Promise<{ ok: boolean }> {
+  const tag = await db.activityTag.findUnique({ where: { id: tagId } });
+  if (!tag || tag.taggedUserId !== actorId) {
+    throw notFound("Tag not found");
+  }
+  if (tag.status !== "PENDING") {
+    throw badRequest("This tag was already handled");
+  }
+  await db.activityTag.update({
+    where: { id: tagId },
+    data: { status: "DECLINED", respondedAt: new Date() },
+  });
+  return { ok: true };
 }
 
 /**

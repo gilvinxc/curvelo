@@ -105,6 +105,7 @@ export async function confirmImport(
     teamId: input.teamId,
     visibility: input.visibility,
     notes: `Imported from ${parsed.format} file ${fileName}`,
+    taggedUserIds: input.taggedUserIds,
   });
   try {
     activity = await createActivity(

@@ -397,6 +397,35 @@ export interface ActivityDTO {  id: string;
   loggedByName: string | null;
 }
 
+export interface ActivityTagDTO {
+  id: string;
+  status: string; // PENDING | ACCEPTED | DECLINED | INVALIDATED
+  taggerId: string;
+  taggerName: string;
+  teamId: string | null;
+  teamName: string | null;
+  createdAt: string;
+  // Prefilled values from the tagged run (editable before saving).
+  prefill: {
+    title: string | null;
+    startedAt: string;
+    distanceM: number | null;
+    durationS: number | null;
+    avgHrBpm: number | null;
+    maxHrBpm: number | null;
+    effortRpe: number | null;
+    calories: number | null;
+    steps: number | null;
+    elevationGainM: number | null;
+    avgCadenceSpm: number | null;
+    city: string | null;
+    terrain: string | null;
+    notes: string | null;
+  };
+}
+
+
+
 export interface ActivityStatsDTO {
   count: number;
   totalDistanceM: number;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError, type CreateActivityPayload } from "../../lib/api";
@@ -96,6 +96,7 @@ interface FormState {
   teamId: string;
   visibility: "TEAM" | "PRIVATE";
   shareToFeed: boolean;
+  taggedUserIds: string[];
   shoeId: string | null;
   weight: string;
   height: string;
@@ -133,6 +134,7 @@ function blankForm(): FormState {  return {
     teamId: "",
     visibility: "TEAM",
     shareToFeed: false,
+    taggedUserIds: [],
     shoeId: null,
     weight: "",
     height: "",
@@ -197,6 +199,14 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
   const preWorkoutTitle = searchParams.get("workoutTitle") ?? "";
   const preScheduledDate = searchParams.get("scheduledDate") ?? "";
   const preTeamId = searchParams.get("teamId") ?? "";
+  const fromTagId = mode === "new" ? searchParams.get("fromTag") : null;
+
+  const tagQuery = useQuery({
+    queryKey: ["activityTag", fromTagId],
+    queryFn: () => api.getActivityTag(fromTagId!),
+    enabled: mode === "new" && !!fromTagId,
+    retry: false,
+  });
 
   const [form, setForm] = useState<FormState>(() => {
     const f = blankForm();
@@ -258,11 +268,45 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       teamId: a.teamId ?? "",
       visibility: a.visibility === "PRIVATE" ? "PRIVATE" : "TEAM",
       shareToFeed: false,
+      taggedUserIds: [],
       shoeId: a.shoeId ?? null,
       weight: "",
       height: profileHeightCm != null ? formatHeight(profileHeightCm, units) : "",
     });
   }, [detailQuery.data]);
+
+  // Teammate tag: prefill the form from the tagged run. Everything stays
+  // editable — saving creates the user's OWN activity and accepts the tag.
+  const tagPrefilled = useRef(false);
+  useEffect(() => {
+    const tag = tagQuery.data?.tag;
+    if (mode !== "new" || !tag || tag.status !== "PENDING" || tagPrefilled.current) return;
+    tagPrefilled.current = true;
+    const pf = tag.prefill;
+    setForm((f) => ({
+      ...blankForm(),
+      weight: f.weight,
+      height: f.height,
+      title: pf.title ?? "",
+      startedAt: isoToLocalInput(pf.startedAt),
+      distance: pf.distanceM != null ? trimNum(fromMeters(pf.distanceM, units)) : "",
+      duration: pf.durationS != null ? formatDurationS(pf.durationS) : "",
+      avgHr: pf.avgHrBpm != null ? String(pf.avgHrBpm) : "",
+      maxHr: pf.maxHrBpm != null ? String(pf.maxHrBpm) : "",
+      rpeOn: pf.effortRpe != null,
+      rpe: pf.effortRpe ?? 7,
+      calories: pf.calories != null ? String(pf.calories) : "",
+      steps: pf.steps != null ? String(pf.steps) : "",
+      elevation:
+        pf.elevationGainM != null ? trimNum(fromMetersElev(pf.elevationGainM, units)) : "",
+      cadence: pf.avgCadenceSpm != null ? String(pf.avgCadenceSpm) : "",
+      city: pf.city ?? "",
+      terrain: pf.terrain ?? "",
+      notes: pf.notes ?? "",
+      teamId: tag.teamId ?? "",
+      visibility: "TEAM",
+    }));
+  }, [mode, tagQuery.data, units]);
 
   const teamsQuery = useQuery({
     queryKey: ["teams"],
@@ -281,6 +325,30 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       return { ...f, teamId: match ? match.id : teams[0].id };
     });
   }, [mode, teams]);
+
+  // Roster for the teammate tag picker (new TEAM-visible runs only).
+  const tagRosterQuery = useQuery({
+    queryKey: ["roster", form.teamId],
+    queryFn: () => api.getRoster(form.teamId),
+    enabled:
+      mode === "new" &&
+      !fromTagId &&
+      form.teamId !== "" &&
+      form.visibility === "TEAM",
+  });
+  const taggableTeammates =
+    tagRosterQuery.data?.roster.filter(
+      (m) => m.status === "ACTIVE" && m.userId !== user?.id,
+    ) ?? [];
+  const toggleTagged = (id: string) =>
+    set("taggedUserIds", form.taggedUserIds.includes(id)
+      ? form.taggedUserIds.filter((t) => t !== id)
+      : [...form.taggedUserIds, id]);
+
+  const declineTagMutation = useMutation({
+    mutationFn: () => api.declineActivityTag(fromTagId!),
+    onSuccess: () => navigate("/dashboard"),
+  });
 
   const isOwner =
     mode === "new" || detailQuery.data?.activity.userId === user?.id;
@@ -449,6 +517,9 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
       if (form.weight.trim() !== "" && !Number.isNaN(wVal) && wVal > 0)
         payload.weightKg = toKg(wVal, units);
       if (mode === "new" && assignmentId) payload.assignmentId = assignmentId;
+      if (mode === "new" && form.taggedUserIds.length > 0)
+        payload.taggedUserIds = form.taggedUserIds;
+      if (mode === "new" && fromTagId) payload.fromTagId = fromTagId;
 
       if (mode === "edit" && id) {
         const res = await api.updateActivity(id, payload);
@@ -526,6 +597,37 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
         }
         backTo={mode === "new" ? "/dashboard" : `/activities/${id}`}
       />
+
+      {mode === "new" && fromTagId && (
+        <Card className="mb-5 border-volt-400/30 bg-volt-400/5">
+          {tagQuery.isLoading ? (
+            <p className="text-[14px] text-mist">Loading tagged run…</p>
+          ) : tagQuery.isError || tagQuery.data?.tag.status !== "PENDING" ? (
+            <p className="text-[14px] text-mist">
+              This tag is no longer available — the run may have been deleted,
+              made private, or already handled.
+            </p>
+          ) : (
+            <>
+              <p className="text-[15px] font-bold text-white">
+                {tagQuery.data.tag.taggerName} tagged you in their run
+              </p>
+              <p className="mt-1 text-[14px] text-mist">
+                Review the prefilled values below and save to add it to your
+                log — your numbers, your call.
+              </p>
+              <button
+                type="button"
+                onClick={() => declineTagMutation.mutate()}
+                disabled={declineTagMutation.isPending}
+                className="mt-3 text-[14px] font-semibold text-mist underline hover:text-white"
+              >
+                {declineTagMutation.isPending ? "Declining…" : "Not my run — decline"}
+              </button>
+            </>
+          )}
+        </Card>
+      )}
 
       {mode === "new" && preWorkoutTitle && preScheduledDate && (
         <Card className="mb-5 border-volt-400/30 bg-volt-400/5">
@@ -925,6 +1027,36 @@ function ActivityForm({ mode }: { mode: "new" | "edit" }) {
               </span>
             </span>
           </label>
+        )}
+
+        {mode === "new" && !fromTagId && form.teamId && form.visibility === "TEAM" && (
+          <Field
+            label="Tag teammates"
+            hint="They'll get a nudge to add this run to their own log — nothing is logged for them automatically."
+          >
+            {tagRosterQuery.isLoading ? (
+              <p className="text-[14px] text-mist">Loading teammates…</p>
+            ) : taggableTeammates.length === 0 ? (
+              <p className="text-[14px] text-mist">No teammates to tag.</p>
+            ) : (
+              <div className="flex flex-col gap-1">
+                {taggableTeammates.map((m) => (
+                  <label
+                    key={m.userId}
+                    className="flex items-center gap-3 rounded-xl border border-white/10 bg-ink-900 px-4 py-2.5"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.taggedUserIds.includes(m.userId)}
+                      onChange={() => toggleTagged(m.userId)}
+                      className="h-5 w-5 accent-lime-400"
+                    />
+                    <span className="text-[15px] font-medium">{m.displayName}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </Field>
         )}
 
         {(mode === "new" || isOwner) && (

@@ -67,6 +67,11 @@ export const createActivitySchema = z
     // Current body weight; when provided it also updates the profile.
     weightKg: z.number().min(25).max(350).optional(),
     splits: z.array(activitySplitSchema).max(200).optional(),
+    // Teammate tags: user ids to notify ("add it to your log?").
+    // Only valid on TEAM-visible activities; enforced in the service.
+    taggedUserIds: z.array(z.string().uuid()).max(20).optional(),
+    // Accepting a tag: marks the tag ACCEPTED after this activity saves.
+    fromTagId: z.string().uuid().optional(),
   })
   .refine((a) => a.distanceM !== undefined || a.durationS !== undefined, {
     message: "Log at least a distance or a duration",

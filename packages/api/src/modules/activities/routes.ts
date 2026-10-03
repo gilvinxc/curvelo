@@ -11,8 +11,10 @@ import {
 import {
   athleteView,
   createActivity,
+  declineActivityTag,
   deleteActivity,
   getActivity,
+  getActivityTag,
   listMyActivities,
   logTeamRun,
   myRecords,
@@ -158,6 +160,29 @@ export async function activityRoutes(app: FastifyInstance): Promise<void> {
       const { id } = activityParamsSchema.parse(request.params);
       await deleteActivity(request.user!.id, id, request.ip);
       return reply.send({ ok: true });
+    },
+  );
+
+  // Teammate tag: prefilled "add it to your log" form data.
+  // Only the tagged user can read their own tag.
+  app.get(
+    "/activity-tags/:id",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { id } = activityParamsSchema.parse(request.params);
+      const tag = await getActivityTag(request.user!.id, id);
+      return reply.send({ tag });
+    },
+  );
+
+  // Decline a tag: no activity is created. Tagged user only.
+  app.post(
+    "/activity-tags/:id/decline",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { id } = activityParamsSchema.parse(request.params);
+      const result = await declineActivityTag(request.user!.id, id);
+      return reply.send(result);
     },
   );
 

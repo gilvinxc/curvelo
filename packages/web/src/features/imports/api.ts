@@ -5,6 +5,7 @@ export interface ImportOptions {
   title?: string;
   visibility?: "PRIVATE" | "TEAM";
   teamId?: string;
+  taggedUserIds?: string[];
 }
 
 type ImportEndpoint = "/activities/import/preview" | "/activities/import/confirm";

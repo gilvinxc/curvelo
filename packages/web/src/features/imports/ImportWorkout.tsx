@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ActivityDTO, ImportedActivitySummary } from "@curvelo/shared";
 import { api, ApiError } from "../../lib/api";
+import { useAuth } from "../../lib/auth";
 import { confirmImport, previewImport } from "./api";
 import {
   Button,
@@ -56,6 +57,7 @@ export function ImportWorkoutPage() {
   const [title, setTitle] = useState("");
   const [visibility, setVisibility] = useState<"TEAM" | "PRIVATE">("TEAM");
   const [teamId, setTeamId] = useState("");
+  const [taggedUserIds, setTaggedUserIds] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
   const [pickError, setPickError] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -67,6 +69,17 @@ export function ImportWorkoutPage() {
     queryFn: () => api.listTeams(),
   });
   const teams = teamsQuery.data?.teams ?? [];
+  const { user } = useAuth();
+
+  const tagRosterQuery = useQuery({
+    queryKey: ["roster", teamId],
+    queryFn: () => api.getRoster(teamId),
+    enabled: phase === "preview" && teamId !== "" && visibility === "TEAM",
+  });
+  const taggableTeammates =
+    tagRosterQuery.data?.roster.filter(
+      (m) => m.status === "ACTIVE" && m.userId !== user?.id,
+    ) ?? [];
 
   function validateFile(f: File): string | null {
     const lower = f.name.toLowerCase();
@@ -110,6 +123,7 @@ export function ImportWorkoutPage() {
     setTitle("");
     setVisibility("TEAM");
     setTeamId("");
+    setTaggedUserIds([]);
     setPickError(null);
     setRequestError(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -124,6 +138,7 @@ export function ImportWorkoutPage() {
         title: title.trim() || undefined,
         visibility,
         teamId: teamId || undefined,
+        taggedUserIds: taggedUserIds.length > 0 ? taggedUserIds : undefined,
       });
       setCreated(res.activity);
       setPhase("done");
@@ -364,6 +379,42 @@ export function ImportWorkoutPage() {
                   ]}
                 />
               </Field>
+
+              {teamId && visibility === "TEAM" && (
+                <Field
+                  label="Tag teammates"
+                  hint="They'll get a nudge to add this run to their own log."
+                >
+                  {tagRosterQuery.isLoading ? (
+                    <p className="text-[14px] text-mist">Loading teammates…</p>
+                  ) : taggableTeammates.length === 0 ? (
+                    <p className="text-[14px] text-mist">No teammates to tag.</p>
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      {taggableTeammates.map((m) => (
+                        <label
+                          key={m.userId}
+                          className="flex items-center gap-3 rounded-xl border border-white/10 bg-ink-900 px-4 py-2.5"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={taggedUserIds.includes(m.userId)}
+                            onChange={() =>
+                              setTaggedUserIds((ids) =>
+                                ids.includes(m.userId)
+                                  ? ids.filter((t) => t !== m.userId)
+                                  : [...ids, m.userId],
+                              )
+                            }
+                            className="h-5 w-5 accent-lime-400"
+                          />
+                          <span className="text-[15px] font-medium">{m.displayName}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </Field>
+              )}
 
               <Button
                 onClick={handleConfirm}

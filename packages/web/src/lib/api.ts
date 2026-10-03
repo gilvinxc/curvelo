@@ -1,6 +1,7 @@
 import type {
   AcceptGuardianInviteInput,
   ActivityDTO,
+  ActivityTagDTO,
   ActivityStatsDTO,
   AssignmentDTO,
   AthleteDocumentStatus,
@@ -266,6 +267,8 @@ export interface CreateActivityPayload {
   avgCadenceSpm?: number;
   splits?: { distanceM?: number; durationS?: number }[];
   shareToFeed?: boolean;
+  taggedUserIds?: string[];
+  fromTagId?: string;
   city?: string;
   cityLat?: number;
   cityLon?: number;
@@ -633,6 +636,10 @@ export const api = {
     ),
   getActivity: (id: string) =>
     request<{ activity: ActivityDTO }>(`/activities/${id}`),
+  getActivityTag: (id: string) =>
+    request<{ tag: ActivityTagDTO }>(`/activity-tags/${id}`),
+  declineActivityTag: (id: string) =>
+    post<{ ok: boolean }>(`/activity-tags/${id}/decline`, {}),
   updateActivity: (id: string, input: UpdateActivityPayload) =>
     patch<{ activity: ActivityDTO }>(`/activities/${id}`, input),
   deleteActivity: (id: string) => del<{ ok: boolean }>(`/activities/${id}`),

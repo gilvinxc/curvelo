@@ -96,6 +96,7 @@ model User {
   receivedAssignments       WorkoutAssignment[]  @relation("AssignmentRecipient")
   groupMemberships          TeamGroupMember[]
   activities                Activity[]
+  activityTags              ActivityTag[]          @relation("TaggedUser")
   personalPlans           PersonalPlan[]
   loggedActivities          Activity[]           @relation("ActivityLogger")
   authoredPosts             FeedPost[]           @relation("PostAuthor")
@@ -575,10 +576,30 @@ model Activity {
 
   sharedInPosts FeedPost[] @relation("SharedInPosts")
   splits        ActivitySplit[]
+  tags          ActivityTag[]
 
   @@unique([source, externalId])
   @@index([userId, startedAt])
   @@index([teamId, startedAt])
+}
+
+// ─── Teammate tags: "I ran with you — add it to your log?" ────────────────
+// Tagging is opt-in on both sides: the tagger picks teammates, each tagged
+// user approves (prefilled, editable) or declines. Never auto-logs.
+
+model ActivityTag {
+  id           String   @id @default(uuid())
+  activityId   String
+  activity     Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  taggedUserId String
+  taggedUser   User     @relation("TaggedUser", fields: [taggedUserId], references: [id], onDelete: Cascade)
+  // PENDING | ACCEPTED | DECLINED | INVALIDATED (source went private/deleted)
+  status       String   @default("PENDING")
+  createdAt    DateTime @default(now())
+  respondedAt  DateTime?
+
+  @@unique([activityId, taggedUserId])
+  @@index([taggedUserId, status])
 }
 
 // ─── Lap splits: per-lap distance/duration for an activity ────────────────
