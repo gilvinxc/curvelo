@@ -34,6 +34,7 @@ const ENTRIES: GuideEntry[] = [
   { title: "Team feed", body: "Posts, milestones, and shoutouts.", teamTab: "feed", roles: ["coach", "runner", "parent"] },
   { title: "Messages", body: "Announcements and the team huddle. No private DMs, by design.", teamTab: "messages", roles: ["coach", "runner"] },
   { title: "Manage team", body: "Invite links, join requests, roles, and ownership.", teamTab: "manage", roles: ["coach"] },
+  { title: "Team logo", body: "Upload a logo in team settings — it shows on the dashboard, team page, and directory.", teamTab: "manage", roles: ["coach"] },
   { title: "Team visibility", body: "Make your team public to appear in the directory (name, logo, description, location only) or keep it private.", teamTab: "manage", roles: ["coach"] },
   { title: "Review reports", body: "Moderation queue for reported posts.", teamTab: "reports", roles: ["coach"] },
   { title: "Draft alumni update", body: "AI draft of recent highlights to publish as an announcement.", teamTab: "coaching", roles: ["coach"] },
@@ -54,6 +55,10 @@ const ENTRIES: GuideEntry[] = [
   { title: "Family dashboard", body: "Your athletes' schedules, runs, and consent status.", to: "/family", roles: ["parent"] },
   { title: "Team conversations", body: "Read-only view of your athlete's team huddle.", to: "/family", roles: ["parent"] },
   { title: "Route maps", body: "Your athlete's GPS route maps are visible to you as a verified guardian.", to: "/family", roles: ["parent"] },
+  { title: "Log for your kid", body: "Pick your athlete on the log form — the run is theirs, and they get a note to review it.", to: "/activities/new", roles: ["parent"] },
+  { title: "Family calendar", body: "All your kids' assignments, events, and plans in one rollup, color-coded per kid.", to: "/family", roles: ["parent"] },
+  { title: "Share photos", body: "Post team photos — every minor pictured needs verified guardian photo consent, checked each time.", to: "/family", roles: ["parent"] },
+  { title: "Profile photo", body: "Upload a picture in Settings — it shows on your posts, comments, and roster entries.", to: "/settings", roles: ["runner", "coach", "parent"] },
   { title: "Privacy", body: "Password reset and delete-my-data live in Settings.", to: "/settings", roles: ["runner", "coach", "parent"] },
 ];
 
