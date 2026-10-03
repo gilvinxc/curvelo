@@ -294,6 +294,56 @@ export async function getTeamRecords(
     }));
 }
 
+/**
+ * Lineup helper: rank active runners by their best official time at one
+ * distance in the last 12 months. Read-only — the coach always decides.
+ */
+export async function getLineup(
+  actorId: string,
+  teamId: string,
+  distanceM: number,
+): Promise<
+  Array<{
+    userId: string;
+    displayName: string;
+    durationS: number;
+    raceName: string;
+    racedAt: string;
+  }>
+> {
+  const membership = await activeMembership(actorId, teamId);
+  requireManager(membership);
+
+  const members = await db.teamMembership.findMany({
+    where: { teamId, status: "ACTIVE", role: "RUNNER" },
+    select: { userId: true, user: { select: { displayName: true } } },
+  });
+  const since = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+  const rows = await db.raceResult.findMany({
+    where: {
+      userId: { in: members.map((m) => m.userId) },
+      distanceM,
+      racedAt: { gte: since },
+      OR: [{ activityId: null }, { activity: { visibility: "TEAM" } }],
+    },
+    orderBy: { durationS: "asc" },
+  });
+  const best = new Map<string, (typeof rows)[number]>();
+  for (const r of rows) {
+    if (!best.has(r.userId)) best.set(r.userId, r);
+  }
+  const names = new Map(members.map((m) => [m.userId, m.user.displayName]));
+  return [...best.values()]
+    .sort((a, b) => a.durationS - b.durationS)
+    .map((r) => ({
+      userId: r.userId,
+      displayName: names.get(r.userId) ?? "Runner",
+      durationS: r.durationS,
+      raceName: r.raceName,
+      racedAt: r.racedAt.toISOString().slice(0, 10),
+    }));
+}
+
 // ---------------------------------------------------------------------------
 // Shoes
 // ---------------------------------------------------------------------------

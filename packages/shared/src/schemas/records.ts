@@ -96,3 +96,38 @@ export const logTeamRaceSchema = z
     message: "Cannot log a race in the future",
   });
 export type LogTeamRaceInput = z.infer<typeof logTeamRaceSchema>;
+
+export const awardTypeSchema = z.enum([
+  "MEDAL",
+  "TROPHY",
+  "RIBBON",
+  "PLAQUE",
+  "OTHER",
+]);
+export type AwardType = z.infer<typeof awardTypeSchema>;
+
+export interface AwardDTO {
+  id: string;
+  athleteId: string;
+  athleteName: string;
+  teamId: string;
+  type: AwardType;
+  place: number | null;
+  eventName: string;
+  eventDate: string;
+  notes: string | null;
+  createdAt: string;
+}
+
+export const lineupQuerySchema = z.object({
+  distanceM: z.coerce.number().int().positive().max(200000),
+});
+export type LineupQuery = z.infer<typeof lineupQuerySchema>;
+
+export interface LineupEntryDTO {
+  userId: string;
+  displayName: string;
+  durationS: number;
+  raceName: string;
+  racedAt: string;
+}

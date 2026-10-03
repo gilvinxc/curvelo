@@ -14,6 +14,7 @@ import { ActivityRow } from "../activities/ActivityRow";
 import { AthleteGuardians } from "../guardians/AthleteGuardians";
 import { AthleteInsights } from "../insights/AthleteInsights";
 import { InjurySection } from "../injuries/InjurySection";
+import { AwardsSection } from "../records/AwardsSection";
 import {
   addDaysYMD,
   formatDistanceM,
@@ -188,6 +189,16 @@ export function AthletePage() {
           athleteId={userId}
           athleteName={athlete.displayName}
         />
+      )}
+
+      {teamId && userId && (
+        <div className="mt-8">
+          <AwardsSection
+            teamId={teamId}
+            athleteId={userId}
+            athleteName={athlete.displayName}
+          />
+        </div>
       )}
 
       {teamId && userId && (

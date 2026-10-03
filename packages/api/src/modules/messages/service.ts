@@ -31,7 +31,7 @@ export async function ensureTeamConversations(
 ): Promise<void> {
   const defaults = [
     { kind: "ANNOUNCEMENT", title: "Announcements" },
-    { kind: "TEAM_CHAT", title: "Team chat" },
+    { kind: "TEAM_CHAT", title: "Team Huddle" },
   ];
   for (const d of defaults) {
     await db.conversation.upsert({

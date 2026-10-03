@@ -4,6 +4,7 @@ import { STANDARD_RACE_DISTANCES } from "@curvelo/shared";
 import { api, ApiError } from "../../lib/api";
 import { Modal, Button, ErrorBanner } from "../../components/ui";
 import { parseDurationInput } from "../../lib/units";
+import { AwardDialog } from "./AwardsSection";
 
 function todayInput(): string {
   return new Date().toISOString().slice(0, 10);
@@ -25,6 +26,15 @@ export function TeamRaceDialog({
   const [racedAt, setRacedAt] = useState(todayInput());
   const [fieldSize, setFieldSize] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
+  // After saving: athletes with a podium finish get an award suggestion.
+  const [podiums, setPodiums] = useState<
+    Array<{ userId: string; displayName: string; place: number }> | null
+  >(null);
+  const [awardFor, setAwardFor] = useState<{
+    userId: string;
+    displayName: string;
+    place: number;
+  } | null>(null);
   // Per-athlete: time is required, place optional.
   const [rows, setRows] = useState<Record<string, { time: string; place: string }>>({});
 
@@ -91,7 +101,23 @@ export function TeamRaceDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teamRecords", teamId] });
-      onClose();
+      const nameById = new Map(runners.map((r) => [r.userId, r.displayName]));
+      const podium = selected
+        .map((userId) => {
+          const place = parseInt(rows[userId]?.place ?? "", 10);
+          return { userId, place };
+        })
+        .filter((e) => e.place >= 1 && e.place <= 3)
+        .map((e) => ({
+          userId: e.userId,
+          displayName: nameById.get(e.userId) ?? "Runner",
+          place: e.place,
+        }));
+      if (podium.length > 0) {
+        setPodiums(podium);
+      } else {
+        onClose();
+      }
     },
   });
 
@@ -240,6 +266,76 @@ export function TeamRaceDialog({
             : `Save results for ${selected.length} athlete${selected.length === 1 ? "" : "s"}`}
         </Button>
       </div>
+      {podiums && (
+        <Modal
+          open
+          onClose={() => {
+            setPodiums(null);
+            onClose();
+          }}
+          title="🏆 Podium finishes!"
+        >
+          <div className="flex flex-col gap-3">
+            <p className="text-[14px] text-mist">
+              These athletes placed top 3. Add an award to their shelf?
+            </p>
+            {podiums.map((pd) => (
+              <div
+                key={pd.userId}
+                className="flex items-center gap-3 rounded-2xl border border-white/10 bg-ink-900 px-4 py-3"
+              >
+                <span className="text-xl">
+                  {pd.place === 1 ? "🥇" : pd.place === 2 ? "🥈" : "🥉"}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[15px] font-bold">{pd.displayName}</p>
+                  <p className="text-[13px] text-mist">
+                    #{pd.place} · {raceName.trim()}
+                  </p>
+                </div>
+                <Button
+                  variant="secondary"
+                  className="min-h-[44px] px-3 text-[13px]"
+                  onClick={() => setAwardFor(pd)}
+                >
+                  Add award
+                </Button>
+              </div>
+            ))}
+            <Button
+              variant="secondary"
+              className="mt-2 min-h-[48px]"
+              onClick={() => {
+                setPodiums(null);
+                onClose();
+              }}
+            >
+              Done
+            </Button>
+          </div>
+          {awardFor && (
+            <AwardDialog
+              teamId={teamId}
+              athleteId={awardFor.userId}
+              athleteName={awardFor.displayName}
+              prefill={{
+                type: "MEDAL",
+                place: awardFor.place,
+                eventName: raceName.trim(),
+                eventDate: racedAt,
+              }}
+              open
+              onClose={() => {
+                setAwardFor(null);
+                // Remove from the suggestion list once awarded.
+                setPodiums((prev) =>
+                  prev ? prev.filter((x) => x.userId !== awardFor.userId) : prev,
+                );
+              }}
+            />
+          )}
+        </Modal>
+      )}
     </Modal>
   );
 }

@@ -123,6 +123,24 @@ function SeasonForm({
   );
 }
 
+function TrophyCount({ teamId, from, to }: { teamId: string; from: string; to: string }) {
+  const countQuery = useQuery({
+    queryKey: ["awardCount", teamId, from, to],
+    queryFn: () => api.awardCount(teamId, from.slice(0, 10), to.slice(0, 10)),
+  });
+  const total = countQuery.data?.total ?? 0;
+  return (
+    <Card className="mb-4 p-5 text-center">
+      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-mist">
+        Team awards this season
+      </p>
+      <p className="mt-1 text-[26px] font-black tracking-tight text-ink-50">
+        🏆 {countQuery.isLoading ? "…" : total}
+      </p>
+    </Card>
+  );
+}
+
 export function SeasonTab({
   teamId,
   myRole,
@@ -212,6 +230,12 @@ export function SeasonTab({
           </div>
         )}
       </Card>
+
+      <TrophyCount
+        teamId={teamId}
+        from={season.startsAt}
+        to={season.endsAt}
+      />
 
       {/* Week-by-week timeline */}
       <h2 className="mb-3 text-[13px] font-bold uppercase tracking-[0.18em] text-mist">

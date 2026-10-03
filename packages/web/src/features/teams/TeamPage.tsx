@@ -26,6 +26,9 @@ import { MessagesSection } from "../messages/MessagesSection";
 import { TeamDigestSection } from "../insights/TeamDigestSection";
 import { InjurySection } from "../injuries/InjurySection";
 import { AlumniDigestDialog } from "../insights/AlumniDigestDialog";
+import { WeeklyRecapDialog } from "../insights/WeeklyRecapDialog";
+import { EligibilitySection } from "./EligibilitySection";
+import { LineupHelper } from "./LineupHelper";
 import { PracticePlanner } from "./PracticePlanner";
 import { TeamLogDialog } from "../activities/TeamLogDialog";
 import { TeamRaceDialog } from "../records/TeamRaceDialog";
@@ -376,6 +379,7 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
   const [teamLogOpen, setTeamLogOpen] = useState(false);
   const [teamRaceOpen, setTeamRaceOpen] = useState(false);
   const [alumniDigestOpen, setAlumniDigestOpen] = useState(false);
+  const [weeklyRecapOpen, setWeeklyRecapOpen] = useState(false);
 
   const teamQuery = useQuery({
     queryKey: ["team", id],
@@ -509,7 +513,7 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
             </Button>
           </div>
           <TeamDigestSection teamId={team.id} />
-          <div className="mt-4">
+          <div className="mt-4 flex flex-wrap gap-2">
             <Button
               variant="secondary"
               className="min-h-[44px] px-4 text-[14px]"
@@ -517,7 +521,16 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
             >
               ✍️ Draft alumni update
             </Button>
+            <Button
+              variant="secondary"
+              className="min-h-[44px] px-4 text-[14px]"
+              onClick={() => setWeeklyRecapOpen(true)}
+            >
+              📝 Draft weekly recap
+            </Button>
           </div>
+          <EligibilitySection teamId={team.id} />
+          <LineupHelper teamId={team.id} />
           <div className="mt-6">
             <InjurySection teamId={team.id} showAthletePicker />
           </div>
@@ -528,6 +541,12 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
             <AlumniDigestDialog
               teamId={team.id}
               onClose={() => setAlumniDigestOpen(false)}
+            />
+          )}
+          {weeklyRecapOpen && (
+            <WeeklyRecapDialog
+              teamId={team.id}
+              onClose={() => setWeeklyRecapOpen(false)}
             />
           )}
         </>

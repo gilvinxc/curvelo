@@ -5,7 +5,7 @@ import {
   teamDigestParamsSchema,
   teamDigestQuerySchema,
 } from "@curvelo/shared";
-import { draftAlumniDigest, getAthleteInsight, getMyInsight, getRaceAnalysis, getTeamDigest } from "./service.js";
+import { draftAlumniDigest, draftWeeklyRecap, getAthleteInsight, getMyInsight, getRaceAnalysis, getTeamDigest } from "./service.js";
 
 export async function aiRoutes(app: FastifyInstance): Promise<void> {
   // Coach view: AI-assisted insight for one athlete (28-day window).
@@ -38,6 +38,29 @@ export async function aiRoutes(app: FastifyInstance): Promise<void> {
       const { days } = teamDigestQuerySchema.parse(request.query);
       const digest = await getTeamDigest(request.user!.id, id, days, request.ip);
       return reply.send({ digest });
+    },
+  );
+
+  // AI-drafted alumni update (coach reviews + publishes; the AI never posts).
+  app.post(
+    "/teams/:id/alumni-digest/draft",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { id } = teamDigestParamsSchema.parse(request.params);
+      const { days } = teamDigestQuerySchema.parse(request.query);
+      const result = await draftAlumniDigest(request.user!.id, id, days);
+      return reply.send(result);
+    },
+  );
+
+  // AI-drafted weekly parent recap (coach reviews + publishes; never auto-posts).
+  app.post(
+    "/teams/:id/weekly-recap/draft",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { id } = teamDigestParamsSchema.parse(request.params);
+      const result = await draftWeeklyRecap(request.user!.id, id);
+      return reply.send(result);
     },
   );
 

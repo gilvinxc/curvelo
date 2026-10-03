@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import {
   createRaceResultSchema,
   createShoeSchema,
+  lineupQuerySchema,
   logTeamRaceSchema,
   raceResultParamsSchema,
   shoeParamsSchema,
@@ -14,6 +15,7 @@ import {
   deleteRaceResult,
   deleteShoe,
   getPersonalRecords,
+  getLineup,
   getTeamRecords,
   listMyRaceResults,
   listShoes,
@@ -42,6 +44,19 @@ export async function recordRoutes(app: FastifyInstance) {
       const input = logTeamRaceSchema.parse(request.body);
       const result = await logTeamRaceResults(request.user!.id, input, request.ip);
       return reply.code(201).send(result);
+    },
+  );
+
+  // Lineup helper: runners ranked by best time at one distance (coach only).
+  app.get(
+    "/teams/:id/lineup",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { id } = teamParamsSchema.parse(request.params);
+      const { distanceM } = lineupQuerySchema.parse(request.query);
+      return reply.send({
+        lineup: await getLineup(request.user!.id, id, distanceM),
+      });
     },
   );
 

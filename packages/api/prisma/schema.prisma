@@ -118,6 +118,7 @@ model User {
   personalGoals             Goal[]               @relation("PersonalGoals")
   createdGoals              Goal[]               @relation("GoalCreator")
   raceResults               RaceResult[]         @relation("UserRaceResults")
+  awards                    Award[]              @relation("UserAwards")
   shoes                     Shoe[]               @relation("UserShoes")
   joinRequests              TeamJoinRequest[]
   decidedJoinRequests       TeamJoinRequest[]    @relation("JoinRequestDecider")
@@ -196,6 +197,7 @@ model Team {
   updatedAt      DateTime       @updatedAt
 
   memberships          TeamMembership[]
+  awards               Award[]
   invitations          Invitation[]
   joinLinks            TeamJoinLink[]
   joinRequests         TeamJoinRequest[]
@@ -828,6 +830,32 @@ model Goal {
 
 // Official race result — exact distance, exact time. PRs come from these,
 // never estimated from training runs.
+enum AwardType {
+  MEDAL
+  TROPHY
+  RIBBON
+  PLAQUE
+  OTHER
+}
+
+// Coach-logged recognition: medals, trophies, ribbons. Never automatic.
+model Award {
+  id        String    @id @default(uuid())
+  athleteId String
+  athlete   User      @relation("UserAwards", fields: [athleteId], references: [id], onDelete: Cascade)
+  teamId    String
+  team      Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  type      AwardType
+  place     Int?
+  eventName String
+  eventDate DateTime
+  notes     String?
+  createdAt DateTime  @default(now())
+
+  @@index([athleteId])
+  @@index([teamId])
+}
+
 model RaceResult {
   id            String    @id @default(uuid())
   userId        String

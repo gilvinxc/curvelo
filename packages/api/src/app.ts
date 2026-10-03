@@ -28,6 +28,7 @@ import { messageRoutes } from "./modules/messages/routes.js";
 import { aiRoutes } from "./modules/ai/routes.js";
 import { goalRoutes } from "./modules/goals/routes.js";
 import { recordRoutes } from "./modules/records/routes.js";
+import { awardRoutes } from "./modules/awards/routes.js";
 import { importRoutes } from "./modules/imports/routes.js";
 import { documentRoutes } from "./modules/documents/routes.js";
 import { adminRoutes } from "./modules/admin/routes.js";
@@ -79,6 +80,7 @@ export async function buildApp() {
   await app.register(aiRoutes, { prefix: "/api/v1" });
   await app.register(goalRoutes, { prefix: "/api/v1" });
   await app.register(recordRoutes, { prefix: "/api/v1" });
+  await app.register(awardRoutes, { prefix: "/api/v1" });
   await app.register(importRoutes, { prefix: "/api/v1" });
   await app.register(documentRoutes, { prefix: "/api/v1" });
   await app.register(adminRoutes, { prefix: "/api/v1" });

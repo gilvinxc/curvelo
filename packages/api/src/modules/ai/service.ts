@@ -422,3 +422,115 @@ export async function draftAlumniDigest(
 
   return { draft, highlights: highlights.length };
 }
+
+/**
+ * Draft a parent-friendly weekly recap. Coach-only. Returns a draft for the
+ * coach to review and publish — the AI never posts on its own. Only narrates
+ * verified stats: team-visible activity totals, race results, and feed
+ * milestones/shoutouts from the last 7 days.
+ */
+export async function draftWeeklyRecap(
+  actorId: string,
+  teamId: string,
+): Promise<{ draft: string; races: number; highlights: number }> {
+  const membership = await activeMembership(actorId, teamId);
+  requireManager(membership);
+
+  const team = await db.team.findUniqueOrThrow({
+    where: { id: teamId },
+    select: { name: true },
+  });
+
+  const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const weekLabel = `week of ${since.toISOString().slice(0, 10)}`;
+
+  // Team-visible activities in the last 7 days (roster members only).
+  const memberIds = (
+    await db.teamMembership.findMany({
+      where: { teamId, status: "ACTIVE" },
+      select: { userId: true },
+    })
+  ).map((m) => m.userId);
+
+  const activities = await db.activity.findMany({
+    where: {
+      userId: { in: memberIds },
+      visibility: "TEAM",
+      startedAt: { gte: since },
+    },
+    select: { distanceM: true },
+  });
+  const totalMeters = activities.reduce((sum, a) => sum + (a.distanceM ?? 0), 0);
+
+  // Race results in the last 7 days.
+  const raceRows = await db.raceResult.findMany({
+    where: { userId: { in: memberIds }, racedAt: { gte: since } },
+    include: { user: { select: { displayName: true } } },
+    orderBy: { racedAt: "desc" },
+    take: 20,
+  });
+  const races = raceRows.map((r) => ({
+    athleteFirstName: r.user.displayName.split(" ")[0],
+    raceName: r.raceName,
+    distanceLabel:
+      STANDARD_RACE_DISTANCES.find((d) => d.meters === r.distanceM)?.label ??
+      `${(r.distanceM / 1000).toFixed(1)}K`,
+    timeLabel: formatDurationS(r.durationS),
+    place: r.finishPlace,
+    date: r.racedAt.toISOString().slice(0, 10),
+  }));
+
+  // Feed highlights: milestones, shoutouts, welcomes.
+  const posts = await db.feedPost.findMany({
+    where: {
+      teamId,
+      createdAt: { gte: since },
+      kind: { in: ["MILESTONE", "SHOUTOUT", "WELCOME"] },
+    },
+    select: { kind: true, body: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  });
+  const highlights = posts.map((p) => ({
+    kind: p.kind as "MILESTONE" | "SHOUTOUT" | "WELCOME",
+    text: (p.body ?? "").slice(0, 300),
+    date: p.createdAt.toISOString().slice(0, 10),
+  }));
+
+  const provider = selectProvider();
+  let draft: string;
+  const input = {
+    teamName: team.name,
+    weekLabel,
+    totalMiles: totalMeters / 1609.34,
+    runCount: activities.length,
+    races,
+    highlights,
+  };
+  try {
+    ({ draft } = await provider.weeklyRecap(input));
+  } catch {
+    const { LocalAnalyst } = await import("./providers.js");
+    ({ draft } = await new LocalAnalyst().weeklyRecap(input));
+  }
+
+  await audit({
+    actorId,
+    action: "AI_WEEKLY_RECAP_DRAFTED",
+    entityType: "Team",
+    entityId: teamId,
+    metadata: { races: races.length, highlights: highlights.length },
+    ipAddress: undefined,
+  });
+
+  return { draft, races: races.length, highlights: highlights.length };
+}
+
+function formatDurationS(totalS: number): string {
+  const h = Math.floor(totalS / 3600);
+  const m = Math.floor((totalS % 3600) / 60);
+  const s = totalS % 60;
+  const mm = h > 0 ? String(m).padStart(2, "0") : String(m);
+  const ss = String(s).padStart(2, "0");
+  return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+}

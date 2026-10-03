@@ -1,6 +1,6 @@
 import type { TrainingStats } from "@curvelo/shared";
 import { formatDistance, formatPace } from "./stats.js";
-import { LocalAnalyst, type AlumniDigestInput, type InsightProvider, type NarrativeInput, type RaceNarrativeInput } from "./providers.js";
+import { LocalAnalyst, type AlumniDigestInput, type InsightProvider, type NarrativeInput, type RaceNarrativeInput, type WeeklyRecapInput } from "./providers.js";
 import { config } from "../../config.js";
 
 /**
@@ -140,6 +140,26 @@ export class LlmProvider implements InsightProvider {
     }
     if (!narrative) narrative = raw.slice(0, 400);
     return { narrative, cues: cues.length > 0 ? cues : input.analysis.coachingCues };
+  }
+
+  async weeklyRecap(input: WeeklyRecapInput) {
+    const system =
+      "You write a weekly recap for the parents of a youth running team. You receive verified team stats as JSON — " +
+      "total miles, run counts, race results with real times and places, and team milestones/shoutouts. " +
+      "Write a warm, parent-friendly recap under 200 words. Never invent names, times, places, or events — " +
+      "only use the stats given. Keep it positive and general; no individual training details beyond race results.";
+    const raw = await this.complete(
+      system,
+      JSON.stringify({
+        team: input.teamName,
+        week: input.weekLabel,
+        totalMiles: input.totalMiles,
+        runCount: input.runCount,
+        races: input.races,
+        highlights: input.highlights,
+      }),
+    );
+    return { draft: raw.slice(0, 2000) };
   }
 
   async alumniDigest(input: AlumniDigestInput) {

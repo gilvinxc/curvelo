@@ -2,6 +2,8 @@ import type {
   AcceptGuardianInviteInput,
   ActivityDTO,
   ActivityTagDTO,
+  AwardDTO,
+  AwardType,
   ActivityStatsDTO,
   AssignmentDTO,
   AthleteDocumentStatus,
@@ -34,6 +36,7 @@ import type {
   JoinLinkPreviewDTO,
   JoinRequestDTO,
   LeaderboardDTO,
+  LineupEntryDTO,
   NotificationDTO,
   PhotoDTO,
   AlbumDTO,
@@ -882,6 +885,54 @@ export const api = {
     post<{ draft: string; highlights: number }>(
       `/teams/${teamId}/alumni-digest/draft?days=${days}`,
       {},
+    ),
+  draftWeeklyRecap: (teamId: string) =>
+    post<{ draft: string; races: number; highlights: number }>(
+      `/teams/${teamId}/weekly-recap/draft`,
+      {},
+    ),
+  listTeamAwards: (teamId: string) =>
+    request<{ awards: AwardDTO[] }>(`/teams/${teamId}/awards`),
+  listAthleteAwards: (teamId: string, athleteId: string) =>
+    request<{ awards: AwardDTO[] }>(
+      `/teams/${teamId}/athletes/${athleteId}/awards`,
+    ),
+  awardCount: (teamId: string, from?: string, to?: string) => {
+    const qs = new URLSearchParams();
+    if (from) qs.set("from", from);
+    if (to) qs.set("to", to);
+    const q = qs.toString();
+    return request<{ total: number }>(
+      `/teams/${teamId}/awards/count${q ? `?${q}` : ""}`,
+    );
+  },
+  createAward: (
+    teamId: string,
+    input: {
+      athleteId: string;
+      type: AwardType;
+      place?: number;
+      eventName: string;
+      eventDate: string;
+      notes?: string;
+      postToFeed?: boolean;
+    },
+  ) => post<{ award: AwardDTO }>(`/teams/${teamId}/awards`, input),
+  updateAward: (
+    awardId: string,
+    input: Partial<{
+      type: AwardType;
+      place: number | null;
+      eventName: string;
+      eventDate: string;
+      notes: string | null;
+    }>,
+  ) => patch<{ award: AwardDTO }>(`/awards/${awardId}`, input),
+  deleteAward: (awardId: string) =>
+    del<void>(`/awards/${awardId}`),
+  getLineup: (teamId: string, distanceM: number) =>
+    request<{ lineup: LineupEntryDTO[] }>(
+      `/teams/${teamId}/lineup?distanceM=${distanceM}`,
     ),
   myTeamEvents: (from: string, to: string) =>
     request<{ events: TeamEventDTO[] }>(

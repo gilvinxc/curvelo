@@ -53,6 +53,12 @@ export interface InsightProvider {
    * the AI drafts, never sends.
    */
   alumniDigest(input: AlumniDigestInput): Promise<{ draft: string }>;
+  /**
+   * Draft a parent-friendly weekly recap from verified team stats.
+   * Text only. The coach always reviews before publishing — the AI drafts,
+   * never sends.
+   */
+  weeklyRecap(input: WeeklyRecapInput): Promise<{ draft: string }>;
 }
 
 /** Verified highlights the alumni digest may draw from. */
@@ -61,6 +67,27 @@ export interface AlumniDigestInput {
   days: number;
   highlights: Array<{
     kind: "MILESTONE" | "SHOUTOUT" | "WELCOME" | "ANNOUNCEMENT";
+    text: string;
+    date: string;
+  }>;
+}
+
+/** Verified weekly stats the parent recap may draw from. */
+export interface WeeklyRecapInput {
+  teamName: string;
+  weekLabel: string;
+  totalMiles: number;
+  runCount: number;
+  races: Array<{
+    athleteFirstName: string;
+    raceName: string;
+    distanceLabel: string;
+    timeLabel: string;
+    place: number | null;
+    date: string;
+  }>;
+  highlights: Array<{
+    kind: "MILESTONE" | "SHOUTOUT" | "WELCOME";
     text: string;
     date: string;
   }>;
@@ -170,6 +197,28 @@ export class LocalAnalyst implements InsightProvider {
     if (a.fadeOrKick) narrative += ` They ${a.fadeOrKick}.`;
     if (a.vsPrevious) narrative += ` ${a.vsPrevious}.`;
     return { narrative, cues: a.coachingCues };
+  }
+
+  async weeklyRecap(input: WeeklyRecapInput) {
+    const { teamName, weekLabel, totalMiles, runCount, races, highlights } = input;
+    const lines: string[] = [];
+    lines.push(`Hi ${teamName} families! Here's the week of ${weekLabel}:`);
+    lines.push("");
+    lines.push(
+      `The team logged ${plural(runCount, "run", "runs")} totaling ${totalMiles.toFixed(1)} miles.`,
+    );
+    for (const r of races.slice(0, 8)) {
+      const place = r.place ? ` (place ${r.place})` : "";
+      lines.push(
+        `- ${r.athleteFirstName} raced the ${r.distanceLabel} at ${r.raceName} in ${r.timeLabel}${place}.`,
+      );
+    }
+    for (const h of highlights.slice(0, 8)) {
+      lines.push(`- ${h.text}`);
+    }
+    lines.push("");
+    lines.push("Thanks for cheering the team on — see you at practice!");
+    return { draft: lines.join("\n") };
   }
 
   async alumniDigest(input: AlumniDigestInput) {
