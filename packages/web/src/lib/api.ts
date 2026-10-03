@@ -475,8 +475,14 @@ export const api = {
     }),
   removeMember: (teamId: string, userId: string) =>
     del<{ ok: boolean }>(`/teams/${teamId}/members/${userId}`),
-  leaveTeam: (teamId: string) =>
-    post<{ ok: boolean }>(`/teams/${teamId}/leave`, {}),
+  leaveTeam: (teamId: string, content: "keep" | "remove" = "keep") =>
+    post<{ ok: boolean }>(`/teams/${teamId}/leave`, { content }),
+  transferActivities: (fromTeamId: string, toTeamId: string) =>
+    post<{ transferred: number }>(`/activities/transfer`, {
+      fromTeamId,
+      toTeamId,
+    }),
+  deleteAccount: () => del<{ ok: boolean }>(`/users/me`),
   transferTeam: (teamId: string, newOwnerId: string) =>
     post<{ ok: boolean; newOwnerId: string }>(`/teams/${teamId}/transfer`, {
       newOwnerId,

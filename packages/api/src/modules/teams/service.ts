@@ -335,10 +335,13 @@ export async function removeMember(
  * A member leaves the team voluntarily. The owner must transfer ownership
  * first — a team is never left without an owner.
  */
+export type LeaveContentMode = "keep" | "remove";
+
 export async function leaveTeam(
   actorId: string,
   teamId: string,
   ipAddress?: string,
+  content: LeaveContentMode = "keep",
 ): Promise<void> {
   const membership = await activeMembership(actorId, teamId);
   const team = await db.team.findUniqueOrThrow({ where: { id: teamId } });
@@ -346,6 +349,16 @@ export async function leaveTeam(
     throw forbidden(
       "Transfer ownership to another coach before leaving the team",
     );
+  }
+  if (content === "remove") {
+    // Delete my posts (comments/reactions cascade); unlink my activities.
+    await db.feedPost.deleteMany({
+      where: { teamId, authorId: actorId },
+    });
+    await db.activity.updateMany({
+      where: { teamId, userId: actorId },
+      data: { teamId: null, visibility: "PRIVATE" },
+    });
   }
   await db.teamMembership.update({
     where: { id: membership.id },

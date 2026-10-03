@@ -16,12 +16,29 @@ import {
   listMyActivities,
   logTeamRun,
   myStats,
+  transferActivities,
   updateActivity,
 } from "./service.js";
 import { createPost, createSystemPost } from "../feed/service.js";
 import { detectMilestones } from "../../lib/milestones.js";
 
 export async function activityRoutes(app: FastifyInstance): Promise<void> {
+  app.post(
+    "/activities/transfer",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const body = request.body as { fromTeamId?: string; toTeamId?: string };
+      if (!body?.fromTeamId || !body?.toTeamId) {
+        return reply.status(400).send({ error: "fromTeamId and toTeamId required" });
+      }
+      const result = await transferActivities(
+        request.user!.id,
+        body.fromTeamId,
+        body.toTeamId,
+      );
+      return reply.send(result);
+    },
+  );
   app.post(
     "/activities",
     { preHandler: [app.authenticate] },

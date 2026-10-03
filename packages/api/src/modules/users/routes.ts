@@ -14,6 +14,78 @@ const idParams = z.object({ id: z.string().uuid() });
  * - GET /users/:id — teammate-visible public card. Only reachable when the
  *   requester shares an ACTIVE team with the target (or is the target).
  */
+/**
+ * Delete my data. Removes the account and all personal content.
+ * Team infrastructure the user created (channels, workouts, events…)
+ * is reassigned to the team owner so the team keeps working.
+ * Blocked while the user owns any team — transfer ownership first.
+ */
+export async function deleteAccount(
+  actorId: string,
+  ipAddress?: string,
+): Promise<void> {
+  const owned = await db.team.count({ where: { ownerId: actorId } });
+  if (owned > 0) {
+    const { forbidden } = await import("../../lib/errors.js");
+    throw forbidden(
+      "Transfer ownership of your teams before deleting your account",
+    );
+  }
+  const memberships = await db.teamMembership.findMany({
+    where: { userId: actorId, status: "ACTIVE" },
+    select: { teamId: true, team: { select: { ownerId: true } } },
+  });
+  // Reassign team infrastructure to the team owner.
+  for (const m of memberships) {
+    const ownerId = m.team.ownerId;
+    if (ownerId === actorId) continue;
+    const where = { teamId: m.teamId };
+    await db.conversation.updateMany({
+      where: { ...where, createdById: actorId },
+      data: { createdById: ownerId },
+    });
+    await db.invitation.updateMany({
+      where: { ...where, invitedById: actorId },
+      data: { invitedById: ownerId },
+    });
+    await db.workout.updateMany({
+      where: { ...where, createdById: actorId },
+      data: { createdById: ownerId },
+    });
+    await db.workoutAssignment.updateMany({
+      where: { ...where, createdById: actorId },
+      data: { createdById: ownerId },
+    });
+    await db.teamGroup.updateMany({
+      where: { ...where, createdById: actorId },
+      data: { createdById: ownerId },
+    });
+    await db.teamEvent.updateMany({
+      where: { ...where, createdById: actorId },
+      data: { createdById: ownerId },
+    });
+    await db.album.updateMany({
+      where: { ...where, createdById: actorId },
+      data: { createdById: ownerId },
+    });
+    await db.guardianInvite.updateMany({
+      where: { athlete: { memberships: { some: { teamId: m.teamId } } }, createdById: actorId },
+      data: { createdById: ownerId },
+    });
+  }
+  // Explicitly clear tokens/sessions, then delete (cascades take the rest).
+  await db.refreshToken.deleteMany({ where: { userId: actorId } });
+  await db.passwordResetToken.deleteMany({ where: { userId: actorId } });
+  await audit({
+    actorId,
+    action: "ACCOUNT_DELETED",
+    entityType: "User",
+    entityId: actorId,
+    ipAddress,
+  });
+  await db.user.delete({ where: { id: actorId } });
+}
+
 export async function userRoutes(app: FastifyInstance): Promise<void> {
   app.get("/me", { preHandler: [app.authenticate] }, async (request, reply) => {
     const user = await db.user.findUnique({
@@ -147,6 +219,15 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
     });
     return reply.send({ ok: true, hasAvatar: false });
   });
+
+  app.delete(
+    "/me",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      await deleteAccount(request.user!.id, request.ip);
+      return reply.send({ ok: true });
+    },
+  );
 
   app.get("/:id/avatar", { preHandler: [app.authenticate] }, async (request, reply) => {
     const { id } = idParams.parse(request.params);

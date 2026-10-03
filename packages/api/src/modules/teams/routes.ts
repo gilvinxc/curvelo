@@ -102,7 +102,9 @@ export async function teamRoutes(app: FastifyInstance): Promise<void> {
     { preHandler: [app.authenticate] },
     async (request, reply) => {
       const { id } = teamParamsSchema.parse(request.params);
-      await leaveTeam(request.user!.id, id, request.ip);
+      const body = (request.body ?? {}) as { content?: "keep" | "remove" };
+      const content = body.content === "remove" ? "remove" : "keep";
+      await leaveTeam(request.user!.id, id, request.ip, content);
       return reply.send({ ok: true });
     },
   );

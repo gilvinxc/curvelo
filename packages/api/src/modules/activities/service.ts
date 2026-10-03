@@ -839,3 +839,26 @@ export async function calendarActivities(
   });
   return Promise.all(activities.map(toActivityDTO));
 }
+
+/**
+ * Transfer my training history from one team to another.
+ * Re-links activities (no copies, so it can't duplicate and can be
+ * transferred back). Posts stay with their team or are deleted on leave;
+ * reactions/comments never transfer.
+ */
+export async function transferActivities(
+  actorId: string,
+  fromTeamId: string,
+  toTeamId: string,
+): Promise<{ transferred: number }> {
+  if (fromTeamId === toTeamId) {
+    throw forbidden("Can't transfer to the same team");
+  }
+  // Must be an active member of the target team.
+  await activeMembership(actorId, toTeamId);
+  const result = await db.activity.updateMany({
+    where: { userId: actorId, teamId: fromTeamId },
+    data: { teamId: toTeamId },
+  });
+  return { transferred: result.count };
+}

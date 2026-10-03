@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ApiError, api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import { resizeImageFile } from "../teams/TeamLogo";
@@ -399,9 +399,103 @@ export function SettingsPage() {
         </Button>
       </Card>
 
+      <PrivacySection />
+
       <p className="mt-6 text-center text-[12px] text-mist/60">
         Curvelo v0.1.0 — Empower Your Run
       </p>
     </div>
+  );
+}
+
+
+/** Simple privacy controls: password reset link + delete my data. */
+function PrivacySection() {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+  const [confirming, setConfirming] = useState(false);
+  const [typed, setTyped] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const del = useMutation({
+    mutationFn: () => api.deleteAccount(),
+    onSuccess: async () => {
+      await logout();
+      navigate("/signin");
+    },
+    onError: (err) =>
+      setError(
+        err instanceof ApiError ? err.message : "Couldn't delete your account.",
+      ),
+  });
+  return (
+    <Card className="mt-4">
+      <h3 className="text-[15px] font-extrabold">Privacy</h3>
+      {error && (
+        <div className="mb-3 mt-2">
+          <ErrorBanner message={error} />
+        </div>
+      )}
+      <Link
+        to="/forgot-password"
+        className="mt-2 block text-[14px] font-semibold text-volt-300 hover:underline"
+      >
+        Reset password →
+      </Link>
+      <div className="mt-4 border-t border-white/10 pt-4">
+        {confirming ? (
+          <div className="flex flex-col gap-3">
+            <p className="text-[14px]">
+              <span className="font-bold text-red-300">
+                Delete your account and all your data?
+              </span>
+              <br />
+              <span className="text-mist">
+                This removes your activities, posts, photos, and profile
+                everywhere. Teams keep working — content you created for a team
+                is handed to the team owner. This can't be undone.
+              </span>
+            </p>
+            <p className="text-[14px] text-mist">
+              Type <span className="font-bold text-ink-50">DELETE</span> to
+              confirm.
+            </p>
+            <input
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              placeholder="DELETE"
+              className="min-h-[44px] rounded-xl border border-white/10 bg-ink-900 px-3 text-[14px]"
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant="danger"
+                className="min-h-[44px] px-4 text-[14px]"
+                disabled={typed !== "DELETE" || del.isPending}
+                onClick={() => del.mutate()}
+              >
+                Delete everything
+              </Button>
+              <Button
+                variant="secondary"
+                className="min-h-[44px] px-4 text-[14px]"
+                onClick={() => {
+                  setConfirming(false);
+                  setTyped("");
+                }}
+              >
+                Keep my account
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirming(true)}
+            className="text-[14px] font-semibold text-mist hover:text-red-300"
+          >
+            Delete my data…
+          </button>
+        )}
+      </div>
+    </Card>
   );
 }

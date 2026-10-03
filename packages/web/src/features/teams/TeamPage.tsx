@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
@@ -214,14 +214,40 @@ function LeaveTeamButton({
   isOwner: boolean;
 }) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [confirming, setConfirming] = useState(false);
+  const [content, setContent] = useState<"keep" | "remove">("keep");
+  const [transferFrom, setTransferFrom] = useState("");
+  const [transferDone, setTransferDone] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const leave = useMutation({
-    mutationFn: () => api.leaveTeam(teamId),
+    mutationFn: () => api.leaveTeam(teamId, content),
     onSuccess: () => navigate("/dashboard"),
     onError: (err) =>
       setError(
         err instanceof ApiError ? err.message : "Couldn't leave the team.",
+      ),
+  });
+  const myTeamsQuery = useQuery({
+    queryKey: ["myTeams"],
+    queryFn: () => api.listTeams(),
+    enabled: confirming,
+  });
+  const otherTeams = (myTeamsQuery.data?.teams ?? []).filter(
+    (t) => t.id !== teamId,
+  );
+  const transfer = useMutation({
+    mutationFn: () => api.transferActivities(transferFrom, teamId),
+    onSuccess: (res) => {
+      setTransferDone(
+        `Moved ${res.transferred} ${res.transferred === 1 ? "activity" : "activities"} to this team.`,
+      );
+      setTransferFrom("");
+      void queryClient.invalidateQueries({ queryKey: ["activities"] });
+    },
+    onError: (err) =>
+      setError(
+        err instanceof ApiError ? err.message : "Couldn't transfer history.",
       ),
   });
   if (isOwner) return null;
@@ -232,24 +258,96 @@ function LeaveTeamButton({
           <ErrorBanner message={error} />
         </div>
       )}
+      {transferDone && (
+        <p className="mb-3 text-[14px] font-semibold text-volt-300">
+          {transferDone}
+        </p>
+      )}
+      {otherTeams.length > 0 && (
+        <div className="mb-4">
+          <p className="mb-2 text-[14px] font-semibold text-mist">
+            Training history
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={transferFrom}
+              onChange={(e) => setTransferFrom(e.target.value)}
+              className="min-h-[44px] rounded-xl border border-white/10 bg-ink-900 px-3 text-[14px]"
+            >
+              <option value="">Transfer history from…</option>
+              {otherTeams.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+            <Button
+              variant="secondary"
+              className="min-h-[44px] px-4 text-[14px]"
+              disabled={!transferFrom || transfer.isPending}
+              onClick={() => transfer.mutate()}
+            >
+              Transfer here
+            </Button>
+          </div>
+          <p className="mt-1 text-[12px] text-mist/70">
+            Moves your logged activities from that team to this one. Posts stay
+            put.
+          </p>
+        </div>
+      )}
       {confirming ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[14px] text-mist">Leave this team?</span>
-          <Button
-            variant="secondary"
-            className="min-h-[44px] px-4 text-[14px]"
-            disabled={leave.isPending}
-            onClick={() => leave.mutate()}
-          >
-            Yes, leave
-          </Button>
-          <Button
-            variant="secondary"
-            className="min-h-[44px] px-4 text-[14px]"
-            onClick={() => setConfirming(false)}
-          >
-            Stay
-          </Button>
+        <div className="flex flex-col gap-3">
+          <span className="text-[14px] font-semibold">Leave this team?</span>
+          <label className="flex items-start gap-2 text-[14px]">
+            <input
+              type="radio"
+              name="leave-content"
+              checked={content === "keep"}
+              onChange={() => setContent("keep")}
+              className="mt-1"
+            />
+            <span>
+              <span className="font-semibold">Leave my content with the team</span>
+              <br />
+              <span className="text-mist">
+                Your posts and training history stay visible to the team.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-[14px]">
+            <input
+              type="radio"
+              name="leave-content"
+              checked={content === "remove"}
+              onChange={() => setContent("remove")}
+              className="mt-1"
+            />
+            <span>
+              <span className="font-semibold">Remove my content</span>
+              <br />
+              <span className="text-mist">
+                Your posts are deleted and your activities become private.
+              </span>
+            </span>
+          </label>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="secondary"
+              className="min-h-[44px] px-4 text-[14px]"
+              disabled={leave.isPending}
+              onClick={() => leave.mutate()}
+            >
+              Yes, leave
+            </Button>
+            <Button
+              variant="secondary"
+              className="min-h-[44px] px-4 text-[14px]"
+              onClick={() => setConfirming(false)}
+            >
+              Stay
+            </Button>
+          </div>
         </div>
       ) : (
         <button
