@@ -9,6 +9,7 @@ import {
   createTeamEvent,
   deleteTeamEvent,
   listTeamEvents,
+  myTeamEvents,
   updateTeamEvent,
 } from "./service.js";
 
@@ -23,6 +24,17 @@ export async function teamEventRoutes(app: FastifyInstance): Promise<void> {
       const { id } = teamParamsSchema.parse(request.params);
       const { from, to } = rangeQuery.parse(request.query);
       const events = await listTeamEvents(request.user!.id, id, from, to);
+      return { events };
+    },
+  );
+
+  // Unified personal calendar: events across all my teams.
+  app.get(
+    "/team-events/mine",
+    { preHandler: [app.authenticate] },
+    async (request) => {
+      const { from, to } = rangeQuery.parse(request.query);
+      const events = await myTeamEvents(request.user!.id, from, to);
       return { events };
     },
   );

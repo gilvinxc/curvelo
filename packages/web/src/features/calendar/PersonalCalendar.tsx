@@ -39,6 +39,14 @@ export function PersonalCalendarPage() {
     queryKey: ["personalPlanDays", range.from, range.to],
     queryFn: () => api.personalPlanDays(range.from, range.to),
   });
+  const teamEventsQuery = useQuery({
+    queryKey: ["myTeamEvents", range.from, range.to],
+    queryFn: () => api.myTeamEvents(range.from, range.to),
+  });
+  const teamEvents = teamEventsQuery.data?.events ?? [];
+  const dayTeamEvents = selectedDate
+    ? teamEvents.filter((e) => e.startAt.slice(0, 10) === selectedDate)
+    : [];
   const planDays = planDaysQuery.data?.days ?? [];
   const dayPlanItems = (selectedDate
     ? planDays.filter((d) => d.date === selectedDate)
@@ -57,7 +65,7 @@ export function PersonalCalendarPage() {
     <div>
       <PageHeader
         title="My calendar"
-        subtitle="Your scheduled workouts across all teams"
+        subtitle="Everything in one place — your plans, workouts, and team events"
         backTo="/dashboard"
       />
 
@@ -93,6 +101,7 @@ export function PersonalCalendarPage() {
             assignments={assignments}
             activities={activities}
             planDays={planDays}
+            events={teamEvents}
             monthOffset={monthOffset}
             selectedDate={selectedDate}
             onSelectDate={(d) => setSelectedDate((prev) => (prev === d ? null : d))}
@@ -104,10 +113,36 @@ export function PersonalCalendarPage() {
             {selectedDate &&
             dayAssignments.length === 0 &&
             dayActivities.length === 0 &&
-            dayPlanItems.length === 0 ? (
+            dayPlanItems.length === 0 &&
+            dayTeamEvents.length === 0 ? (
               <p className="text-[14px] text-mist">Nothing scheduled that day.</p>
             ) : (
               <div className="flex flex-col gap-2">
+                {dayTeamEvents.map((e) => (
+                  <div
+                    key={e.id}
+                    className="rounded-2xl border border-sky-400/25 bg-sky-400/[0.06] p-4"
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="rounded-md bg-sky-400/20 px-2 py-0.5 text-[11px] font-black uppercase tracking-wider text-sky-200">
+                        {e.eventType === "RACE" ? "Race day" : e.eventType.toLowerCase()}
+                      </span>
+                      <span className="text-[11px] font-semibold text-mist">
+                        {e.teamName ?? "Team event"}
+                      </span>
+                    </div>
+                    <p className="mt-1.5 text-[15px] font-bold text-ink-50">
+                      {e.title}
+                    </p>
+                    <p className="mt-0.5 text-[13px] text-mist">
+                      {e.location && `${e.location} · `}
+                      {new Date(e.startAt).toLocaleTimeString([], {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </p>
+                  </div>
+                ))}
                 {dayPlanItems.map((d) => (
                   <div
                     key={d.id}

@@ -302,6 +302,8 @@ export interface TeamEventRecurrence {
 export interface TeamEventDTO {
   id: string;
   teamId: string;
+  /** Present on the unified personal calendar. */
+  teamName?: string;
   title: string;
   description: string | null;
   eventType: string;

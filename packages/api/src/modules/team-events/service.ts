@@ -260,11 +260,12 @@ export async function myTeamEvents(
 ): Promise<TeamEventDTO[]> {
   const memberships = await db.teamMembership.findMany({
     where: { userId: actorId, status: "ACTIVE" },
-    select: { teamId: true },
+    select: { teamId: true, team: { select: { name: true } } },
   });
   const out: TeamEventDTO[] = [];
   for (const m of memberships) {
-    out.push(...(await listTeamEvents(actorId, m.teamId, from, to)));
+    const events = await listTeamEvents(actorId, m.teamId, from, to);
+    out.push(...events.map((e) => ({ ...e, teamName: m.team.name })));
   }
   return out.sort((a, b) => a.startAt.localeCompare(b.startAt));
 }

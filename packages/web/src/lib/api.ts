@@ -801,6 +801,10 @@ export const api = {
       `/teams/${teamId}/alumni-digest/draft?days=${days}`,
       {},
     ),
+  myTeamEvents: (from: string, to: string) =>
+    request<{ events: TeamEventDTO[] }>(
+      `/team-events/mine?from=${from}&to=${to}`,
+    ),
   postMessage: (teamId: string, conversationId: string, body: string) =>
     post<{ message: ChatMessageDTO }>(
       `/teams/${teamId}/conversations/${conversationId}/messages`,
