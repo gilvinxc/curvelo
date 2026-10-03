@@ -171,6 +171,39 @@ describe("event notifications", () => {
     }
   });
 
+  it("injury report notifies the athlete's verified guardians", async () => {
+    const app = await getApp();
+    const coach = await registerUser("COACH", "gcoach");
+    const teamId = await createTeamAs(coach, "Guardian Notify Team");
+    const athlete = await registerUser("RUNNER", "gathlete");
+    await addRunnerToTeam(coach, teamId, athlete);
+    const guardian = await registerUser("RUNNER", "gguardian");
+
+    // Coach invites the guardian; guardian accepts with consents → VERIFIED.
+    const invite = await request(app.server)
+      .post(`/api/v1/teams/${teamId}/athletes/${athlete.id}/guardians/invite`)
+      .set(cookieHeader(coach))
+      .send({ email: guardian.email, relationship: "parent" });
+    expect(invite.status).toBe(201);
+    const accept = await request(app.server)
+      .post(`/api/v1/guardian-invites/${invite.body.invite.token}/accept`)
+      .set(cookieHeader(guardian))
+      .send({ consents: ["PARTICIPATION", "DATA_SHARING"] });
+    expect(accept.status).toBe(200);
+
+    // Coach reports an injury for the athlete.
+    const rep = await request(app.server)
+      .post(`/api/v1/teams/${teamId}/injuries`)
+      .set(cookieHeader(coach))
+      .send({ athleteId: athlete.id, title: "Knee pain" });
+    expect(rep.status).toBe(201);
+
+    const gNotes = await notificationsFor(guardian);
+    const gInjury = gNotes.filter((n) => n.type === "INJURY_REPORTED");
+    expect(gInjury).toHaveLength(1);
+    expect(gInjury[0].link).toBe("/family");
+  });
+
   it("athlete self-report notifies all team coaches", async () => {
     const app = await getApp();
     const coach1 = await registerUser("COACH", "scoach1");

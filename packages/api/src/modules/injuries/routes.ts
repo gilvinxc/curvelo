@@ -160,6 +160,24 @@ export async function injuryRoutes(app: FastifyInstance): Promise<void> {
           },
         });
       }
+      // Notify the athlete's verified guardians — parents stay in the loop.
+      // Never the reporter (a guardian self-reporting already knows).
+      const guardianLinks = await db.guardianLink.findMany({
+        where: { athleteId: body.athleteId, status: "VERIFIED" },
+        select: { guardianId: true },
+      });
+      for (const g of guardianLinks) {
+        if (g.guardianId === request.user!.id) continue;
+        await db.notification.create({
+          data: {
+            userId: g.guardianId,
+            type: "INJURY_REPORTED",
+            title: `Injury reported: ${injury.athlete.displayName}`,
+            body: injury.title,
+            link: `/family`,
+          },
+        });
+      }
       return reply.status(201).send({ injury: toDTO(injury) });
     },
   );
