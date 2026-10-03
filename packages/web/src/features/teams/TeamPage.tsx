@@ -4,7 +4,6 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { ApiError, api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import {
-  Avatar,
   Button,
   Card,
   EmptyState,
@@ -13,7 +12,7 @@ import {
   PageHeader,
   RoleBadge,
   formatDate,
-} from "../../components/ui";
+  UserAvatar,} from "../../components/ui";
 import { cn } from "../../components/cx";
 import { InviteDialog } from "./InviteDialog";
 import { WorkoutList } from "../workouts/WorkoutList";
@@ -135,7 +134,7 @@ function RosterTab({
             const card = (
               <Card key={member.userId} className="p-4 transition hover:border-volt-400/40">
                 <div className="flex items-center gap-3">
-                  <Avatar name={member.displayName} />
+                  <UserAvatar userId={member.userId} name={member.displayName} hasAvatar={member.hasAvatar} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[15px] font-bold">
                       {member.displayName}

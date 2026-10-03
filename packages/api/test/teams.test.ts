@@ -86,6 +86,7 @@ describe("teams", () => {
     expect(res.body.teams[0].name).toBe("Springfield Public XC");
     expect(Object.keys(res.body.teams[0]).sort()).toEqual([
       "description",
+      "hasLogo",
       "id",
       "name",
     ]);

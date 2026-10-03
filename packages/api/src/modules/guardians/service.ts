@@ -40,7 +40,7 @@ type InviteWithJoins = {
   expiresAt: Date;
   token: string;
   team: { name: string };
-  athlete: { displayName: string };
+  athlete: { displayName: string; hasAvatar: boolean };
 };
 
 function toInviteDTO(inv: InviteWithJoins, includeToken: boolean): GuardianInviteDTO {
@@ -50,6 +50,7 @@ function toInviteDTO(inv: InviteWithJoins, includeToken: boolean): GuardianInvit
     teamName: inv.team.name,
     athleteId: inv.athleteId,
     athleteName: inv.athlete.displayName,
+    athleteHasAvatar: inv.athlete.hasAvatar,
     email: inv.email,
     relationship: inv.relationship,
     status: inv.status,
@@ -60,7 +61,7 @@ function toInviteDTO(inv: InviteWithJoins, includeToken: boolean): GuardianInvit
 
 const INVITE_INCLUDE = {
   team: { select: { name: true } },
-  athlete: { select: { displayName: true } },
+  athlete: { select: { displayName: true, hasAvatar: true } },
 } as const;
 
 async function getValidInvite(token: string) {
@@ -367,6 +368,7 @@ export async function myChildren(actorId: string): Promise<ChildSummaryDTO[]> {
         select: {
           id: true,
           displayName: true,
+          hasAvatar: true,
           dateOfBirth: true,
           memberships: {
             select: {
@@ -452,6 +454,7 @@ export async function myChildren(actorId: string): Promise<ChildSummaryDTO[]> {
       summaries.push({
         athleteId: link.athleteId,
         athleteName: link.athlete.displayName,
+        hasAvatar: link.athlete.hasAvatar,
         teamId,
         teamName: m.team.name,
         teamActive,

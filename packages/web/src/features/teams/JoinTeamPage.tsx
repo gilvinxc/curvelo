@@ -5,13 +5,13 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import {
-  Avatar,
   Button,
   Card,
   ErrorBanner,
   FullScreenLoader,
   Logo,
 } from "../../components/ui";
+import { TeamLogo } from "./TeamLogo";
 
 /**
  * Public team join page. Anyone with the link can request to join;
@@ -74,7 +74,7 @@ export function JoinTeamPage() {
       ) : !user ? (
         <Card>
           <div className="flex flex-col items-center text-center">
-            <Avatar name={link.teamName} size="lg" />
+            <TeamLogo teamId="" teamName={link.teamName} hasLogo={link.hasLogo ?? false} size={72} src={api.joinLogoUrl(token!)} />
             <p className="mt-4 text-[13px] font-bold uppercase tracking-[0.18em] text-volt-400">
               You're invited to join
             </p>
@@ -103,7 +103,7 @@ export function JoinTeamPage() {
       ) : requested ? (
         <Card>
           <div className="flex flex-col items-center text-center">
-            <Avatar name={link.teamName} size="lg" />
+            <TeamLogo teamId="" teamName={link.teamName} hasLogo={link.hasLogo ?? false} size={72} src={api.joinLogoUrl(token!)} />
             <h1 className="mt-4 text-xl font-black tracking-tight">
               Request sent
             </h1>
@@ -121,7 +121,7 @@ export function JoinTeamPage() {
       ) : (
         <Card>
           <div className="flex flex-col items-center text-center">
-            <Avatar name={link.teamName} size="lg" />
+            <TeamLogo teamId="" teamName={link.teamName} hasLogo={link.hasLogo ?? false} size={72} src={api.joinLogoUrl(token!)} />
             <p className="mt-4 text-[13px] font-bold uppercase tracking-[0.18em] text-volt-400">
               You're invited to join
             </p>

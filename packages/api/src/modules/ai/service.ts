@@ -144,7 +144,7 @@ export async function getMyInsight(
 
 type DigestMembership = {
   userId: string;
-  user: { displayName: string; lastLoginAt: Date | null };
+  user: { displayName: string; lastLoginAt: Date | null; hasAvatar: boolean };
 };
 
 async function digestRows(
@@ -160,6 +160,7 @@ async function digestRows(
     rows.push({
       athleteId: a.userId,
       athleteName: a.user.displayName,
+      hasAvatar: a.user.hasAvatar,
       sessions: stats.sessions,
       activeDays: stats.activeDays,
       completionRate: stats.completionRate,
@@ -188,7 +189,7 @@ export async function getTeamDigest(
   });
   const athletes = await db.teamMembership.findMany({
     where: { teamId, status: "ACTIVE", role: "RUNNER" },
-    include: { user: { select: { displayName: true, lastLoginAt: true } } },
+    include: { user: { select: { displayName: true, lastLoginAt: true, hasAvatar: true } } },
     orderBy: { createdAt: "asc" },
   });
 
@@ -571,7 +572,7 @@ export async function getGroupDigest(
       team: { select: { name: true } },
       members: {
         include: {
-          user: { select: { displayName: true, lastLoginAt: true } },
+          user: { select: { displayName: true, lastLoginAt: true, hasAvatar: true } },
         },
       },
     },

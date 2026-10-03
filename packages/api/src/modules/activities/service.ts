@@ -1040,7 +1040,7 @@ export async function athleteView(
 
   const target = await db.teamMembership.findUnique({
     where: { teamId_userId: { teamId, userId } },
-    include: { user: { select: { displayName: true } } },
+    include: { user: { select: { displayName: true, hasAvatar: true } } },
   });
   if (!target || target.status !== "ACTIVE") {
     throw notFound("Athlete not found");
@@ -1102,6 +1102,7 @@ export async function athleteView(
   return {
     userId,
     displayName: target.user.displayName,
+    hasAvatar: target.user.hasAvatar,
     role: target.role,
     stats: {
       count: recent.length,

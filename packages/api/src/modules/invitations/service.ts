@@ -41,7 +41,7 @@ function toDTO(
 async function getValidInvitation(token: string) {
   const invitation = await db.invitation.findUnique({
     where: { token },
-    include: { team: { select: { name: true, slug: true } } },
+    include: { team: { select: { id: true, name: true, slug: true, hasLogo: true, logoImage: true, logoMime: true } } },
   });
   if (!invitation) throw notFound("Invitation not found");
 
@@ -137,11 +137,25 @@ export async function previewInvitation(
   return {
     teamName: invitation.team.name,
     teamSlug: invitation.team.slug,
+    hasLogo: invitation.team.hasLogo,
     role: invitation.role,
     expiresAt: invitation.expiresAt.toISOString(),
     invitedEmail: invitation.email,
     status: invitation.status,
   };
+}
+
+/** Public team logo for the invitation accept page (token-gated, like the preview). */
+export async function getInvitationLogo(
+  token: string,
+): Promise<{ image: Buffer; mime: string }> {
+  const invitation = await getValidInvitation(token);
+  const logo = invitation.team.logoImage as Buffer | null;
+  if (!logo || !invitation.team.logoMime) {
+    const { notFound } = await import("../../lib/errors.js");
+    throw notFound("No team logo");
+  }
+  return { image: logo, mime: invitation.team.logoMime };
 }
 
 export async function acceptInvitation(

@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../../lib/api";
 import {
-  Avatar,
   Button,
   ErrorBanner,
   Field,
@@ -10,7 +9,7 @@ import {
   Select,
   TextArea,
   TextInput,
-} from "../../components/ui";
+  UserAvatar,} from "../../components/ui";
 import { todayYMD } from "../../lib/workoutFormat";
 
 type Target = "team" | "group" | "athlete" | "bulk";
@@ -228,7 +227,7 @@ export function AssignDialog({
                       onChange={() => toggleBulk(a.userId)}
                       className="h-5 w-5 shrink-0 accent-[#c8f542]"
                     />
-                    <Avatar name={a.displayName} size="sm" />
+                    <UserAvatar userId={a.userId} name={a.displayName} hasAvatar={a.hasAvatar} size="sm" />
                     <p className="min-w-0 flex-1 truncate text-[15px] font-semibold">
                       {a.displayName}
                     </p>

@@ -26,7 +26,7 @@ type GroupWithMembers = {
   name: string;
   leaderId: string | null;
   leader: { id: string; displayName: string } | null;
-  members: Array<{ user: { id: string; displayName: string } }>;
+  members: Array<{ user: { id: string; displayName: string; hasAvatar: boolean } }>;
 };
 
 function toDTO(g: GroupWithMembers, includeMembers: boolean): TeamGroupDTO {
@@ -42,6 +42,7 @@ function toDTO(g: GroupWithMembers, includeMembers: boolean): TeamGroupDTO {
           members: g.members.map((m) => ({
             userId: m.user.id,
             displayName: m.user.displayName,
+            hasAvatar: m.user.hasAvatar,
           })),
         }
       : {}),
@@ -53,7 +54,7 @@ async function getGroupOr404(groupId: string) {
     where: { id: groupId },
     include: {
       leader: { select: { id: true, displayName: true } },
-      members: { include: { user: { select: { id: true, displayName: true } } } },
+      members: { include: { user: { select: { id: true, displayName: true, hasAvatar: true } } } },
     },
   });
   if (!group) throw notFound("Group not found");
@@ -108,7 +109,7 @@ export async function createGroup(
       where: { id: created.id },
       include: {
         leader: { select: { id: true, displayName: true } },
-        members: { include: { user: { select: { id: true, displayName: true } } } },
+        members: { include: { user: { select: { id: true, displayName: true, hasAvatar: true } } } },
       },
     });
   });
@@ -134,7 +135,7 @@ export async function listGroups(actorId: string, teamId: string): Promise<TeamG
     where: { teamId },
     include: {
       leader: { select: { id: true, displayName: true } },
-      members: { include: { user: { select: { id: true, displayName: true } } } },
+      members: { include: { user: { select: { id: true, displayName: true, hasAvatar: true } } } },
     },
     orderBy: { name: "asc" },
   });

@@ -8,6 +8,8 @@ export function TeamLogo({
   hasLogo,
   size = 48,
   version,
+  /** Override the image URL (e.g. public token-gated logo endpoints). */
+  src,
 }: {
   teamId: string;
   teamName: string;
@@ -15,6 +17,7 @@ export function TeamLogo({
   size?: number;
   /** Bump to bust the browser cache after an upload/remove. */
   version?: number;
+  src?: string;
 }) {
   const [failed, setFailed] = useState(false);
   const initials = teamName
@@ -23,6 +26,7 @@ export function TeamLogo({
     .map((w) => w[0]?.toUpperCase() ?? "")
     .join("");
 
+  const logoSrc = src ?? (version ? `${api.teamLogoUrl(teamId)}?v=${version}` : api.teamLogoUrl(teamId));
   if (!hasLogo || failed) {
     return (
       <div
@@ -36,7 +40,7 @@ export function TeamLogo({
   }
   return (
     <img
-      src={version ? `${api.teamLogoUrl(teamId)}?v=${version}` : api.teamLogoUrl(teamId)}
+      src={logoSrc}
       alt={`${teamName} logo`}
       width={size}
       height={size}

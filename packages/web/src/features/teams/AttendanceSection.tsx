@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../../lib/api";
 import {
-  Avatar,
   Button,
   Card,
   EmptyState,
@@ -11,7 +10,7 @@ import {
   FullScreenLoader,
   Modal,
   TextInput,
-} from "../../components/ui";
+  UserAvatar,} from "../../components/ui";
 import { todayYMD } from "../../lib/workoutFormat";
 
 export function AttendanceSection({ teamId }: { teamId: string }) {
@@ -142,7 +141,7 @@ function AttendanceRow({
                   key={m.userId}
                   className="flex items-center gap-2.5 rounded-xl bg-ink-800 px-3 py-2"
                 >
-                  <Avatar name={m.displayName} size="sm" />
+                  <UserAvatar userId={m.userId} name={m.displayName} hasAvatar={m.hasAvatar} size="sm" />
                   <p className="min-w-0 flex-1 truncate text-[14px] font-semibold">
                     {m.displayName}
                   </p>
@@ -274,7 +273,7 @@ function TakeAttendanceDialog({
                       </svg>
                     )}
                   </span>
-                  <Avatar name={r.displayName} size="sm" />
+                  <UserAvatar userId={r.userId} name={r.displayName} hasAvatar={r.hasAvatar} size="sm" />
                   <p className="min-w-0 flex-1 truncate text-[15px] font-semibold">
                     {r.displayName}
                   </p>

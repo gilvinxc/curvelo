@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "./cx";
+import { api } from "../lib/api";
 import { BRAND_ICON_SRC, BRAND_LOGO_SRC, BRAND_NAME } from "../brand";
 
 /* ---------------------------------- logo --------------------------------- */
@@ -261,16 +262,18 @@ export function Avatar({
   className?: string;
   imageUrl?: string;
 }) {
+  const [failed, setFailed] = useState(false);
   const sizes = {
     sm: "h-9 w-9 text-[13px]",
     md: "h-11 w-11 text-[15px]",
     lg: "h-16 w-16 text-xl",
   };
-  if (imageUrl) {
+  if (imageUrl && !failed) {
     return (
       <img
         src={imageUrl}
         alt={name}
+        onError={() => setFailed(true)}
         className={cn(
           "inline-flex shrink-0 rounded-full object-cover",
           sizes[size],
@@ -301,6 +304,30 @@ export function Avatar({
     >
       {initials || "?"}
     </span>
+  );
+}
+
+/** User avatar with photo when available, initials fallback otherwise. */
+export function UserAvatar({
+  userId,
+  name,
+  hasAvatar,
+  size = "md",
+  className,
+}: {
+  userId: string;
+  name: string;
+  hasAvatar?: boolean;
+  size?: "sm" | "md" | "lg";
+  className?: string;
+}) {
+  return (
+    <Avatar
+      name={name}
+      size={size}
+      className={className}
+      imageUrl={hasAvatar ? api.avatarUrl(userId) : undefined}
+    />
   );
 }
 

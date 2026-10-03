@@ -3,12 +3,11 @@ import { Link } from "react-router-dom";
 import type { TeamDigest, TeamDigestAthlete } from "@curvelo/shared";
 import { api, ApiError } from "../../lib/api";
 import {
-  Avatar,
   Button,
   Card,
   EmptyState,
   ErrorBanner,
-} from "../../components/ui";
+  UserAvatar,} from "../../components/ui";
 import { cn } from "../../components/cx";
 import { BRAND_NAME } from "../../brand";
 
@@ -165,7 +164,7 @@ export function TeamDigestSection({
                     >
                       <Card className="p-4 transition hover:border-volt-400/40">
                         <div className="flex items-center gap-3">
-                          <Avatar name={a.athleteName} />
+                          <UserAvatar userId={a.athleteId} name={a.athleteName} hasAvatar={a.hasAvatar} />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-[15px] font-bold">
                               {a.athleteName}

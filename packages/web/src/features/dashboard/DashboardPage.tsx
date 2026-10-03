@@ -4,14 +4,13 @@ import { Link } from "react-router-dom";
 import { ApiError, api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import {
-  Avatar,
   Button,
   Card,
   EmptyState,
   ErrorBanner,
   FullScreenLoader,
   Modal,
-} from "../../components/ui";
+  UserAvatar,} from "../../components/ui";
 import { BRAND_NAME } from "../../brand";
 import { UpcomingWorkouts } from "../calendar/PersonalCalendar";
 import { TrainingLog } from "../activities/TrainingLog";
@@ -124,6 +123,7 @@ export function DashboardPage() {
                   teamId={t.id}
                   teamName={t.name}
                   myRole={t.myRole}
+                  hasLogo={t.hasLogo}
                 />
               ))}
             </div>
@@ -150,7 +150,7 @@ export function DashboardPage() {
               <Link key={child.athleteId} to="/family" className="block">
                 <Card className="transition hover:border-volt-400/40">
                   <div className="flex items-center gap-3">
-                    <Avatar name={child.athleteName} />
+                    <UserAvatar userId={child.athleteId} name={child.athleteName} hasAvatar={child.hasAvatar} />
                     <div className="min-w-0 flex-1">
                       <h3 className="truncate text-[17px] font-extrabold tracking-tight">
                         {child.athleteName}

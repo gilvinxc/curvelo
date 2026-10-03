@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ActivityDTO, PostDTO } from "@curvelo/shared";
 import { api, ApiError } from "../../lib/api";
-import { Avatar, Button, ErrorBanner } from "../../components/ui";
+import { Button, ErrorBanner,
+  UserAvatar,} from "../../components/ui";
 import { MentionTextarea } from "../../components/MentionTextarea";
 import { PhotoPicker } from "../photos/PhotoPicker";
 import { PhotoImg } from "../../components/PhotoImg";
@@ -62,7 +63,7 @@ export function Composer({
   return (
     <div className="rounded-2xl border border-white/10 bg-ink-900 p-4 shadow-card">
       <div className="flex gap-3">
-        <Avatar name={user?.displayName ?? "?"} size="sm" className="mt-1" />
+        <UserAvatar userId={user?.id ?? ""} name={user?.displayName ?? "?"} hasAvatar={user?.hasAvatar} size="sm" className="mt-1" />
         <div className="min-w-0 flex-1">
           <MentionTextarea
             teamId={teamId}

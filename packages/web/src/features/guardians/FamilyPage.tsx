@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import type { ChildSummaryDTO, FamilyCalendarItemDTO } from "@curvelo/shared";
 import { ApiError, api } from "../../lib/api";
 import {
-  Avatar,
   Button,
   Card,
   EmptyState,
@@ -12,7 +11,7 @@ import {
   FullScreenLoader,
   PageHeader,
   Spinner,
-} from "../../components/ui";
+  UserAvatar,} from "../../components/ui";
 import { cn } from "../../components/cx";
 import { AssignmentRow } from "../calendar/CalendarBits";
 import { ActivityRow } from "../activities/ActivityRow";
@@ -107,7 +106,7 @@ function ChildCard({
     <Card>
       <div className="flex items-center gap-3">
         <span className={cn("h-10 w-1.5 shrink-0 rounded-full", color)} aria-hidden />
-        <Avatar name={athleteName} />
+        <UserAvatar userId={first.athleteId} name={athleteName} hasAvatar={first.hasAvatar} />
         <div className="min-w-0 flex-1">
           <h3 className="truncate text-[17px] font-extrabold tracking-tight">
             {athleteName}

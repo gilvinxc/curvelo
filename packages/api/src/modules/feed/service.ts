@@ -36,7 +36,7 @@ type PostWithJoins = {
   body: string | null;
   authorId: string;
   createdAt: Date;
-  author: { displayName: string };
+  author: { displayName: string; hasAvatar: boolean };
   activity: ActivityWithJoins | null;
   _count: { comments: number };
   reactions: Array<{ emoji: string; userId: string }>;
@@ -56,7 +56,7 @@ type PostWithJoins = {
 };
 
 const POST_INCLUDE = {
-  author: { select: { displayName: true } },
+  author: { select: { displayName: true, hasAvatar: true } },
   activity: { include: ACTIVITY_WITH_JOINS },
   _count: { select: { comments: true } },
   reactions: { select: { emoji: true, userId: true } },
@@ -130,6 +130,7 @@ async function toPostDTO(
     body: p.body,
     authorId: p.authorId,
     authorName: p.author.displayName,
+    authorHasAvatar: p.author.hasAvatar,
     activity: p.activity ? await toActivityDTO(p.activity) : null,
     commentCount: p._count.comments,
     reactions,
@@ -422,7 +423,7 @@ export async function createComment(
 
   const comment = await db.postComment.create({
     data: { postId, authorId: actorId, body: input.body.trim() },
-    include: { author: { select: { displayName: true } } },
+    include: { author: { select: { displayName: true, hasAvatar: true } } },
   });
 
   await syncMentions({
@@ -450,6 +451,7 @@ export async function createComment(
     postId,
     authorId: comment.authorId,
     authorName: comment.author.displayName,
+    authorHasAvatar: comment.author.hasAvatar,
     body: comment.body,
     mentions: mentions.get(comment.id) ?? [],
     createdAt: comment.createdAt.toISOString(),
@@ -465,7 +467,7 @@ export async function listComments(
 
   const comments = await db.postComment.findMany({
     where: { postId },
-    include: { author: { select: { displayName: true } } },
+    include: { author: { select: { displayName: true, hasAvatar: true } } },
     orderBy: { createdAt: "asc" },
   });
   const mentions = await mentionRefsFor(
@@ -477,6 +479,7 @@ export async function listComments(
     postId,
     authorId: c.authorId,
     authorName: c.author.displayName,
+    authorHasAvatar: c.author.hasAvatar,
     body: c.body,
     mentions: mentions.get(c.id) ?? [],
     createdAt: c.createdAt.toISOString(),
@@ -559,7 +562,7 @@ export async function reportPost(
   const report = await db.postReport.create({
     data: { postId, reporterId: actorId, reason: reason.trim() },
     include: {
-      reporter: { select: { displayName: true } },
+      reporter: { select: { displayName: true, hasAvatar: true } },
       post: { select: { body: true, kind: true } },
     },
   });
@@ -579,6 +582,7 @@ export async function reportPost(
     postExcerpt: (report.post.body ?? `[${report.post.kind}]`).slice(0, 120),
     reporterId: report.reporterId,
     reporterName: report.reporter.displayName,
+    reporterHasAvatar: report.reporter.hasAvatar,
     reason: report.reason,
     status: report.status,
     createdAt: report.createdAt.toISOString(),
@@ -596,7 +600,7 @@ export async function listReports(
   const reports = await db.postReport.findMany({
     where: { post: { teamId }, ...(status ? { status } : {}) },
     include: {
-      reporter: { select: { displayName: true } },
+      reporter: { select: { displayName: true, hasAvatar: true } },
       post: { select: { body: true, kind: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -607,6 +611,7 @@ export async function listReports(
     postExcerpt: (r.post.body ?? `[${r.post.kind}]`).slice(0, 120),
     reporterId: r.reporterId,
     reporterName: r.reporter.displayName,
+    reporterHasAvatar: r.reporter.hasAvatar,
     reason: r.reason,
     status: r.status,
     createdAt: r.createdAt.toISOString(),
@@ -622,7 +627,7 @@ export async function resolveReport(
   const report = await db.postReport.findUnique({
     where: { id: reportId },
     include: {
-      reporter: { select: { displayName: true } },
+      reporter: { select: { displayName: true, hasAvatar: true } },
       post: { select: { teamId: true, body: true, kind: true } },
     },
   });
@@ -650,6 +655,7 @@ export async function resolveReport(
     postExcerpt: (report.post.body ?? `[${report.post.kind}]`).slice(0, 120),
     reporterId: updated.reporterId,
     reporterName: report.reporter.displayName,
+    reporterHasAvatar: report.reporter.hasAvatar,
     reason: updated.reason,
     status: updated.status,
     createdAt: updated.createdAt.toISOString(),

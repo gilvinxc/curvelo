@@ -201,7 +201,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
     }
     await db.user.update({
       where: { id: request.user!.id },
-      data: { avatarImage: parsed.buf, avatarMime: parsed.mime },
+      data: { avatarImage: parsed.buf, avatarMime: parsed.mime, hasAvatar: true },
     });
     await audit({
       actorId: request.user!.id,
@@ -215,7 +215,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
   app.delete("/me/avatar", { preHandler: [app.authenticate] }, async (request, reply) => {
     await db.user.update({
       where: { id: request.user!.id },
-      data: { avatarImage: null, avatarMime: null },
+      data: { avatarImage: null, avatarMime: null, hasAvatar: false },
     });
     return reply.send({ ok: true, hasAvatar: false });
   });

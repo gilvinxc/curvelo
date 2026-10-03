@@ -143,13 +143,14 @@ export async function getAttendance(
   const records = recordsOf(row);
   const users = await db.user.findMany({
     where: { id: { in: Object.keys(records) } },
-    select: { id: true, displayName: true },
+    select: { id: true, displayName: true, hasAvatar: true },
   });
-  const names = new Map(users.map((u) => [u.id, u.displayName]));
+  const byId = new Map(users.map((u) => [u.id, u]));
   const dto = toDTO(row, true);
   dto.members = Object.entries(records).map(([userId, present]) => ({
     userId,
-    displayName: names.get(userId) ?? "Unknown",
+    displayName: byId.get(userId)?.displayName ?? "Unknown",
+    hasAvatar: byId.get(userId)?.hasAvatar ?? false,
     present,
   }));
   dto.members.sort((a, b) => a.displayName.localeCompare(b.displayName));

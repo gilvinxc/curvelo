@@ -6,7 +6,6 @@ import { GroupsSection } from "./GroupsSection";
 import { AttendanceSection } from "./AttendanceSection";
 import { TeamLogo, resizeImageFile } from "./TeamLogo";
 import {
-  Avatar,
   Button,
   Card,
   ErrorBanner,
@@ -15,7 +14,7 @@ import {
   RoleBadge,
   Select,
   TextInput,
-} from "../../components/ui";
+  UserAvatar,} from "../../components/ui";
 
 const MANAGEABLE_ROLES = ["COACH", "TEAM_ADMIN", "RUNNER", "ALUMNI"] as const;
 
@@ -230,7 +229,7 @@ function JoinRequestsSection({ teamId }: { teamId: string }) {
             className="flex flex-col gap-2 rounded-xl border border-white/10 bg-ink-800 px-3 py-3"
           >
             <div className="flex items-center gap-2">
-              <Avatar name={r.user.displayName} />
+              <UserAvatar userId={r.user.id} name={r.user.displayName} hasAvatar={r.user.hasAvatar} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[14px] font-bold text-ink-50">
                   {r.user.displayName}
@@ -353,7 +352,7 @@ function MembersSection({
               key={m.userId}
               className="flex items-center gap-2 rounded-xl border border-white/10 bg-ink-800 px-3 py-2.5"
             >
-              <Avatar name={m.displayName} />
+              <UserAvatar userId={m.userId} name={m.displayName} hasAvatar={m.hasAvatar} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[14px] font-bold text-ink-50">
                   {m.displayName}

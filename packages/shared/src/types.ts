@@ -37,6 +37,7 @@ export interface TeamDTO {
 
 /** Roster entry. Coaches see emails + contact info; runners see names only. */
 export interface RosterMemberDTO {
+  hasAvatar: boolean;
   userId: string;
   displayName: string;
   email?: string;
@@ -131,6 +132,7 @@ export interface InvitationDTO {
 export interface InvitationPreviewDTO {
   teamName: string;
   teamSlug: string;
+  hasLogo: boolean;
   role: string;
   expiresAt: string;
   invitedEmail: string;
@@ -154,6 +156,7 @@ export interface JoinLinkDTO {
 export interface JoinLinkPreviewDTO {
   teamName: string;
   teamDescription: string | null;
+  hasLogo: boolean;
   expiresAt: string;
   usesLeft: number | null;
 }
@@ -164,7 +167,7 @@ export interface JoinRequestDTO {
   teamId: string;
   status: string;
   createdAt: string;
-  user: { id: string; displayName: string; email: string };
+  user: { id: string; displayName: string; email: string; hasAvatar: boolean };
 }
 
 /** A personal or team goal with computed progress. */
@@ -253,7 +256,7 @@ export interface TeamGroupDTO {
   memberCount: number;
   leaderId: string | null;
   leaderName: string | null;
-  members?: Array<{ userId: string; displayName: string }>;
+  members?: Array<{ userId: string; displayName: string; hasAvatar: boolean }>;
 }
 
 export interface AttendanceDTO {
@@ -266,7 +269,7 @@ export interface AttendanceDTO {
   absentCount: number;
   presentPct: number;
   records?: Record<string, boolean>;
-  members?: Array<{ userId: string; displayName: string; present: boolean }>;
+  members?: Array<{ userId: string; displayName: string; hasAvatar: boolean; present: boolean }>;
   createdByName: string;
   createdAt: string;
 }
@@ -458,6 +461,7 @@ export interface ActivityStatsDTO {
 export interface AthleteViewDTO {
   userId: string;
   displayName: string;
+  hasAvatar: boolean;
   role: string;
   stats: ActivityStatsDTO;
   recentActivities: ActivityDTO[];
@@ -470,6 +474,7 @@ export interface ReactionSummaryDTO {
 }
 
 export interface PostDTO {
+  authorHasAvatar: boolean;
   id: string;
   teamId: string;
   kind: string;
@@ -486,6 +491,7 @@ export interface PostDTO {
 }
 
 export interface CommentDTO {
+  authorHasAvatar: boolean;
   id: string;
   postId: string;
   authorId: string;
@@ -501,6 +507,7 @@ export interface ReportDTO {
   postExcerpt: string;
   reporterId: string;
   reporterName: string;
+  reporterHasAvatar: boolean;
   reason: string;
   status: string;
   createdAt: string;
@@ -512,6 +519,7 @@ export interface GuardianInviteDTO {
   teamName: string;
   athleteId: string;
   athleteName: string;
+  athleteHasAvatar: boolean;
   email: string;
   relationship: string;
   status: string;
@@ -568,6 +576,7 @@ export interface AthleteInsight {
 export interface TeamDigestAthlete {
   athleteId: string;
   athleteName: string;
+  hasAvatar: boolean;
   sessions: number;
   activeDays: number;
   completionRate: number | null;
@@ -636,6 +645,7 @@ export interface ConversationDTO {
 }
 
 export interface ChatMessageDTO {
+  authorHasAvatar: boolean;
   id: string;
   conversationId: string;
   authorId: string;
@@ -649,6 +659,7 @@ export interface ChatMessageDTO {
 }
 
 export interface ChildSummaryDTO {
+  hasAvatar: boolean;
   athleteId: string;
   athleteName: string;
   teamId: string;

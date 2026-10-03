@@ -5,12 +5,11 @@ import { REACTION_EMOJIS } from "@curvelo/shared";
 import type { CommentDTO, PostDTO } from "@curvelo/shared";
 import { api, ApiError } from "../../lib/api";
 import {
-  Avatar,
   Button,
   ErrorBanner,
   Modal,
   GpsBadge,
-} from "../../components/ui";
+  UserAvatar,} from "../../components/ui";
 import { cn } from "../../components/cx";
 import {
   activitySummary,
@@ -172,7 +171,7 @@ function CommentThread({
               canModerate || (currentUserId != null && c.authorId === currentUserId);
             return (
               <li key={c.id} className="flex items-start gap-2.5">
-                <Avatar name={c.authorName} size="sm" />
+                <UserAvatar userId={c.authorId} name={c.authorName} hasAvatar={c.authorHasAvatar} size="sm" />
                 <div className="min-w-0 flex-1 rounded-xl bg-ink-800 px-3.5 py-2.5">
                   <p className="text-[13px]">
                     <span className="font-bold">{c.authorName}</span>{" "}
@@ -296,7 +295,7 @@ export function PostCard({
     <article className={`rounded-2xl border bg-ink-900 p-4 shadow-card ${celebrationRing}`}>
       {/* header */}
       <div className="flex items-start gap-3">
-        <Avatar name={post.authorName} size="sm" className="mt-0.5" />
+        <UserAvatar userId={post.authorId} name={post.authorName} hasAvatar={post.authorHasAvatar} size="sm" className="mt-0.5" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-[15px] font-bold">{post.authorName}</p>
           <p className="text-[12px] text-mist/70">

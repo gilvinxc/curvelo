@@ -231,7 +231,7 @@ type MessageWithAuthor = {
   createdAt: Date;
   editedAt: Date | null;
   deletedAt: Date | null;
-  author: { displayName: string };
+  author: { displayName: string; hasAvatar: boolean };
   conversation: { teamId: string };
 };
 
@@ -246,6 +246,7 @@ async function toMessageDTO(
     conversationId: m.conversationId,
     authorId: m.authorId,
     authorName: m.author.displayName,
+    authorHasAvatar: m.author.hasAvatar,
     authorRole,
     body: deleted ? null : m.body,
     mentions: mentions.get(m.id) ?? [],
@@ -292,7 +293,7 @@ export async function listMessages(
   const rows = await db.message.findMany({
     where,
     include: {
-      author: { select: { displayName: true } },
+      author: { select: { displayName: true, hasAvatar: true } },
       conversation: { select: { teamId: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -332,7 +333,7 @@ export async function postMessage(
   const message = await db.message.create({
     data: { conversationId: conv.id, authorId: actorId, body: input.body },
     include: {
-      author: { select: { displayName: true } },
+      author: { select: { displayName: true, hasAvatar: true } },
       conversation: { select: { teamId: true } },
     },
   });
@@ -392,7 +393,7 @@ async function getMessage(messageId: string) {
   const message = await db.message.findUnique({
     where: { id: messageId },
     include: {
-      author: { select: { displayName: true } },
+      author: { select: { displayName: true, hasAvatar: true } },
       conversation: { select: { id: true, teamId: true, kind: true } },
     },
   });
@@ -419,7 +420,7 @@ export async function editMessage(
     where: { id: messageId },
     data: { body, editedAt: new Date() },
     include: {
-      author: { select: { displayName: true } },
+      author: { select: { displayName: true, hasAvatar: true } },
       conversation: { select: { teamId: true } },
     },
   });

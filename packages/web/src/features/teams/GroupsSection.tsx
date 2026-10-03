@@ -12,7 +12,7 @@ import {
   Modal,
   Select,
   TextInput,
-} from "../../components/ui";
+  UserAvatar,} from "../../components/ui";
 
 const CAN_MANAGE = new Set(["COACH", "TEAM_ADMIN"]);
 
@@ -117,7 +117,7 @@ function GroupRow({
                   key={m.userId}
                   className="flex items-center gap-2.5 rounded-xl bg-ink-800 px-3 py-2"
                 >
-                  <Avatar name={m.displayName} size="sm" />
+                  <UserAvatar userId={m.userId} name={m.displayName} hasAvatar={m.hasAvatar} size="sm" />
                   <p className="min-w-0 flex-1 truncate text-[14px] font-semibold">
                     {m.displayName}
                   </p>
@@ -261,7 +261,7 @@ function AddMembersDialog({
                     onChange={() => toggle(m.userId)}
                     className="h-5 w-5 shrink-0 accent-[#c8f542]"
                   />
-                  <Avatar name={m.displayName} size="sm" />
+                  <UserAvatar userId={m.userId} name={m.displayName} hasAvatar={m.hasAvatar} size="sm" />
                   <p className="min-w-0 flex-1 truncate text-[15px] font-semibold">
                     {m.displayName}
                   </p>
@@ -455,7 +455,7 @@ function CreateGroupDialog({
                       onChange={() => toggle(m.userId)}
                       className="h-5 w-5 shrink-0 accent-[#c8f542]"
                     />
-                    <Avatar name={m.displayName} size="sm" />
+                    <UserAvatar userId={m.userId} name={m.displayName} hasAvatar={m.hasAvatar} size="sm" />
                     <p className="min-w-0 flex-1 truncate text-[15px] font-semibold">
                       {m.displayName}
                     </p>

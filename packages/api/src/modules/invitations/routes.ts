@@ -7,6 +7,7 @@ import {
 import {
   acceptInvitation,
   createInvitation,
+  getInvitationLogo,
   previewInvitation,
 } from "./service.js";
 
@@ -33,6 +34,16 @@ export async function invitationRoutes(app: FastifyInstance): Promise<void> {
     const { token } = invitationTokenParamsSchema.parse(request.params);
     const preview = await previewInvitation(token);
     return reply.send({ invitation: preview });
+  });
+
+  // Public team logo for the accept page — same token gate as the preview.
+  app.get("/invitations/:token/logo", async (request, reply) => {
+    const { token } = invitationTokenParamsSchema.parse(request.params);
+    const { image, mime } = await getInvitationLogo(token);
+    return reply
+      .header("Content-Type", mime)
+      .header("Cache-Control", "public, max-age=3600")
+      .send(image);
   });
 
   // Logged-in user accepts (email must match the invitation).

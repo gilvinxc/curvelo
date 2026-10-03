@@ -314,7 +314,9 @@ export interface UpdateActivityPayload {
 /** Public preview of a guardian invite — no email or token included. */
 export interface GuardianInvitePreviewDTO {
   teamName: string;
+  athleteId: string;
   athleteName: string;
+  athleteHasAvatar: boolean;
   relationship: string;
   status: string;
   expiresAt: string;
@@ -444,7 +446,7 @@ export const api = {
   createTeam: (input: CreateTeamInput) =>
     post<{ team: TeamDTO }>("/teams", input),
   discoverTeams: (q: string) =>
-    request<{ teams: { id: string; name: string; description: string | null }[] }>(
+    request<{ teams: { id: string; name: string; description: string | null; hasLogo: boolean }[] }>(
       `/teams/discover?q=${encodeURIComponent(q)}`,
     ),
   findSimilarTeams: (name: string) =>
@@ -789,6 +791,8 @@ export const api = {
     put<{ ok: boolean }>(`/teams/${teamId}/logo`, { image }),
   removeTeamLogo: (teamId: string) => del<{ ok: boolean }>(`/teams/${teamId}/logo`),
   teamLogoUrl: (teamId: string) => `${BASE_URL}/teams/${teamId}/logo`,
+  joinLogoUrl: (token: string) => `${BASE_URL}/join/${token}/logo`,
+  invitationLogoUrl: (token: string) => `${BASE_URL}/invitations/${token}/logo`,
 
   // personal training plans
   listPersonalPlans: () =>

@@ -5,14 +5,13 @@ import { CONSENT_TYPES } from "@curvelo/shared";
 import { ApiError, api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import {
-  Avatar,
   Button,
   Card,
   ErrorBanner,
   FullScreenLoader,
   Logo,
   formatDate,
-} from "../../components/ui";
+  UserAvatar,} from "../../components/ui";
 import { BRAND_NAME } from "../../brand";
 
 const CONSENT_COPY: Record<string, { title: string; body: string }> = {
@@ -130,7 +129,7 @@ export function GuardianInviteAcceptPage() {
       ) : !user ? (
         <Card>
           <div className="flex flex-col items-center text-center">
-            <Avatar name={invite.athleteName} size="lg" />
+            <UserAvatar userId={invite.athleteId} name={invite.athleteName} hasAvatar={invite.athleteHasAvatar} size="lg" />
             <p className="mt-4 text-[13px] font-bold uppercase tracking-[0.18em] text-volt-400">
               Guardian invitation
             </p>
@@ -165,7 +164,7 @@ export function GuardianInviteAcceptPage() {
       ) : (
         <Card>
           <div className="flex flex-col items-center text-center">
-            <Avatar name={invite.athleteName} size="lg" />
+            <UserAvatar userId={invite.athleteId} name={invite.athleteName} hasAvatar={invite.athleteHasAvatar} size="lg" />
             <p className="mt-4 text-[13px] font-bold uppercase tracking-[0.18em] text-volt-400">
               Guardian invitation
             </p>

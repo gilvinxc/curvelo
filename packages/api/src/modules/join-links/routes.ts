@@ -10,6 +10,7 @@ import {
 import {
   createJoinLink,
   decideJoinRequest,
+  getJoinLinkLogo,
   listJoinLinks,
   listJoinRequests,
   previewJoinLink,
@@ -101,6 +102,16 @@ export async function joinLinkRoutes(app: FastifyInstance): Promise<void> {
   app.get("/join/:token", async (request, reply) => {
     const { token } = joinLinkTokenParamsSchema.parse(request.params);
     return reply.send(await previewJoinLink(token));
+  });
+
+  // Public team logo for the join page — same token gate as the preview.
+  app.get("/join/:token/logo", async (request, reply) => {
+    const { token } = joinLinkTokenParamsSchema.parse(request.params);
+    const { image, mime } = await getJoinLinkLogo(token);
+    return reply
+      .header("Content-Type", mime)
+      .header("Cache-Control", "public, max-age=3600")
+      .send(image);
   });
 
   // Logged-in user requests to join via the link.

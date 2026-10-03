@@ -35,7 +35,7 @@ function toTeamDTO(
     visibility: string;
     ownerId: string;
     createdAt: Date;
-    logoImage: unknown;
+    hasLogo: boolean;
     _count: { memberships: number };
   },
   myRole: string | null,
@@ -51,7 +51,7 @@ function toTeamDTO(
     myRole,
     isOwner: myUserId != null ? team.ownerId === myUserId : undefined,
     createdAt: team.createdAt.toISOString(),
-    hasLogo: team.logoImage != null,
+    hasLogo: team.hasLogo,
   };
 }
 
@@ -100,7 +100,17 @@ export async function createTeam(
   // Re-fetch so _count reflects the just-created membership.
   const team = await db.team.findUniqueOrThrow({
     where: { id: teamId },
-    include: { _count: { select: { memberships: true } } },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      visibility: true,
+      ownerId: true,
+      createdAt: true,
+      hasLogo: true,
+      _count: { select: { memberships: true } },
+    },
   });
 
   await audit({
@@ -119,7 +129,19 @@ export async function listMyTeams(userId: string): Promise<TeamDTO[]> {
   const memberships = await db.teamMembership.findMany({
     where: { userId, status: "ACTIVE" },
     include: {
-      team: { include: { _count: { select: { memberships: true } } } },
+      team: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          description: true,
+          visibility: true,
+          ownerId: true,
+          createdAt: true,
+          hasLogo: true,
+          _count: { select: { memberships: true } },
+        },
+      },
     },
     orderBy: { joinedAt: "desc" },
   });
@@ -130,7 +152,17 @@ export async function getTeam(userId: string, teamId: string): Promise<TeamDTO> 
   const membership = await activeMembership(userId, teamId);
   const team = await db.team.findUnique({
     where: { id: teamId },
-    include: { _count: { select: { memberships: true } } },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      visibility: true,
+      ownerId: true,
+      createdAt: true,
+      hasLogo: true,
+      _count: { select: { memberships: true } },
+    },
   });
   // activeMembership already 404s for non-members, so team exists here.
   return toTeamDTO(team!, membership.role, userId);
@@ -161,7 +193,17 @@ export async function updateTeam(
         input.description === undefined ? undefined : input.description?.trim() || null,
       visibility: input.visibility,
     },
-    include: { _count: { select: { memberships: true } } },
+    select: {
+      id: true,
+      name: true,
+      slug: true,
+      description: true,
+      visibility: true,
+      ownerId: true,
+      createdAt: true,
+      hasLogo: true,
+      _count: { select: { memberships: true } },
+    },
   });
 
   await audit({
@@ -191,6 +233,7 @@ export async function getRoster(
         select: {
           id: true,
           displayName: true,
+          hasAvatar: true,
           email: true,
           profile: {
             select: { phone: true, emergencyName: true, emergencyPhone: true },
@@ -204,6 +247,7 @@ export async function getRoster(
   return members.map((m) => ({
     userId: m.user.id,
     displayName: m.user.displayName,
+    hasAvatar: m.user.hasAvatar,
     ...(showEmails ? { email: m.user.email } : {}),
     // Contact info is manager-only, like emails.
     ...(showEmails
@@ -453,7 +497,7 @@ export async function setTeamLogo(
 
   await db.team.update({
     where: { id: teamId },
-    data: { logoImage: buf, logoMime: `image/${match[1]}` },
+    data: { logoImage: buf, logoMime: `image/${match[1]}`, hasLogo: true },
   });
 
   await audit({
@@ -475,7 +519,7 @@ export async function removeTeamLogo(
   requireManager(membership);
   await db.team.update({
     where: { id: teamId },
-    data: { logoImage: null, logoMime: null },
+    data: { logoImage: null, logoMime: null, hasLogo: false },
   });
   await audit({
     actorId,
@@ -488,15 +532,19 @@ export async function removeTeamLogo(
 }
 
 export async function getTeamLogo(
-  userId: string,
+  userId: string | null,
   teamId: string,
 ): Promise<{ image: Buffer; mime: string }> {
-  await activeMembership(userId, teamId);
   const team = await db.team.findUnique({
     where: { id: teamId },
-    select: { logoImage: true, logoMime: true },
+    select: { logoImage: true, logoMime: true, visibility: true },
   });
   if (!team?.logoImage || !team.logoMime) throw notFound("No team logo");
+  // Public teams: logo is public. Private teams: members only.
+  if (team.visibility !== "PUBLIC") {
+    if (!userId) throw notFound("No team logo");
+    await activeMembership(userId, teamId);
+  }
   return { image: team.logoImage as Buffer, mime: team.logoMime };
 }
 
@@ -571,7 +619,7 @@ export async function discoverTeams(
       visibility: "PUBLIC",
       name: { contains: q, mode: "insensitive" },
     },
-    select: { id: true, name: true, description: true },
+    select: { id: true, name: true, description: true, hasLogo: true },
     orderBy: { name: "asc" },
     take: 10,
   });

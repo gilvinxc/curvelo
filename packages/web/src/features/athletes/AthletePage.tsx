@@ -2,13 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../../lib/api";
 import {
-  Avatar,
   EmptyState,
   ErrorBanner,
   FullScreenLoader,
   PageHeader,
   RoleBadge,
-} from "../../components/ui";
+  UserAvatar,} from "../../components/ui";
 import { AssignmentRow } from "../calendar/CalendarBits";
 import { ActivityRow } from "../activities/ActivityRow";
 import { AthleteGuardians } from "../guardians/AthleteGuardians";
@@ -112,7 +111,7 @@ export function AthletePage() {
       />
 
       <div className="mb-5 flex items-center gap-3">
-        <Avatar name={athlete.displayName} size="lg" />
+        <UserAvatar userId={athlete.userId} name={athlete.displayName} hasAvatar={athlete.hasAvatar} size="lg" />
         <div>
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-black tracking-tight">

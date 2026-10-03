@@ -70,6 +70,7 @@ model User {
   status          String      @default("ACTIVE")
   emailVerifiedAt DateTime?
   avatarImage     Bytes?
+  hasAvatar       Boolean          @default(false)
   avatarMime      String?
   lastLoginAt     DateTime?
   createdAt       DateTime    @default(now())
@@ -206,6 +207,7 @@ model Team {
   joinRequests         TeamJoinRequest[]
   goals                Goal[]                @relation("TeamGoals")
   logoImage            Bytes?
+  hasLogo              Boolean          @default(false)
   logoMime             String?
   seasons              Season[]
   complianceRules      ComplianceRule[]

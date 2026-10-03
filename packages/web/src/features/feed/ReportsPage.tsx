@@ -3,14 +3,13 @@ import { useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, ApiError } from "../../lib/api";
 import {
-  Avatar,
   Button,
   Card,
   EmptyState,
   ErrorBanner,
   FullScreenLoader,
   PageHeader,
-} from "../../components/ui";
+  UserAvatar,} from "../../components/ui";
 import { formatRelativeTime } from "./feedFormat";
 
 const STATUS_FILTERS = ["OPEN", "RESOLVED", "DISMISSED"] as const;
@@ -144,7 +143,7 @@ export function ReportsPage({ teamId }: { teamId: string }) {
           {reports.map((r) => (
             <Card key={r.id} className="p-4">
               <div className="flex items-start gap-3">
-                <Avatar name={r.reporterName} size="sm" className="mt-0.5" />
+                <UserAvatar userId={r.reporterId} name={r.reporterName} hasAvatar={r.reporterHasAvatar} size="sm" className="mt-0.5" />
                 <div className="min-w-0 flex-1">
                   <p className="text-[14px]">
                     <span className="font-bold">{r.reporterName}</span>{" "}

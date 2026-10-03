@@ -84,10 +84,12 @@ export function TeamStatusRow({
   teamId,
   teamName,
   myRole,
+  hasLogo,
 }: {
   teamId: string;
   teamName: string;
   myRole: string | null;
+  hasLogo?: boolean;
 }) {
   const units = useUnits();
   const healthQuery = useQuery({
@@ -102,7 +104,7 @@ export function TeamStatusRow({
     <Link to={`/teams/${teamId}`} className="block">
       <Card className="p-4 transition hover:border-volt-400/40">
         <div className="flex items-center gap-3">
-          <TeamLogo teamId={teamId} teamName={teamName} hasLogo={false} size={40} />
+          <TeamLogo teamId={teamId} teamName={teamName} hasLogo={hasLogo ?? false} size={40} />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <p className="truncate text-[15px] font-extrabold text-ink-50">
@@ -182,6 +184,7 @@ export function TeamDiscovery() {
               key={t.id}
               className="flex items-center gap-3 rounded-xl border border-ink-700 bg-ink-900/40 p-3"
             >
+              <TeamLogo teamId={t.id} teamName={t.name} hasLogo={t.hasLogo ?? false} size={40} />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[14px] font-bold text-ink-50">
                   {t.name}

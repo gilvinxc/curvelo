@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError, api } from "../../lib/api";
 import { useAuth } from "../../lib/auth";
 import {
-  Avatar,
   Button,
   Card,
   ErrorBanner,
@@ -14,6 +13,7 @@ import {
   RoleBadge,
   formatDate,
 } from "../../components/ui";
+import { TeamLogo } from "../teams/TeamLogo";
 
 export function InviteAcceptPage() {
   const { token } = useParams<{ token: string }>();
@@ -82,7 +82,7 @@ export function InviteAcceptPage() {
       ) : !user ? (
         <Card>
           <div className="flex flex-col items-center text-center">
-            <Avatar name={invitation.teamName} size="lg" />
+            <TeamLogo teamId="" teamName={invitation.teamName} hasLogo={invitation.hasLogo ?? false} size={72} src={api.invitationLogoUrl(token!)} />
             <p className="mt-4 text-[13px] font-bold uppercase tracking-[0.18em] text-volt-400">
               You're invited
             </p>
@@ -141,7 +141,7 @@ export function InviteAcceptPage() {
       ) : (
         <Card>
           <div className="flex flex-col items-center text-center">
-            <Avatar name={invitation.teamName} size="lg" />
+            <TeamLogo teamId="" teamName={invitation.teamName} hasLogo={invitation.hasLogo ?? false} size={72} src={api.invitationLogoUrl(token!)} />
             <p className="mt-4 text-[13px] font-bold uppercase tracking-[0.18em] text-volt-400">
               You're invited
             </p>

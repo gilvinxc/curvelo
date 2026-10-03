@@ -47,7 +47,7 @@ function toLinkDTO(link: JoinLinkRow, includeToken: boolean) {
 async function getLinkOrThrow(token: string) {
   const link = await db.teamJoinLink.findUnique({
     where: { token },
-    include: { team: { select: { name: true, description: true } } },
+    include: { team: { select: { id: true, name: true, description: true, hasLogo: true, logoImage: true, logoMime: true } } },
   });
   if (!link) throw notFound("Invite link not found");
   return link;
@@ -143,10 +143,23 @@ export async function previewJoinLink(token: string) {
     link: {
       teamName: link.team.name,
       teamDescription: link.team.description,
+      hasLogo: link.team.hasLogo,
       expiresAt: link.expiresAt.toISOString(),
       usesLeft: link.maxUses == null ? null : link.maxUses - link.useCount,
     },
   };
+}
+
+/** Public team logo for the join page (token-gated, like the preview). */
+export async function getJoinLinkLogo(token: string): Promise<{ image: Buffer; mime: string }> {
+  const link = await getLinkOrThrow(token);
+  requireUsable(link);
+  const logo = link.team.logoImage as Buffer | null;
+  if (!logo || !link.team.logoMime) {
+    const { notFound } = await import("../../lib/errors.js");
+    throw notFound("No team logo");
+  }
+  return { image: logo, mime: link.team.logoMime };
 }
 
 /** Logged-in user requests to join. A coach/admin must approve — links never auto-join. */
@@ -200,7 +213,7 @@ export async function listJoinRequests(actorId: string, teamId: string) {
   requireManager(membership);
   const requests = await db.teamJoinRequest.findMany({
     where: { teamId, status: "PENDING" },
-    include: { user: { select: { id: true, displayName: true, email: true } } },
+    include: { user: { select: { id: true, displayName: true, email: true, hasAvatar: true } } },
     orderBy: { createdAt: "asc" },
   });
   return {
