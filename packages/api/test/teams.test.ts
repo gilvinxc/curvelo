@@ -22,6 +22,55 @@ describe("teams", () => {
     expect(res.body.team.memberCount).toBe(1);
   });
 
+  it("similar-teams lookup returns name and description only", async () => {
+    const app = await getApp();
+    const coach = await registerUser("COACH", "simcoach");
+    const runner = await registerUser("RUNNER", "simrunner");
+    const created = await createTeam(coach, {
+      name: "Winchester Track Club",
+      description: "Fall XC squad",
+    });
+    const teamId = created.body.team.id;
+
+    const res = await request(app.server)
+      .get("/api/v1/teams/similar?name=winchester")
+      .set(cookieHeader(runner));
+    expect(res.status).toBe(200);
+    expect(res.body.teams).toHaveLength(1);
+    // Access stays limited: only name + description, no roster/members.
+    expect(Object.keys(res.body.teams[0]).sort()).toEqual([
+      "description",
+      "id",
+      "name",
+    ]);
+    expect(res.body.teams[0].description).toBe("Fall XC squad");
+
+    // Teams the caller is already on are excluded.
+    const own = await request(app.server)
+      .get("/api/v1/teams/similar?name=winchester")
+      .set(cookieHeader(coach));
+    expect(own.body.teams).toHaveLength(0);
+
+    // Direct join request needs coach approval — not auto-join.
+    const jr = await request(app.server)
+      .post(`/api/v1/teams/${teamId}/join-requests`)
+      .set(cookieHeader(runner));
+    expect(jr.status).toBe(201);
+    expect(jr.body.teamName).toBe("Winchester Track Club");
+
+    // Duplicate request rejected.
+    const dup = await request(app.server)
+      .post(`/api/v1/teams/${teamId}/join-requests`)
+      .set(cookieHeader(runner));
+    expect(dup.status).toBe(409);
+
+    // Runner is still not a member until a coach approves.
+    const page = await request(app.server)
+      .get(`/api/v1/teams/${teamId}`)
+      .set(cookieHeader(runner));
+    expect([403, 404]).toContain(page.status);
+  });
+
   it("rejects duplicate slugs", async () => {
     const coach = await registerUser("COACH", "slugcoach");
     const first = await createTeam(coach, { name: "Riverside RC", slug: "riverside-rc" });

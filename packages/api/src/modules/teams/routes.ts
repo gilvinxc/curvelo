@@ -1,4 +1,5 @@
 import type { FastifyInstance } from "fastify";
+import { z } from "zod";
 import {
   createTeamSchema,
   setTeamLogoSchema,
@@ -10,6 +11,7 @@ import {
 } from "@curvelo/shared";
 import {
   createTeam,
+  findSimilarTeams,
   getRoster,
   getTeam,
   getTeamLogo,
@@ -19,6 +21,7 @@ import {
   removeTeamLogo,
   setTeamLogo,
   transferTeam,
+  requestJoinDirect,
   updateMemberRole,
   updateTeam,
 } from "./service.js";
@@ -40,6 +43,20 @@ export async function teamRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({ teams });
   });
 
+  // Similar-name lookup for the new-team nudge. Name + description only —
+  // no roster or member details leak.
+  app.get(
+    "/similar",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { name } = z
+        .object({ name: z.string().min(1).max(80) })
+        .parse(request.query);
+      const teams = await findSimilarTeams(request.user!.id, name);
+      return reply.send({ teams });
+    },
+  );
+
   app.get(
     "/:id",
     { preHandler: [app.authenticate] },
@@ -47,6 +64,16 @@ export async function teamRoutes(app: FastifyInstance): Promise<void> {
       const { id } = teamParamsSchema.parse(request.params);
       const team = await getTeam(request.user!.id, id);
       return reply.send({ team });
+    },
+  );
+
+  app.post(
+    "/:id/join-requests",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { id } = teamParamsSchema.parse(request.params);
+      const result = await requestJoinDirect(request.user!.id, id, request.ip);
+      return reply.status(201).send(result);
     },
   );
 

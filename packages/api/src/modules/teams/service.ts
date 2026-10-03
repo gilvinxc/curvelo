@@ -491,3 +491,63 @@ export async function getTeamLogo(
   if (!team?.logoImage || !team.logoMime) throw notFound("No team logo");
   return { image: team.logoImage as Buffer, mime: team.logoMime };
 }
+
+/** Teams with a similar name the user isn't on yet — name + description only. */
+export async function findSimilarTeams(
+  userId: string,
+  name: string,
+): Promise<{ id: string; name: string; description: string | null }[]> {
+  const q = name.trim().toLowerCase();
+  if (q.length < 3) return [];
+  const teams = await db.team.findMany({
+    where: {
+      name: { contains: q, mode: "insensitive" },
+      memberships: { none: { userId, status: "ACTIVE" } },
+    },
+    select: { id: true, name: true, description: true },
+    take: 5,
+  });
+  return teams;
+}
+
+/** Direct join request (no invite link) — still needs coach approval. */
+export async function requestJoinDirect(
+  userId: string,
+  teamId: string,
+  ipAddress?: string,
+) {
+  const team = await db.team.findUnique({
+    where: { id: teamId },
+    select: { id: true, name: true },
+  });
+  if (!team) throw notFound("Team not found");
+
+  const existing = await db.teamMembership.findUnique({
+    where: { teamId_userId: { teamId, userId } },
+  });
+  if (existing?.status === "ACTIVE") {
+    throw conflict("ALREADY_MEMBER", "You're already a member of this team");
+  }
+
+  const pending = await db.teamJoinRequest.findFirst({
+    where: { teamId, userId, status: "PENDING" },
+  });
+  if (pending) {
+    throw conflict("ALREADY_REQUESTED", "Your request is already waiting for approval");
+  }
+
+  const request = await db.teamJoinRequest.create({
+    data: { teamId, userId },
+  });
+
+  await audit({
+    actorId: userId,
+    action: "JOIN_REQUESTED",
+    entityType: "Team",
+    entityId: teamId,
+    metadata: { requestId: request.id, direct: true },
+    ipAddress,
+  });
+
+  return { requestId: request.id, teamId, teamName: team.name };
+}
