@@ -699,13 +699,29 @@ export async function myStats(
   });
   const totalDistanceM = agg._sum.distanceM ?? 0;
   const totalDurationS = agg._sum.durationS ?? 0;
+  // Pace only counts runs with both distance and time; a run missing
+  // either one must not inflate the average.
+  const paceAgg = await db.activity.aggregate({
+    where: {
+      userId: actorId,
+      startedAt: {
+        gte: new Date(from + "T00:00:00Z"),
+        lt: endOfDayExclusive(to),
+      },
+      distanceM: { gt: 0 },
+      durationS: { gt: 0 },
+    },
+    _sum: { distanceM: true, durationS: true },
+  });
+  const paceDistanceM = paceAgg._sum.distanceM ?? 0;
+  const paceDurationS = paceAgg._sum.durationS ?? 0;
   return {
     count: agg._count,
     totalDistanceM: Math.round(totalDistanceM),
     totalDurationS,
     avgPaceS:
-      totalDistanceM > 0 && totalDurationS > 0
-        ? Math.round((totalDurationS / totalDistanceM) * 1000 * 10) / 10
+      paceDistanceM > 0 && paceDurationS > 0
+        ? Math.round((paceDurationS / paceDistanceM) * 1000 * 10) / 10
         : null,
   };
 }
@@ -773,6 +789,15 @@ export async function athleteView(
 
   const totalDistanceM = recent.reduce((s, a) => s + (a.distanceM ?? 0), 0);
   const totalDurationS = recent.reduce((s, a) => s + (a.durationS ?? 0), 0);
+  // Pace only counts runs with both distance and time.
+  const paceDistanceM = recent.reduce(
+    (s, a) => s + (a.distanceM && a.durationS ? a.distanceM : 0),
+    0,
+  );
+  const paceDurationS = recent.reduce(
+    (s, a) => s + (a.distanceM && a.durationS ? a.durationS : 0),
+    0,
+  );
 
   return {
     userId,
@@ -783,8 +808,8 @@ export async function athleteView(
       totalDistanceM: Math.round(totalDistanceM),
       totalDurationS,
       avgPaceS:
-        totalDistanceM > 0 && totalDurationS > 0
-          ? Math.round((totalDurationS / totalDistanceM) * 1000 * 10) / 10
+        paceDistanceM > 0 && paceDurationS > 0
+          ? Math.round((paceDurationS / paceDistanceM) * 1000 * 10) / 10
           : null,
     },
     recentActivities: await Promise.all(recent.map(toActivityDTO)),

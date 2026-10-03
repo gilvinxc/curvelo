@@ -180,6 +180,23 @@ describe("activities", () => {
       totalDurationS: 3900,
     });
     expect(stats.body.stats.avgPaceS).toBeCloseTo(300, 1);
+
+    // A run with distance but no time must not inflate the pace average.
+    await request(app.server)
+      .post("/api/v1/activities")
+      .set(auth)
+      .send({
+        ...RUN_BODY,
+        startedAt: "2026-09-20T13:00:00Z",
+        distanceM: 10000,
+        durationS: undefined,
+      });
+    const stats2 = await request(app.server)
+      .get("/api/v1/users/me/stats?from=2026-09-01&to=2026-09-30")
+      .set(auth);
+    expect(stats2.status).toBe(200);
+    expect(stats2.body.stats.totalDistanceM).toBe(23000);
+    expect(stats2.body.stats.avgPaceS).toBeCloseTo(300, 1);
   });
 
   it("coach athlete view: profile, stats, recent activities, upcoming assignments", async () => {
