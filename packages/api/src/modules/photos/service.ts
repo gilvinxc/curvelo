@@ -2,7 +2,7 @@ import { db } from "../../db.js";
 import { activeMembership, requireManager } from "../../lib/permissions.js";
 import { newStorageKey, storage, MAX_UPLOAD_BYTES } from "../../lib/storage.js";
 import { audit } from "../../lib/audit.js";
-import { AppError } from "../../lib/errors.js";
+import { AppError, forbidden } from "../../lib/errors.js";
 
 export const PHOTO_MIME = new Set([
   "image/jpeg",
@@ -121,8 +121,16 @@ export async function createAlbum(
   };
 }
 
+/** Photos are inner-circle only — alumni (outer tier) can't view them. */
+function requireInnerCircle(membership: { role: string }): void {
+  if (membership.role === "ALUMNI") {
+    throw forbidden("Photos are only visible to current team members");
+  }
+}
+
 export async function listAlbums(actorId: string, teamId: string): Promise<AlbumDTO[]> {
-  await activeMembership(actorId, teamId);
+  const membership = await activeMembership(actorId, teamId);
+  requireInnerCircle(membership);
   const albums = await db.album.findMany({
     where: { teamId },
     orderBy: { createdAt: "desc" },
@@ -203,6 +211,7 @@ export async function listPhotos(
   opts: { albumId?: string; includePending?: boolean },
 ): Promise<PhotoDTO[]> {
   const membership = await activeMembership(actorId, teamId);
+  requireInnerCircle(membership);
   const isManager = membership.role === "COACH" || membership.role === "TEAM_ADMIN";
   const status =
     opts.includePending && isManager ? undefined : ("APPROVED" as const);
@@ -265,6 +274,7 @@ export async function deletePhoto(
   const photo = await db.photo.findUnique({ where: { id: photoId } });
   if (!photo) throw new AppError(404, "NOT_FOUND", "Photo not found.");
   const membership = await activeMembership(actorId, photo.teamId);
+  requireInnerCircle(membership);
   const isManager = membership.role === "COACH" || membership.role === "TEAM_ADMIN";
   if (photo.uploaderId !== actorId && !isManager) {
     throw new AppError(403, "FORBIDDEN", "You can only delete your own photos.");
@@ -288,6 +298,7 @@ export async function getPhotoFile(
   const photo = await db.photo.findUnique({ where: { id: photoId } });
   if (!photo) throw new AppError(404, "NOT_FOUND", "Photo not found.");
   const membership = await activeMembership(actorId, photo.teamId);
+  requireInnerCircle(membership);
   const isManager = membership.role === "COACH" || membership.role === "TEAM_ADMIN";
   // Pending photos are only visible to the uploader and coaches.
   if (photo.status !== "APPROVED" && photo.uploaderId !== actorId && !isManager) {

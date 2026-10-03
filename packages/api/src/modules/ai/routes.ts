@@ -5,7 +5,7 @@ import {
   teamDigestParamsSchema,
   teamDigestQuerySchema,
 } from "@curvelo/shared";
-import { getAthleteInsight, getMyInsight, getRaceAnalysis, getTeamDigest } from "./service.js";
+import { draftAlumniDigest, getAthleteInsight, getMyInsight, getRaceAnalysis, getTeamDigest } from "./service.js";
 
 export async function aiRoutes(app: FastifyInstance): Promise<void> {
   // Coach view: AI-assisted insight for one athlete (28-day window).

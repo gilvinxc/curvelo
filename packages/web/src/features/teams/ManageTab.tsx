@@ -16,7 +16,7 @@ import {
   TextInput,
 } from "../../components/ui";
 
-const MANAGEABLE_ROLES = ["COACH", "TEAM_ADMIN", "RUNNER", "PARENT", "ALUMNI"] as const;
+const MANAGEABLE_ROLES = ["COACH", "TEAM_ADMIN", "RUNNER", "ALUMNI"] as const;
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (

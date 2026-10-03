@@ -117,6 +117,8 @@ async function canPost(
 ): Promise<boolean> {
   if (access.guardian || !access.membership) return false;
   const role = access.membership.role;
+  // Alumni are read-only everywhere.
+  if (role === "ALUMNI") return false;
   if (conv.kind === "ANNOUNCEMENT") return isManagerRole(role);
   if (conv.kind === "TEAM_CHAT") return true;
   // GROUP_CHAT: coaches/admins or group members only.
@@ -163,7 +165,10 @@ export async function listConversations(
   });
 
   const dtos: ConversationDTO[] = [];
+  const isAlumni = !access.guardian && access.membership.role === "ALUMNI";
   for (const conv of convs) {
+    // Alumni (outer tier) see announcements only — no team chat, no groups.
+    if (isAlumni && conv.kind !== "ANNOUNCEMENT") continue;
     // Guardians only see conversations their linked athlete could see.
     if (access.guardian && conv.kind === "GROUP_CHAT" && conv.groupId) {
       const linked = await db.guardianLink.findFirst({
@@ -233,8 +238,16 @@ export async function listMessages(
   before?: string,
   limit = 50,
 ): Promise<{ messages: ChatMessageDTO[]; hasMore: boolean }> {
-  await resolveTeamAccess(actorId, teamId);
+  const access = await resolveTeamAccess(actorId, teamId);
   const conv = await getConversation(teamId, convId);
+  // Alumni (outer tier) may only read announcements.
+  if (
+    !access.guardian &&
+    access.membership.role === "ALUMNI" &&
+    conv.kind !== "ANNOUNCEMENT"
+  ) {
+    throw notFound("Conversation not found");
+  }
 
   const where = {
     conversationId: conv.id,

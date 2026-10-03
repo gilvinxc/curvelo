@@ -28,6 +28,8 @@ export function FeedPage({
   const [optimisticPosts, setOptimisticPosts] = useState<PostDTO[]>([]);
   const [shoutoutOpen, setShoutoutOpen] = useState(false);
   const canModerate = myRole !== null && CAN_MODERATE.has(myRole);
+  // Alumni (outer tier) are read-only: no composer, no shoutouts.
+  const isAlumni = myRole === "ALUMNI";
 
   const feedQuery = useInfiniteQuery({
     queryKey: ["feed", teamId],
@@ -50,17 +52,21 @@ export function FeedPage({
 
   return (
     <div className="flex flex-col gap-4">
-      <Composer
-        teamId={teamId}
-        onPosted={(post) => setOptimisticPosts((prev) => [post, ...prev])}
-      />
-      <button
-        type="button"
-        onClick={() => setShoutoutOpen(true)}
-        className="rounded-2xl border border-dashed border-amber-300/30 bg-amber-300/5 px-4 py-3 text-left text-[14px] font-semibold text-amber-200 transition hover:border-amber-300/60 hover:bg-amber-300/10"
-      >
-        💛 Give a teammate a shoutout
-      </button>
+      {!isAlumni && (
+        <>
+          <Composer
+            teamId={teamId}
+            onPosted={(post) => setOptimisticPosts((prev) => [post, ...prev])}
+          />
+          <button
+            type="button"
+            onClick={() => setShoutoutOpen(true)}
+            className="rounded-2xl border border-dashed border-amber-300/30 bg-amber-300/5 px-4 py-3 text-left text-[14px] font-semibold text-amber-200 transition hover:border-amber-300/60 hover:bg-amber-300/10"
+          >
+            💛 Give a teammate a shoutout
+          </button>
+        </>
+      )}
       <ShoutoutDialog
         teamId={teamId}
         open={shoutoutOpen}

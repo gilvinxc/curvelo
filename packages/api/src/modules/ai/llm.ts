@@ -1,6 +1,6 @@
 import type { TrainingStats } from "@curvelo/shared";
 import { formatDistance, formatPace } from "./stats.js";
-import { LocalAnalyst, type InsightProvider, type NarrativeInput, type RaceNarrativeInput } from "./providers.js";
+import { LocalAnalyst, type AlumniDigestInput, type InsightProvider, type NarrativeInput, type RaceNarrativeInput } from "./providers.js";
 import { config } from "../../config.js";
 
 /**
@@ -140,6 +140,23 @@ export class LlmProvider implements InsightProvider {
     }
     if (!narrative) narrative = raw.slice(0, 400);
     return { narrative, cues: cues.length > 0 ? cues : input.analysis.coachingCues };
+  }
+
+  async alumniDigest(input: AlumniDigestInput) {
+    const system =
+      "You write alumni updates for a youth running team. You receive verified team highlights as JSON — " +
+      "milestones, shoutouts, welcomes, and announcements. Write a warm, upbeat update for former team members " +
+      "(alumni). Text only, no photos. Keep it under 200 words. Never invent names, achievements, or events — " +
+      "only use the highlights given. Do not include training details like paces or workout specifics.";
+    const raw = await this.complete(
+      system,
+      JSON.stringify({
+        team: input.teamName,
+        days: input.days,
+        highlights: input.highlights,
+      }),
+    );
+    return { draft: raw.slice(0, 2000) };
   }
 }
 

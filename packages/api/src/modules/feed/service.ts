@@ -143,7 +143,10 @@ export async function createPost(
   input: CreatePostInput,
   ipAddress?: string,
 ): Promise<PostDTO> {
-  await activeMembership(actorId, teamId);
+  const membership = await activeMembership(actorId, teamId);
+  if (membership.role === "ALUMNI") {
+    throw forbidden("Alumni can't post to the team wall");
+  }
 
   let activityId: string | null = null;
   if (input.activityId) {
@@ -268,16 +271,24 @@ export async function createSystemPost(opts: {
   return toPostDTO(post, opts.authorId, mentions);
 }
 
+/** Post kinds visible to the alumni (outer) tier. No training data, no photos. */
+export const ALUMNI_VISIBLE_KINDS = ["MILESTONE", "SHOUTOUT", "WELCOME"] as const;
+
 export async function listFeed(
   actorId: string,
   teamId: string,
   opts: { before?: string; limit: number },
 ): Promise<PostDTO[]> {
-  await activeMembership(actorId, teamId);
+  const membership = await activeMembership(actorId, teamId);
   const posts = await db.feedPost.findMany({
     where: {
       teamId,
       ...(opts.before ? { createdAt: { lt: new Date(opts.before) } } : {}),
+      // Alumni (outer tier) see only celebratory kinds — no workout logs,
+      // no training posts, no photos.
+      ...(membership.role === "ALUMNI"
+        ? { kind: { in: [...ALUMNI_VISIBLE_KINDS] } }
+        : {}),
     },
     include: POST_INCLUDE,
     orderBy: { createdAt: "desc" },

@@ -796,6 +796,11 @@ export const api = {
       `/teams/${teamId}/conversations/${conversationId}/messages${qs ? `?${qs}` : ""}`,
     );
   },
+  draftAlumniDigest: (teamId: string, days = 14) =>
+    post<{ draft: string; highlights: number }>(
+      `/teams/${teamId}/alumni-digest/draft?days=${days}`,
+      {},
+    ),
   postMessage: (teamId: string, conversationId: string, body: string) =>
     post<{ message: ChatMessageDTO }>(
       `/teams/${teamId}/conversations/${conversationId}/messages`,

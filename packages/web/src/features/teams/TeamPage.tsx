@@ -24,6 +24,7 @@ import { GoalsTab } from "../goals/GoalsTab";
 import { FeedPage } from "../feed/FeedPage";
 import { MessagesSection } from "../messages/MessagesSection";
 import { TeamDigestSection } from "../insights/TeamDigestSection";
+import { AlumniDigestDialog } from "../insights/AlumniDigestDialog";
 import { PracticePlanner } from "./PracticePlanner";
 import { TeamLogDialog } from "../activities/TeamLogDialog";
 import { TeamRaceDialog } from "../records/TeamRaceDialog";
@@ -269,6 +270,7 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [teamLogOpen, setTeamLogOpen] = useState(false);
   const [teamRaceOpen, setTeamRaceOpen] = useState(false);
+  const [alumniDigestOpen, setAlumniDigestOpen] = useState(false);
 
   const teamQuery = useQuery({
     queryKey: ["team", id],
@@ -289,7 +291,11 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
 
   const { team } = teamQuery.data;
   const canInvite = team.myRole !== null && CAN_INVITE.has(team.myRole);
-  const tabs = TABS.filter((t) => !t.coachOnly || canInvite);
+  // Alumni (outer tier): no photos, no manage tab.
+  const isAlumni = team.myRole === "ALUMNI";
+  const tabs = TABS.filter(
+    (t) => (!t.coachOnly || canInvite) && !(isAlumni && t.id === "photos"),
+  );
 
   return (
     <div>
@@ -390,9 +396,24 @@ export function TeamPage({ initialTab = "roster" }: { initialTab?: TeamTab }) {
             </Button>
           </div>
           <TeamDigestSection teamId={team.id} />
+          <div className="mt-4">
+            <Button
+              variant="secondary"
+              className="min-h-[44px] px-4 text-[14px]"
+              onClick={() => setAlumniDigestOpen(true)}
+            >
+              ✍️ Draft alumni update
+            </Button>
+          </div>
           <div className="mt-6">
             <PracticePlanner teamId={team.id} />
           </div>
+          {alumniDigestOpen && (
+            <AlumniDigestDialog
+              teamId={team.id}
+              onClose={() => setAlumniDigestOpen(false)}
+            />
+          )}
         </>
       )}
       {initialTab === "goals" && (

@@ -328,3 +328,97 @@ function parseSplitsLoose(
   }
   return out.length >= 2 ? out : null;
 }
+
+/**
+ * Draft an alumni-facing team update. Coach-only. Returns a draft for the
+ * coach to review and publish — the AI never posts on its own.
+ */
+export async function draftAlumniDigest(
+  actorId: string,
+  teamId: string,
+  days = 14,
+): Promise<{ draft: string; highlights: number }> {
+  const membership = await activeMembership(actorId, teamId);
+  requireManager(membership);
+
+  const team = await db.team.findUniqueOrThrow({
+    where: { id: teamId },
+    select: { name: true },
+  });
+
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  // Verified highlights only: milestones, shoutouts, welcomes.
+  const posts = await db.feedPost.findMany({
+    where: {
+      teamId,
+      createdAt: { gte: since },
+      kind: { in: ["MILESTONE", "SHOUTOUT", "WELCOME"] },
+    },
+    select: { kind: true, body: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+    take: 30,
+  });
+
+  // Recent announcements (coach-written, already alumni-safe).
+  const announcements = await db.conversation.findFirst({
+    where: { teamId, kind: "ANNOUNCEMENT" },
+    select: { id: true },
+  });
+  const announcementTexts: Array<{ text: string; date: string }> = [];
+  if (announcements) {
+    const msgs = await db.message.findMany({
+      where: { conversationId: announcements.id, createdAt: { gte: since } },
+      select: { body: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+    for (const m of msgs) {
+      announcementTexts.push({
+        text: m.body.slice(0, 300),
+        date: m.createdAt.toISOString().slice(0, 10),
+      });
+    }
+  }
+
+  const highlights = [
+    ...posts.map((p) => ({
+      kind: p.kind as "MILESTONE" | "SHOUTOUT" | "WELCOME",
+      text: (p.body ?? "").slice(0, 300),
+      date: p.createdAt.toISOString().slice(0, 10),
+    })),
+    ...announcementTexts.map((a) => ({
+      kind: "ANNOUNCEMENT" as const,
+      text: a.text,
+      date: a.date,
+    })),
+  ];
+
+  const provider = selectProvider();
+  let draft: string;
+  try {
+    ({ draft } = await provider.alumniDigest({
+      teamName: team.name,
+      days,
+      highlights,
+    }));
+  } catch {
+    const { LocalAnalyst } = await import("./providers.js");
+    ({ draft } = await new LocalAnalyst().alumniDigest({
+      teamName: team.name,
+      days,
+      highlights,
+    }));
+  }
+
+  await audit({
+    actorId,
+    action: "AI_ALUMNI_DIGEST_DRAFTED",
+    entityType: "Team",
+    entityId: teamId,
+    metadata: { days, highlights: highlights.length },
+    ipAddress: undefined,
+  });
+
+  return { draft, highlights: highlights.length };
+}

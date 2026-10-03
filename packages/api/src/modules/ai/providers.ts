@@ -47,6 +47,23 @@ export interface InsightProvider {
     narrative: string;
     cues: string[];
   }>;
+  /**
+   * Draft an alumni-facing team update from verified highlights.
+   * Text only, no photos. The coach always reviews before publishing —
+   * the AI drafts, never sends.
+   */
+  alumniDigest(input: AlumniDigestInput): Promise<{ draft: string }>;
+}
+
+/** Verified highlights the alumni digest may draw from. */
+export interface AlumniDigestInput {
+  teamName: string;
+  days: number;
+  highlights: Array<{
+    kind: "MILESTONE" | "SHOUTOUT" | "WELCOME" | "ANNOUNCEMENT";
+    text: string;
+    date: string;
+  }>;
 }
 
 function plural(n: number, one: string, many: string): string {
@@ -153,5 +170,21 @@ export class LocalAnalyst implements InsightProvider {
     if (a.fadeOrKick) narrative += ` They ${a.fadeOrKick}.`;
     if (a.vsPrevious) narrative += ` ${a.vsPrevious}.`;
     return { narrative, cues: a.coachingCues };
+  }
+
+  async alumniDigest(input: AlumniDigestInput) {
+    const { teamName, days, highlights } = input;
+    if (highlights.length === 0) {
+      return {
+        draft: `Hi ${teamName} alumni! Quiet ${days} days on the team front — no new milestones or shoutouts to report. Check back next time.`,
+      };
+    }
+    const lines = highlights.map((h) => `- ${h.text}`);
+    return {
+      draft:
+        `Hi ${teamName} alumni! Here's what the team has been up to over the last ${days} days:\n\n` +
+        lines.join("\n") +
+        `\n\nKeep cheering — the team appreciates you.`,
+    };
   }
 }
