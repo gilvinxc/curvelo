@@ -26,6 +26,8 @@ export interface TeamDTO {
   slug: string;
   description: string | null;
   visibility: string;
+  city: string | null;
+  state: string | null;
   memberCount: number;
   myRole: string | null;
   /** Present on single-team fetches; true when the viewer owns the team. */
@@ -33,6 +35,28 @@ export interface TeamDTO {
   /** True when the team has a logo (fetch it from /teams/:id/logo). */
   hasLogo: boolean;
   createdAt: string;
+}
+
+/**
+ * Safe public team shape for the team directory and public previews.
+ * NEVER includes roster, member counts, feed, or any internals.
+ */
+export interface PublicTeamDTO {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  city: string | null;
+  state: string | null;
+  hasLogo: boolean;
+  visibility: string;
+}
+
+export interface TeamDirectoryPage {
+  teams: PublicTeamDTO[];
+  page: number;
+  pageSize: number;
+  total: number;
 }
 
 /** Roster entry. Coaches see emails + contact info; runners see names only. */

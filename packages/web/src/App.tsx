@@ -17,6 +17,7 @@ import { AdminPage } from "./features/admin/AdminPage";
 import { ProgressPage } from "./features/progress/ProgressPage";
 import { NewTeamPage } from "./features/teams/NewTeamPage";
 import { TeamPage } from "./features/teams/TeamPage";
+import { TeamDirectoryPage } from "./features/teams/TeamDirectoryPage";
 import {
   EditWorkoutPage,
   NewWorkoutPage,
@@ -171,6 +172,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <ProgressPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teams/directory"
+            element={
+              <ProtectedRoute>
+                <TeamDirectoryPage />
               </ProtectedRoute>
             }
           />

@@ -110,11 +110,18 @@ export function DashboardPage() {
               <h2 className="text-[13px] font-bold uppercase tracking-[0.18em] text-mist">
                 Team status
               </h2>
-              <Link to="/teams/new">
-                <Button variant="secondary" className="min-h-[44px] px-4 text-[14px]">
-                  + New team
-                </Button>
-              </Link>
+              <div className="flex gap-2">
+                <Link to="/teams/directory">
+                  <Button variant="secondary" className="min-h-[44px] px-4 text-[14px]">
+                    Find a team
+                  </Button>
+                </Link>
+                <Link to="/teams/new">
+                  <Button variant="secondary" className="min-h-[44px] px-4 text-[14px]">
+                    + New team
+                  </Button>
+                </Link>
+              </div>
             </div>
             <div className="flex flex-col gap-3">
               {teams.map((t) => (

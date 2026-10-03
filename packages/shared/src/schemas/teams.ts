@@ -12,6 +12,8 @@ export const createTeamSchema = z.object({
     .optional(),
   description: z.string().max(2000).optional(),
   visibility: z.enum(["PRIVATE", "PUBLIC"]).default("PRIVATE"),
+  city: z.string().min(1).max(80).optional(),
+  state: z.string().min(1).max(40).optional(),
 });
 export type CreateTeamInput = z.infer<typeof createTeamSchema>;
 
@@ -52,6 +54,15 @@ export type ApproveJoinRequestInput = z.infer<typeof approveJoinRequestSchema>;
 export const joinRequestParamsSchema = teamParamsSchema.extend({
   requestId: z.string().uuid(),
 });
+
+// ---- Public team directory ----
+export const directoryQuerySchema = z.object({
+  q: z.string().min(1).max(80).optional(),
+  city: z.string().min(1).max(80).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(50).default(20),
+});
+export type DirectoryQuery = z.infer<typeof directoryQuerySchema>;
 
 // ---- Member management ----
 

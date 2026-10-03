@@ -546,6 +546,11 @@ function TeamSettingsSection({
   const [description, setDescription] = useState(
     teamQuery.data?.team.description ?? "",
   );
+  const [visibility, setVisibility] = useState<"PRIVATE" | "PUBLIC">(
+    (teamQuery.data?.team.visibility as "PRIVATE" | "PUBLIC" | undefined) ?? "PRIVATE",
+  );
+  const [city, setCity] = useState(teamQuery.data?.team.city ?? "");
+  const [state, setState] = useState(teamQuery.data?.team.state ?? "");
   const [editing, setEditing] = useState(false);
 
   const mutation = useMutation({
@@ -553,6 +558,9 @@ function TeamSettingsSection({
       api.updateTeam(teamId, {
         name: name.trim(),
         description: description.trim() || undefined,
+        visibility,
+        city: city.trim() || undefined,
+        state: state.trim() || undefined,
       }),
     onSuccess: () => {
       setEditing(false);
@@ -571,6 +579,11 @@ function TeamSettingsSection({
             onClick={() => {
               setName(teamQuery.data?.team.name ?? teamName);
               setDescription(teamQuery.data?.team.description ?? "");
+              setVisibility(
+                (teamQuery.data?.team.visibility as "PRIVATE" | "PUBLIC" | undefined) ?? "PRIVATE",
+              );
+              setCity(teamQuery.data?.team.city ?? "");
+              setState(teamQuery.data?.team.state ?? "");
               setEditing(true);
             }}
             className="min-h-[44px] px-4 text-[13px]"
@@ -580,6 +593,13 @@ function TeamSettingsSection({
         </div>
         <p className="mt-2 text-[15px] font-bold text-ink-50">
           {teamQuery.data?.team.name ?? teamName}
+        </p>
+        <p className="mt-1 text-[13px] text-mist">
+          {teamQuery.data?.team.visibility === "PUBLIC"
+            ? "Public — listed in the team directory"
+            : "Private — invite or request only"}
+          {teamQuery.data?.team.city &&
+            ` · ${teamQuery.data.team.city}${teamQuery.data.team.state ? `, ${teamQuery.data.team.state}` : ""}`}
         </p>
         {teamQuery.data?.team.description && (
           <p className="mt-1 text-[13px] text-mist">
@@ -618,6 +638,51 @@ function TeamSettingsSection({
             placeholder="What this team is about"
           />
         </Field>
+        <Field label="Team visibility">
+          <div className="flex gap-2">
+            {(["PRIVATE", "PUBLIC"] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setVisibility(v)}
+                className={`min-h-[44px] flex-1 rounded-xl border px-4 text-[14px] font-bold ${
+                  visibility === v
+                    ? "border-volt-400 bg-volt-400/15 text-volt-300"
+                    : "border-ink-700 text-mist"
+                }`}
+              >
+                {v === "PRIVATE" ? "Private" : "Public"}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-[12px] text-mist">
+            {visibility === "PUBLIC"
+              ? "Public teams appear in the team directory (name, logo, description, location only). Joining still needs your approval."
+              : "Private teams are invisible to non-members — invite link or request only."}
+          </p>
+        </Field>
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <Field label="City (optional)">
+              <TextInput
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                maxLength={80}
+                placeholder="City"
+              />
+            </Field>
+          </div>
+          <div className="flex-1">
+            <Field label="State (optional)">
+              <TextInput
+                value={state}
+                onChange={(e) => setState(e.target.value)}
+                maxLength={40}
+                placeholder="State"
+              />
+            </Field>
+          </div>
+        </div>
         <div className="flex gap-2">
           <Button
             onClick={() => mutation.mutate()}

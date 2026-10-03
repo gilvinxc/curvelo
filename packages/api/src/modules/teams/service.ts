@@ -1,7 +1,10 @@
 import { nanoid } from "nanoid";
 import type {
   CreateTeamInput,
+  DirectoryQuery,
+  PublicTeamDTO,
   RosterMemberDTO,
+  TeamDirectoryPage,
   TeamDTO,
   UpdateTeamInput,
 } from "@curvelo/shared";
@@ -33,6 +36,8 @@ function toTeamDTO(
     slug: string;
     description: string | null;
     visibility: string;
+    city: string | null;
+    state: string | null;
     ownerId: string;
     createdAt: Date;
     hasLogo: boolean;
@@ -47,6 +52,8 @@ function toTeamDTO(
     slug: team.slug,
     description: team.description,
     visibility: team.visibility,
+    city: team.city,
+    state: team.state,
     memberCount: team._count.memberships,
     myRole,
     isOwner: myUserId != null ? team.ownerId === myUserId : undefined,
@@ -54,6 +61,43 @@ function toTeamDTO(
     hasLogo: team.hasLogo,
   };
 }
+
+/**
+ * Safe public projection for the team directory and public previews.
+ * Deliberately excludes roster, member counts, feed, and all internals.
+ */
+function toPublicTeamDTO(team: {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  city: string | null;
+  state: string | null;
+  hasLogo: boolean;
+  visibility: string;
+}): PublicTeamDTO {
+  return {
+    id: team.id,
+    name: team.name,
+    slug: team.slug,
+    description: team.description,
+    city: team.city,
+    state: team.state,
+    hasLogo: team.hasLogo,
+    visibility: team.visibility,
+  };
+}
+
+const publicTeamSelect = {
+  id: true,
+  name: true,
+  slug: true,
+  description: true,
+  city: true,
+  state: true,
+  hasLogo: true,
+  visibility: true,
+} as const;
 
 export async function createTeam(
   ownerId: string,
@@ -85,6 +129,8 @@ export async function createTeam(
         slug,
         description: input.description?.trim() || null,
         visibility: input.visibility,
+        city: input.city?.trim() || null,
+        state: input.state?.trim() || null,
         ownerId,
       },
     });
@@ -106,6 +152,8 @@ export async function createTeam(
       slug: true,
       description: true,
       visibility: true,
+      city: true,
+      state: true,
       ownerId: true,
       createdAt: true,
       hasLogo: true,
@@ -136,6 +184,8 @@ export async function listMyTeams(userId: string): Promise<TeamDTO[]> {
           slug: true,
           description: true,
           visibility: true,
+          city: true,
+          state: true,
           ownerId: true,
           createdAt: true,
           hasLogo: true,
@@ -158,6 +208,8 @@ export async function getTeam(userId: string, teamId: string): Promise<TeamDTO> 
       slug: true,
       description: true,
       visibility: true,
+      city: true,
+      state: true,
       ownerId: true,
       createdAt: true,
       hasLogo: true,
@@ -192,6 +244,8 @@ export async function updateTeam(
       description:
         input.description === undefined ? undefined : input.description?.trim() || null,
       visibility: input.visibility,
+      city: input.city === undefined ? undefined : input.city?.trim() || null,
+      state: input.state === undefined ? undefined : input.state?.trim() || null,
     },
     select: {
       id: true,
@@ -199,6 +253,8 @@ export async function updateTeam(
       slug: true,
       description: true,
       visibility: true,
+      city: true,
+      state: true,
       ownerId: true,
       createdAt: true,
       hasLogo: true,
@@ -214,6 +270,17 @@ export async function updateTeam(
     metadata: { fields: Object.keys(input) },
     ipAddress,
   });
+
+  if (input.visibility !== undefined) {
+    await audit({
+      actorId: userId,
+      action: "TEAM_VISIBILITY_CHANGED",
+      entityType: "Team",
+      entityId: team.id,
+      metadata: { visibility: input.visibility },
+      ipAddress,
+    });
+  }
 
   return toTeamDTO(team, membership.role, userId);
 }
@@ -555,6 +622,8 @@ export async function findSimilarTeams(
 ): Promise<{ id: string; name: string; description: string | null }[]> {
   const q = name.trim().toLowerCase();
   if (q.length < 3) return [];
+  // Duplicate-prevention nudge: name + description only, never roster or
+  // internals. Joining still needs a coach-approved request.
   const teams = await db.team.findMany({
     where: {
       name: { contains: q, mode: "insensitive" },
@@ -623,4 +692,48 @@ export async function discoverTeams(
     orderBy: { name: "asc" },
     take: 10,
   });
+}
+
+/**
+ * Paginated public team directory. PUBLIC teams only, safe fields only —
+ * never roster, member counts, feed, or internals.
+ */
+export async function listPublicTeams(
+  input: DirectoryQuery,
+): Promise<TeamDirectoryPage> {
+  const { page, pageSize } = input;
+  const q = input.q?.trim();
+  const city = input.city?.trim();
+  const where: {
+    visibility: "PUBLIC";
+    name?: { contains: string; mode: "insensitive" };
+    city?: { contains: string; mode: "insensitive" };
+  } = { visibility: "PUBLIC" };
+  if (q) where.name = { contains: q, mode: "insensitive" };
+  if (city) where.city = { contains: city, mode: "insensitive" };
+
+  const [total, teams] = await Promise.all([
+    db.team.count({ where }),
+    db.team.findMany({
+      where,
+      select: publicTeamSelect,
+      orderBy: { name: "asc" },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+  ]);
+  return { teams: teams.map(toPublicTeamDTO), page, pageSize, total };
+}
+
+/**
+ * Public preview of a single team. Safe fields only; 404 unless PUBLIC.
+ * Joining still requires a coach-approved join request.
+ */
+export async function getPublicTeam(teamId: string): Promise<PublicTeamDTO> {
+  const team = await db.team.findUnique({
+    where: { id: teamId },
+    select: publicTeamSelect,
+  });
+  if (!team || team.visibility !== "PUBLIC") throw notFound("Team not found");
+  return toPublicTeamDTO(team);
 }

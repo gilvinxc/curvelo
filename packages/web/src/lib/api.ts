@@ -54,6 +54,8 @@ import type {
   ShoeDTO,
   TeamDigest,
   TeamDTO,
+  PublicTeamDTO,
+  TeamDirectoryPage,
   TeamEventDTO,
   TeamHealthDTO,
   SeasonDTO,
@@ -458,8 +460,20 @@ export const api = {
       `/teams/${teamId}/join-requests`,
       {},
     ),
-  updateTeam: (id: string, input: { name?: string; description?: string }) =>
-    patch<{ team: TeamDTO }>(`/teams/${id}`, input),
+  updateTeam: (
+    id: string,
+    input: { name?: string; description?: string; visibility?: "PRIVATE" | "PUBLIC"; city?: string; state?: string },
+  ) => patch<{ team: TeamDTO }>(`/teams/${id}`, input),
+  listPublicTeams: (params: { q?: string; city?: string; page?: number; pageSize?: number }) => {
+    const qs = new URLSearchParams();
+    if (params.q) qs.set("q", params.q);
+    if (params.city) qs.set("city", params.city);
+    if (params.page) qs.set("page", String(params.page));
+    if (params.pageSize) qs.set("pageSize", String(params.pageSize));
+    return request<TeamDirectoryPage>(`/teams/directory?${qs.toString()}`);
+  },
+  getPublicTeam: (teamId: string) =>
+    request<{ team: PublicTeamDTO }>(`/teams/${teamId}/public`),
   listNotifications: (cursor?: string) =>
     request<{ notifications: NotificationDTO[]; nextCursor: string | null }>(
       `/notifications${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`,

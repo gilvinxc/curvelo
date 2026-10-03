@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import {
   createTeamSchema,
+  directoryQuerySchema,
   setTeamLogoSchema,
   teamMemberParamsSchema,
   teamParamsSchema,
@@ -13,10 +14,12 @@ import {
   createTeam,
   discoverTeams,
   findSimilarTeams,
+  getPublicTeam,
   getRoster,
   getTeam,
   getTeamLogo,
   listMyTeams,
+  listPublicTeams,
   leaveTeam,
   removeMember,
   removeTeamLogo,
@@ -44,6 +47,18 @@ export async function teamRoutes(app: FastifyInstance): Promise<void> {
     return reply.send({ teams });
   });
 
+  // Public team directory: paginated, searchable by name/city.
+  // Safe fields only — never roster, member counts, feed, or internals.
+  app.get(
+    "/directory",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const query = directoryQuerySchema.parse(request.query);
+      const result = await listPublicTeams(query);
+      return reply.send(result);
+    },
+  );
+
   // Public team discovery. Name + description only — no roster or
   // member details leak. Private teams stay unfindable by design.
   app.get(
@@ -69,6 +84,18 @@ export async function teamRoutes(app: FastifyInstance): Promise<void> {
         .parse(request.query);
       const teams = await findSimilarTeams(request.user!.id, name);
       return reply.send({ teams });
+    },
+  );
+
+  // Public preview of a single PUBLIC team: safe fields only.
+  // 404s for private teams. Joining still needs a coach-approved request.
+  app.get(
+    "/:id/public",
+    { preHandler: [app.authenticate] },
+    async (request, reply) => {
+      const { id } = teamParamsSchema.parse(request.params);
+      const team = await getPublicTeam(id);
+      return reply.send({ team });
     },
   );
 

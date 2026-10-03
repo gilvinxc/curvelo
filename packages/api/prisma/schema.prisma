@@ -193,6 +193,8 @@ model Team {
   slug           String         @unique
   description    String?
   visibility     TeamVisibility @default(PRIVATE)
+  city           String?
+  state          String?
   organizationId String?
   organization   Organization?  @relation(fields: [organizationId], references: [id])
   ownerId        String
